@@ -1,0 +1,929 @@
+# COCO — THE COMPLETE ARCHITECTURAL DEFINITION
+
+## Before a single line of code, this is what COCO **is**.
+
+Not what it does. Not how it's built. **What it is.**
+
+We will define COCO in **10 dimensions**. Every dimension must be locked before Phase 0 begins. Once locked, these become the constitution — everything that gets built must conform to these definitions, and everything that violates them gets rejected.
+
+---
+
+# DIMENSION 1 — WHAT COCO IS (THE IDENTITY)
+
+## The One-Sentence Definition
+
+> **COCO is an autonomous intelligence organization that accepts human missions, assembles world-class expert agents, executes verified work using compute and tools, and produces professional deliverables that meet or exceed the standard of elite human experts in each domain.**
+
+## What COCO Is NOT
+
+- ❌ A chatbot with plugins
+- ❌ An LLM wrapper
+- ❌ A code generator
+- ❌ An agent framework
+- ❌ A workflow automation tool
+- ❌ 134 system prompts in a trench coat
+- ❌ A "GPT alternative"
+
+## What COCO IS
+
+- ✅ An **intelligence operating system**
+- ✅ An **autonomous project organization**
+- ✅ A **software + research + business factory**
+- ✅ A **verified-outcome execution platform**
+- ✅ A **living organism** that improves through evaluation loops
+- ✅ A **premium AI company** where every specialist is a world-class expert
+
+## The Standard COCO Must Meet
+
+For every domain COCO enters, the specialist must be able to **out-perform the median expert human professional in that domain** on a well-defined task, measured by:
+
+1. **Correctness** — Is the answer/artifact actually right?
+2. **Completeness** — Did it address the full scope?
+3. **Depth** — Would an expert respect the reasoning?
+4. **Defensibility** — Can every claim be traced to evidence?
+5. **Delivery quality** — Is the output professionally presented?
+
+**If COCO's Legal Advisor cannot beat a median practicing lawyer on a bounded legal question with citations, we have failed. Same for every other domain.**
+
+That is the bar. Non-negotiable.
+
+---
+
+# DIMENSION 2 — THE PHILOSOPHICAL CONSTITUTION
+
+These are the immutable principles. They govern every architectural decision.
+
+## The 12 Laws of COCO
+
+### **Law 1 — Mission Over Message**
+COCO does not respond to messages. COCO executes missions. Even a single question is a micro-mission with an objective, a plan, verification, and a recorded outcome.
+
+### **Law 2 — Verified Outcomes Over Fast Answers**
+COCO never optimizes for speed of response. It optimizes for the **best verified outcome appropriate to the mission**. A 20-minute research answer that is correct beats a 2-second answer that is wrong.
+
+### **Law 3 — Evidence Over Assertion**
+Every claim COCO makes must be traceable to a source, a computation, a test result, or an explicitly labeled inference. COCO never invents facts. When uncertain, COCO says so — with a confidence score.
+
+### **Law 4 — Separation of Generation and Judgment**
+The agent that produces work is never the sole agent that evaluates it. Critique is a distinct cognitive process performed by independent agents.
+
+### **Law 5 — Intellectual Independence**
+COCO is helpful but not sycophantic. When the user is wrong, COCO says so — with reasoning. When a plan has flaws, COCO surfaces them before executing.
+
+### **Law 6 — Capabilities, Not Models**
+COCO is built around 134+ capabilities, not 134 models. Models are swappable substrates. The intelligence lives in the agent definition, tools, knowledge, memory, and evaluation — not in which LLM powers it.
+
+### **Law 7 — The Machine Builds the Machine**
+We do not hard-code 134 agents. We build the system that creates, coordinates, evaluates, and replaces agents. The roster is dynamic. The framework is permanent.
+
+### **Law 8 — Every Action Is An Event**
+Every mission, task, agent spawn, model call, tool invocation, artifact creation, test, and decision is a first-class event, persisted, replayable, and auditable.
+
+### **Law 9 — Memory Has Provenance**
+COCO does not store facts. COCO stores **facts + source + confidence + timestamp + status**. Memory decays, is contradicted, is superseded — and COCO handles this explicitly.
+
+### **Law 10 — Isolation By Default**
+No agent executes arbitrary code, accesses arbitrary data, or invokes arbitrary tools without passing through permission, policy, and sandbox layers. Trust is earned per-capability, not granted globally.
+
+### **Law 11 — The Control Plane Is Never The Data Plane**
+Missions, planning, and orchestration are separated from execution, inference, and heavy compute. This makes COCO scalable and safe.
+
+### **Law 12 — Evolution By Measurement**
+COCO improves through instrumented evaluation loops, not through hope. Every mission produces data. Data drives routing, prompts, agent selection, and capability upgrades.
+
+---
+
+# DIMENSION 3 — THE OBJECT MODEL (THE UNCHANGEABLE NOUNS)
+
+These 21 objects are the vocabulary of COCO. Every subsystem must speak in these terms. This vocabulary does not change even as COCO scales 1000x.
+
+## The Core Objects
+
+```text
+IDENTITY LAYER
+├── User               — a human actor
+├── Organization       — a tenant containing users
+└── Membership         — user's role within an organization
+
+WORK LAYER
+├── Mission            — the highest unit of work; an objective
+├── Task               — a decomposed unit of a mission
+├── TaskGraph          — the dependency structure of tasks
+├── Checkpoint         — a resumable snapshot of mission state
+└── Deliverable        — the final artifact(s) of a mission
+
+INTELLIGENCE LAYER
+├── Agent              — a definition (role + capabilities + tools + constraints)
+├── AgentInstance      — a spawned, running instance of an agent
+├── AgentRun           — a single execution episode of an agent instance
+├── Model              — a registered inference substrate
+└── ModelCall          — one invocation of a model
+
+MEMORY LAYER
+├── Memory             — a persisted piece of knowledge (with provenance)
+├── ProjectBrain       — the aggregate knowledge graph of a project
+└── Context            — a compiled packet delivered to a model
+
+EXECUTION LAYER
+├── Tool               — a registered capability
+├── ToolCall           — one invocation of a tool
+├── Sandbox            — an isolated execution environment
+└── Execution          — a single execution event
+
+KNOWLEDGE LAYER
+├── Source             — an external information source
+├── Evidence           — a verified extracted claim tied to source(s)
+├── Decision           — a recorded choice with rationale
+└── Artifact           — any produced file/document/output
+
+QUALITY LAYER
+├── Verification       — a check performed against an artifact
+├── Evaluation         — a scored assessment of any run
+└── Event              — an immutable log of what happened
+```
+
+**These 27 objects form the entire ontology of COCO.** Everything else is a property, a relationship, or a specialization of these.
+
+## Object Relationships (The Grammar)
+
+```text
+Organization ─── owns ──→ Users
+Organization ─── owns ──→ Projects
+Project      ─── contains ──→ ProjectBrain
+Project      ─── contains ──→ Missions
+
+Mission      ─── decomposes into ──→ TaskGraph
+TaskGraph    ─── contains ──→ Tasks
+Task         ─── assigned to ──→ AgentInstance
+AgentInstance ── produces ──→ AgentRuns
+AgentRun     ─── makes ──→ ModelCalls
+AgentRun     ─── makes ──→ ToolCalls
+AgentRun     ─── produces ──→ Artifacts
+AgentRun     ─── writes to ──→ Memory
+AgentRun     ─── reads from ──→ Context
+
+Context      ─── compiled from ──→ Memory + ProjectBrain + Evidence
+Artifact     ─── subject to ──→ Verification
+Verification ─── produces ──→ Evaluation
+Every action ─── emits ──→ Event
+Every choice ─── recorded as ──→ Decision
+Every claim  ─── backed by ──→ Evidence
+Every source ─── stored as ──→ Source
+```
+
+---
+
+# DIMENSION 4 — THE FABRIC MODEL (THE ARCHITECTURE)
+
+COCO is composed of **13 Fabrics**. A Fabric is a horizontal system that provides one category of capability to the entire platform. Fabrics are independent, replaceable, and communicate only through defined protocols.
+
+## The 13 Fabrics
+
+```text
+                    ┌─────────────────────────┐
+                    │  1. EXPERIENCE FABRIC   │  ← What users see
+                    └───────────┬─────────────┘
+                                │
+                    ┌─────────────────────────┐
+                    │  2. GATEWAY FABRIC      │  ← Boundary & security
+                    └───────────┬─────────────┘
+                                │
+                    ┌─────────────────────────┐
+                    │  3. KERNEL FABRIC       │  ← Missions, tasks, state
+                    └───────────┬─────────────┘
+                                │
+        ┌───────────────────────┼───────────────────────┐
+        ▼                       ▼                       ▼
+┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+│ 4. CONTEXT   │        │ 5. INTEL.    │        │ 6. EXECUTION │
+│    FABRIC    │        │    FABRIC    │        │    FABRIC    │
+└──────┬───────┘        └──────┬───────┘        └──────┬───────┘
+       │                       │                       │
+       └───────────────────────┼───────────────────────┘
+                               ▼
+                    ┌─────────────────────────┐
+                    │  7. FORGE FABRIC        │  ← Software production
+                    └───────────┬─────────────┘
+                                ▼
+                    ┌─────────────────────────┐
+                    │  8. VERIFICATION FABRIC │  ← Quality gates
+                    └───────────┬─────────────┘
+                                ▼
+                    ┌─────────────────────────┐
+                    │  9. BRAIN FABRIC        │  ← Project intelligence
+                    └───────────┬─────────────┘
+                                ▼
+                    ┌─────────────────────────┐
+                    │ 10. EVOLUTION FABRIC    │  ← Learning & optimization
+                    └─────────────────────────┘
+
+CROSS-CUTTING:
+┌─────────────────────────────────────────────────────────────┐
+│ 11. SECURITY FABRIC      — auth, permissions, secrets, audit │
+│ 12. OBSERVABILITY FABRIC — logs, metrics, traces, timelines  │
+│ 13. INFRASTRUCTURE FABRIC — compute, storage, network, GPU   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Each Fabric's Charter
+
+| # | Fabric | Charter | Owns |
+|---|--------|---------|------|
+| 1 | **Experience** | Present COCO to humans across all surfaces | Web, Desktop, Mobile, CLI, VSCode, API surfaces |
+| 2 | **Gateway** | Guard the boundary, authenticate, authorize, route | Auth, tenancy, rate limits, sessions, streaming |
+| 3 | **Kernel** | Orchestrate missions, tasks, state, events, runs | Mission engine, task graph, scheduler, event bus |
+| 4 | **Context** | Compile the right knowledge for the right agent at the right moment | Memory, retrieval, compilation, compression |
+| 5 | **Intelligence** | Provide reasoning, agents, and models | Model router, agent runtime, agent registry |
+| 6 | **Execution** | Run code, tools, browsers safely | Sandboxes, containers, tool invocations |
+| 7 | **Forge** | Produce software projects end-to-end | Requirements → architecture → code → deployment |
+| 8 | **Verification** | Prove artifacts meet requirements | Tests, security scans, critics, acceptance |
+| 9 | **Brain** | Maintain the living intelligence of each project | Knowledge graph, decisions, history, evidence |
+| 10 | **Evolution** | Measure everything, improve routing, prompts, capabilities | Evaluation, telemetry, optimization loops |
+| 11 | **Security** | Enforce identity, permissions, isolation, audit | RBAC/ABAC, secret broker, audit logs |
+| 12 | **Observability** | Make everything COCO does visible and debuggable | OTel, mission timelines, evaluation dashboards |
+| 13 | **Infrastructure** | Provide the physical substrate | Compute, GPU, storage, network, region topology |
+
+## Communication Rule
+
+**Fabrics communicate only via typed protocols.** No fabric may reach into another fabric's internals. This is the difference between an architecture and a mess.
+
+---
+
+# DIMENSION 5 — THE INTELLIGENCE MODEL (WHERE INTELLIGENCE LIVES)
+
+This is the most misunderstood part of AI systems. Let me be explicit about **where intelligence comes from in COCO**.
+
+## The Intelligence Stack
+
+```text
+        ┌──────────────────────────────────────────┐
+        │           OUTCOME INTELLIGENCE           │
+        │  (What COCO actually delivers to users)  │
+        └────────────────────┬─────────────────────┘
+                             │
+                    Emerges from ↓
+                             │
+     ┌───────────────────────┼───────────────────────┐
+     ▼                       ▼                       ▼
+┌──────────┐          ┌──────────┐          ┌──────────┐
+│ ROUTING  │          │  AGENT   │          │  MODEL   │
+│  INTEL   │          │  INTEL   │          │  INTEL   │
+└────┬─────┘          └────┬─────┘          └────┬─────┘
+     │                     │                     │
+     ▼                     ▼                     ▼
+Which model?         Role + tools +         Raw reasoning
+Which agent?         knowledge +            capability of
+Which tools?         constraints +          the LLM
+Which context?       evaluation
+     │                     │                     │
+     └─────────────────────┼─────────────────────┘
+                           │
+     ┌─────────────────────┼─────────────────────┐
+     ▼                     ▼                     ▼
+┌──────────┐          ┌──────────┐          ┌──────────┐
+│ CONTEXT  │          │   TOOL   │          │   MEMORY │
+│  INTEL   │          │  INTEL   │          │   INTEL  │
+└────┬─────┘          └────┬─────┘          └────┬─────┘
+     │                     │                     │
+     ▼                     ▼                     ▼
+The right           The ability to        What COCO
+knowledge at        actually do            remembers about
+the right moment    things in the          you, the project,
+                    real world             the domain
+     │                     │                     │
+     └─────────────────────┼─────────────────────┘
+                           │
+                    ┌──────┴──────┐
+                    ▼             ▼
+              ┌──────────┐  ┌──────────┐
+              │VERIFY.   │  │EVOLUTION │
+              │INTEL     │  │  INTEL   │
+              └──────────┘  └──────────┘
+              Catching       Learning
+              mistakes       from every
+              before user    mission ever
+              sees them      run
+```
+
+## The Truth About Model Intelligence
+
+A raw LLM contributes maybe **20-30%** of the final outcome intelligence.
+
+The other **70-80%** comes from:
+- The right context at the right time
+- The right agent framing (role, constraints, tools, evaluation criteria)
+- The right tools invoked at the right moment
+- The right memory retrieval
+- The verification loop catching errors
+- The evolution loop improving over time
+- The critic providing independent judgment
+- The evidence system grounding claims
+
+**This is why COCO can produce expert-grade output even when powered by mid-tier models.** And it's why we can dominate even competitors using frontier models — because they use models with none of this infrastructure.
+
+## The Expert-Beating Formula
+
+For any specialist to beat a median human expert:
+
+```
+Expert-Grade Output = 
+     Best-available reasoning model for domain
+   + Curated domain knowledge (books, papers, laws, standards, playbooks)
+   + Domain-specific tools (calculators, simulators, validators, databases)
+   + Domain-specific evaluation criteria (what "correct" means here)
+   + Independent domain critic (a second agent that challenges the first)
+   + Evidence system (every claim cited)
+   + Historical mission memory (patterns from past work)
+   + Domain workflow (the actual method experts use in this field)
+```
+
+**Example — Legal Advisor Beats Human Lawyer:**
+
+```text
+LEGAL ADVISOR AGENT
+
+Model:            Best reasoning model available, routed per query type
+Knowledge Base:   - Complete statute database (jurisdiction-scoped)
+                  - Case law with full text + summaries + citation graph
+                  - Legal treatises and secondary sources
+                  - Regulatory filings and guidance
+                  - Practice-area playbooks
+Tools:            - Statute lookup
+                  - Case citation resolver
+                  - Precedent search with semantic + citation ranking
+                  - Contract clause analyzer
+                  - Jurisdiction detector
+                  - Deadline calculator
+                  - Redlining engine
+Method:           IRAC (Issue, Rule, Application, Conclusion) enforced
+Constraints:      - Never claim law without citation
+                  - Always identify jurisdiction
+                  - Always flag when advice requires local counsel
+                  - Always identify limitations of analysis
+Critic:           Independent Legal Critic Agent that:
+                  - Verifies every citation actually exists
+                  - Checks citations are still good law
+                  - Challenges the reasoning chain
+                  - Identifies missing counter-arguments
+Evaluation:       Bar-exam grade rubric + practitioner rubric
+Memory:           Prior questions from this client, prior matters, preferences
+```
+
+**A single human lawyer cannot match this.** They cannot read every case, cannot check every citation in real-time, cannot invoke a peer critic on every answer, cannot remember every prior interaction perfectly.
+
+**This is the model for every specialist in COCO.** Legal, Medical, Financial, Engineering, Scientific — every one.
+
+---
+
+# DIMENSION 6 — THE AGENT MODEL (WHAT AN AGENT ACTUALLY IS)
+
+## The Agent Contract
+
+Every agent in COCO, from Orchestrator to a specialized Sanskrit Manuscript Analyst, conforms to **one contract**:
+
+```yaml
+Agent:
+  # IDENTITY
+  id:                     unique identifier
+  name:                   human-readable name
+  version:                semantic version
+  tier:                   [core | domain | specialist | operator]
+  
+  # PURPOSE
+  role:                   what this agent is
+  mission:                what this agent exists to accomplish
+  domain:                 domain(s) of expertise
+  
+  # CAPABILITY
+  capabilities:           [reasoning, coding, research, analysis, ...]
+  specializations:        deep areas of expertise
+  
+  # KNOWLEDGE
+  knowledge_sources:      [ontologies, corpora, databases, playbooks]
+  reference_frameworks:   [methodologies this agent applies]
+  
+  # TOOLS
+  tools_required:         tools this agent MUST have to function
+  tools_optional:         tools this agent MAY use if available
+  
+  # MODEL
+  model_requirements:     minimum capability the model must have
+  model_preferences:      preferred routing (updated by evolution)
+  
+  # INSTRUCTIONS
+  system_prompt:          the agent's persistent character
+  methodology:            step-by-step process this agent follows
+  output_format:          strict schema for outputs
+  
+  # CONSTRAINTS
+  must:                   things this agent must always do
+  must_not:               things this agent must never do
+  requires_approval:      actions requiring human approval
+  
+  # QUALITY
+  evaluation_rubric:      how outputs from this agent are graded
+  critic_agent:           which agent independently reviews this one
+  
+  # MEMORY
+  memory_scopes:          which memory scopes this agent can read/write
+  
+  # PERMISSIONS
+  permissions:            what this agent is allowed to do
+  data_access:            what data this agent may access
+  
+  # LIFECYCLE
+  spawns:                 which other agents this may spawn
+  reports_to:             which agent(s) this reports outcomes to
+```
+
+## Agent Tiers
+
+```text
+TIER 1 — CORE AGENTS
+────────────────────
+The permanent governance layer. Always present. ~8-12 agents.
+Examples: Orchestrator, Mission Planner, Critic, Router, Memory Manager,
+Task Delegator, Synthesis Agent, Risk Officer.
+
+TIER 2 — DOMAIN DIRECTORS
+─────────────────────────
+Senior agents that own a domain. Spawn specialists as needed. ~15-25 agents.
+Examples: Research Director, Engineering Director, Legal Director,
+Medical Director, Financial Director, Design Director.
+
+TIER 3 — SPECIALISTS
+────────────────────
+The deep experts. Assembled per-mission. Unlimited number (100s+).
+Examples: Python Coder, Contract Attorney, Cardiologist, Options Strategist,
+Structural Engineer, Sanskrit Manuscript Analyst, GDPR Compliance Officer.
+
+TIER 4 — OPERATORS
+──────────────────
+Agents that execute concrete work in the world. ~20-40 agents.
+Examples: Browser Operator, Terminal Operator, Git Operator,
+Deploy Operator, Database Operator, Email Operator.
+```
+
+## Agent Lifecycle
+
+```text
+DEFINE           →  Agent definition stored in registry
+   ↓
+SPAWN            →  AgentInstance created for a specific task
+   ↓
+INITIALIZE       →  Context, tools, memory bound
+   ↓
+EXECUTE          →  AgentRun produces work
+   ↓
+EMIT             →  Artifacts, memories, events, decisions
+   ↓
+EVALUATE         →  Critic + rubric produce score
+   ↓
+RETIRE           →  Instance closed; run recorded in Brain
+   ↓
+LEARN            →  Evolution updates routing/preferences
+```
+
+---
+
+# DIMENSION 7 — THE MISSION MODEL (HOW COCO WORKS)
+
+## The Mission State Machine
+
+Every mission progresses through a formal state machine:
+
+```text
+                    CREATED
+                       │
+                       ▼
+                UNDERSTANDING          ← COCO clarifies objective
+                       │
+                       ▼
+                 CHALLENGING           ← COCO surfaces flawed assumptions
+                       │
+                       ▼
+                  RESEARCHING          ← COCO gathers context
+                       │
+                       ▼
+                  PLANNING             ← COCO builds task graph
+                       │
+                       ▼
+                 ORGANIZING            ← COCO assembles agent team
+                       │
+                       ▼
+                  EXECUTING ←──────────┐
+                       │               │
+                       ▼               │
+                 VERIFYING             │
+                       │               │
+                ┌──────┴──────┐        │
+                │             │        │
+              PASS          FAIL       │
+                │             │        │
+                │             ▼        │
+                │         REPAIRING ───┘
+                │             
+                ▼
+                REFINING
+                       │
+                       ▼
+                 DELIVERING
+                       │
+                       ▼
+                REMEMBERING            ← Write to Project Brain
+                       │
+                       ▼
+              ┌────────┴─────────┐
+              │                  │
+          COMPLETED          OPERATING  ← Long-running missions
+                                 │        continue in this state
+                                 ▼
+                          MONITORING     ← Watching deployed project
+                                 │
+                                 ▼
+                          MAINTAINING    ← Ongoing improvement
+```
+
+## The COCO Method (The Signature)
+
+Every mission, no matter how small, follows the same 11-step methodology. **This is COCO's brand.**
+
+```text
+01. UNDERSTAND    — What is the user actually trying to accomplish?
+02. INVESTIGATE   — Research the problem and its context
+03. CHALLENGE     — Surface flawed assumptions before executing
+04. ARCHITECT     — Design the solution
+05. ORGANIZE      — Assemble the right specialist team
+06. BUILD         — Execute the work
+07. VERIFY        — Prove the work is correct
+08. REFINE        — Fix everything the verification found
+09. DELIVER       — Present the professional artifact
+10. REMEMBER      — Update the Project Brain
+11. OPERATE       — Continue watching after delivery (if applicable)
+```
+
+For small tasks, some steps compress to milliseconds. For Ranger missions, some steps take hours. But **the shape is always the same**.
+
+## Mission Envelope (per plan tier)
+
+```text
+                     DEFAULT      PRO         RANGER      ENTERPRISE
+                     ─────────    ─────────   ─────────   ─────────
+Max mission length   30 min       6 hours     unlimited   unlimited
+Max parallel agents  4            16          64          custom
+Max context tokens   32k          128k        1M+         custom
+Max checkpoint depth 3            10          unlimited   custom
+Model tier access    standard     advanced    maximum     private
+Tool access          basic        full        full+       full+custom
+Verification depth   standard     deep        exhaustive  exhaustive
+Project Brain size   1GB          50GB        1TB         unlimited
+Autonomy level       supervised   semi-auto   autonomous  autonomous
+```
+
+---
+
+# DIMENSION 8 — THE MEMORY MODEL (WHAT COCO REMEMBERS)
+
+## The 7 Types of Memory
+
+```text
+1. WORKING MEMORY
+   Scope:    Current mission execution
+   Lifetime: Duration of the mission
+   Storage:  Redis + in-process
+   
+2. CONVERSATION MEMORY
+   Scope:    A single conversation thread
+   Lifetime: Explicit retention (user-controlled)
+   Storage:  Postgres
+
+3. EPISODIC MEMORY
+   Scope:    What happened, when, why
+   Lifetime: Permanent (subject to policy)
+   Storage:  Postgres + event log
+
+4. SEMANTIC MEMORY
+   Scope:    What COCO knows to be true
+   Lifetime: Permanent, versioned
+   Storage:  Postgres + pgvector + knowledge graph
+
+5. PROCEDURAL MEMORY
+   Scope:    How to accomplish things
+   Lifetime: Permanent, evolves
+   Storage:  Postgres (playbooks, workflows)
+
+6. PROJECT MEMORY (Project Brain)
+   Scope:    Everything about one project
+   Lifetime: Life of the project
+   Storage:  Full stack (Postgres + vector + graph + object)
+
+7. ORGANIZATIONAL MEMORY (Enterprise)
+   Scope:    Everything belonging to an organization
+   Lifetime: Life of the organization
+   Storage:  Isolated tenant infrastructure
+```
+
+## Memory Record Structure
+
+Every memory record has this shape:
+
+```yaml
+Memory:
+  id:              unique
+  scope:           [working | conversation | episodic | semantic | 
+                    procedural | project | organizational]
+  subject:         what this memory is about
+  predicate:       the relationship/property
+  value:           the actual content
+  
+  # PROVENANCE
+  source:          where this came from
+  agent_id:        which agent wrote this
+  mission_id:      which mission produced this
+  citations:       [source references]
+  
+  # QUALITY
+  confidence:      0.0 to 1.0
+  evidence_count:  supporting evidence items
+  contradicts:     [other memory IDs this conflicts with]
+  supersedes:      [prior memory IDs this replaces]
+  
+  # LIFECYCLE
+  created_at:      timestamp
+  updated_at:      timestamp
+  expires_at:      optional
+  status:          [active | superseded | contradicted | archived]
+  version:         semantic version
+  
+  # ACCESS
+  visibility:      [private | project | organization | public]
+  permissions:     who can read/write
+```
+
+**No memory in COCO ever exists without provenance.** This is the difference between a database and knowledge.
+
+---
+
+# DIMENSION 9 — THE VERIFICATION MODEL (HOW COCO PROVES CORRECTNESS)
+
+## The Verification Ladder
+
+Every artifact ascends this ladder before delivery:
+
+```text
+LEVEL 0 — EXISTS
+   Was the artifact produced at all?
+
+LEVEL 1 — WELL-FORMED
+   Does it parse / compile / render?
+
+LEVEL 2 — TYPE-CORRECT
+   Does it satisfy structural / type / schema constraints?
+
+LEVEL 3 — LINT-CLEAN
+   Does it meet style and quality standards?
+
+LEVEL 4 — UNIT-VERIFIED
+   Do isolated components work?
+
+LEVEL 5 — INTEGRATION-VERIFIED
+   Do the components work together?
+
+LEVEL 6 — REQUIREMENT-VERIFIED
+   Does it satisfy the actual mission requirements?
+
+LEVEL 7 — SECURITY-VERIFIED
+   Is it safe? (SAST, DAST, dependency, secrets)
+
+LEVEL 8 — PERFORMANCE-VERIFIED
+   Does it meet performance targets?
+
+LEVEL 9 — CRITIC-VERIFIED
+   Does an independent expert critic approve?
+
+LEVEL 10 — ACCEPTANCE-VERIFIED
+   Does it meet the user's stated success criteria?
+```
+
+**Different missions require different levels.** A quick research answer needs L0-L6. A production deployment needs L0-L10.
+
+## The Repair Loop
+
+```text
+VERIFICATION FAILURE
+        │
+        ▼
+   DIAGNOSE           ← What actually failed and why?
+        │
+        ▼
+   ROOT CAUSE         ← Is this symptom or cause?
+        │
+        ▼
+   ASSIGN AGENT       ← Which specialist can fix this?
+        │
+        ▼
+   REPAIR             ← Fix produced
+        │
+        ▼
+   RE-VERIFY          ← Full ladder again
+        │
+        ▼
+   ┌────┴────┐
+   │         │
+ PASS      FAIL
+   │         │
+   │         ▼
+   │    ESCALATE      ← If N failures, escalate to critic
+   │         │
+   │         ▼
+   │    HUMAN-CHECK   ← If unresolvable, ask human
+   │
+   ▼
+CONTINUE
+```
+
+## COCO's Delivery Promise
+
+COCO does not deliver artifacts saying **"I think this works."**
+
+COCO delivers artifacts saying:
+
+> **"This artifact passed 1,482 checks across 10 verification levels.
+> 12 initial failures were diagnosed and repaired.
+> All acceptance criteria are met.
+> Full verification report attached."**
+
+---
+
+# DIMENSION 10 — THE ECONOMIC & TIER MODEL
+
+## The Access Layers (Same Machine, Different Envelopes)
+
+```text
+                        ┌─────────────────┐
+                        │   COCO CORE     │
+                        │  (one machine)  │
+                        └────────┬────────┘
+                                 │
+              ┌──────────────────┼──────────────────┐
+              │                  │                  │
+              ▼                  ▼                  ▼
+         ┌────────┐         ┌────────┐         ┌────────┐
+         │DEFAULT │         │  PRO   │         │RANGER  │
+         │        │         │        │         │        │
+         │Explore │         │ Build  │         │Command │
+         └────────┘         └────────┘         └────────┘
+              │                  │                  │
+              └──────────────────┼──────────────────┘
+                                 │
+                                 ▼
+                        ┌─────────────────┐
+                        │   ENTERPRISE    │
+                        │ (private COCO)  │
+                        └─────────────────┘
+```
+
+## What Each Tier Actually Means
+
+### DEFAULT — "Explore The Intelligence"
+- Real COCO experience, conservative resource allocation
+- Standard model routing
+- Full agent access but limited parallelism
+- Basic Project Brain
+- For students, curious users, early builders
+
+### PRO — "Build Seriously"
+- Advanced model routing
+- Large context, deep research
+- Full specialist access
+- Persistent projects, larger Brain
+- Priority compute
+- For developers, professionals, small teams
+
+### RANGER — "Give COCO A Mission And Get Out Of The Way"
+- Maximum intelligence, maximum autonomy
+- Long-running missions (hours/days)
+- Massive parallel organizations
+- Frontier model access
+- Experimental capabilities first
+- Autonomous debugging, deployment, operation
+- For power users, serious builders
+
+### ENTERPRISE — "Your Private COCO"
+- Private deployment
+- Private models, private data, private memory
+- Custom agents, custom domain experts
+- Dedicated infrastructure
+- SSO, RBAC, audit, compliance
+- Custom SLAs
+- For organizations
+
+## The Economic Model
+
+**COCO does not sell messages. COCO sells outcomes.**
+
+Pricing should reflect the actual work COCO does:
+- Default: Free (with envelope) — funded by conversion to Pro
+- Pro: Monthly subscription — envelope of mission-hours + compute credits
+- Ranger: Higher subscription + metered compute for long missions
+- Enterprise: Contracts based on org size, data volume, dedicated capacity
+
+**We never race to the bottom on price.** We compete on quality of verified outcomes.
+
+---
+
+# THE COMPLETE ARCHITECTURAL DEFINITION — ONE PAGE
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│                              WHAT COCO IS                                │
+│                                                                          │
+│      An autonomous intelligence organization that accepts human          │
+│      missions, assembles world-class expert agents, executes            │
+│      verified work using compute and tools, and produces                │
+│      professional deliverables that meet or exceed the standard         │
+│      of elite human experts in each domain.                             │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  GOVERNED BY:   12 Constitutional Laws                                   │
+│  BUILT FROM:    27 Core Objects                                          │
+│  COMPOSED OF:   13 Fabrics                                               │
+│  POWERED BY:    Capability-based agent organization (not model-based)   │
+│  RUN AS:        Mission state machine with COCO Method (11 steps)       │
+│  REMEMBERS:     7 memory types, all with full provenance                │
+│  PROVES WORK:   10-level verification ladder + repair loop              │
+│  ACCESSED VIA:  Default / Pro / Ranger / Enterprise (same core)         │
+│                                                                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  THE STANDARD:  Every specialist must beat the median human             │
+│                 expert in that domain on bounded tasks.                  │
+│                                                                          │
+│  THE METHOD:    Understand → Investigate → Challenge → Architect →      │
+│                 Organize → Build → Verify → Refine → Deliver →          │
+│                 Remember → Operate                                       │
+│                                                                          │
+│  THE PROMISE:   Verified outcomes, not fast answers.                    │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+# WHAT'S NEXT
+
+We now have the **complete architectural definition** locked. This is COCO's constitution.
+
+Before we move to Phase 0 code, I recommend we go **one level deeper** on the following, in this order:
+
+### **Definition Round 2 — The Deep Specs**
+
+1. **The Agent Roster Blueprint**
+   The full taxonomy of Tier 1 (Core), Tier 2 (Directors), Tier 3 (initial Specialists), and Tier 4 (Operators). Not 134 agents pre-written — the **framework of expertise categories** and the first 40-50 concrete agents that ship in v1.
+
+2. **The Fabric Protocols**
+   The exact typed contracts between fabrics. Mission protocol, Agent protocol, Tool protocol, Model protocol, Event protocol, Verification protocol.
+
+3. **The Database Schema**
+   The Postgres schema for all 27 core objects, with pgvector integration, event log design, and the Project Brain graph structure.
+
+4. **The Model Fabric Deep Spec**
+   Model registry format, adapter interface, router decision engine, capability taxonomy, cost/latency/quality tracking.
+
+5. **The Expert-Beating Playbook**
+   How exactly we make the Legal Advisor beat lawyers, the Analyst beat analysts, etc. The concrete recipe with knowledge sources, tools, critics, and evaluation for each of the first ~20 flagship specialists.
+
+6. **The Verification Cookbook**
+   The concrete test batteries at each of the 10 verification levels, per domain (software, research, legal, financial, medical, etc.).
+
+7. **The Monorepo Blueprint**
+   The exact folder structure, package boundaries, technology choices per package, build system.
+
+8. **The Security & Isolation Spec**
+   Sandbox architecture, permission model, secret broker, audit trail — in complete detail.
+
+9. **The Evolution Loop Spec**
+   How evaluation data flows into router improvements, prompt improvements, and agent improvements. The feedback architecture.
+
+10. **The Ranger Runtime Spec**
+    How long-running autonomous missions actually work — checkpointing, resumption, budget management, autonomy gates.
+
+---
+
+## Confirm and choose:
+
+**A.** Approve this complete architectural definition as **COCO's Constitution** — locked, immutable, everything downstream must conform.
+
+**B.** Modify any of the 10 dimensions before locking (which ones, what changes).
+
+**C.** Proceed to **Definition Round 2, Item 1: The Agent Roster Blueprint** — the full taxonomy and the first 40-50 flagship agents defined with the expert-beating standard.
+
+**D.** Jump to a different Round 2 item first (specify which).
+
+**E.** Change the sequence entirely.
+
+Once the Constitution and Round 2 specs are locked, **only then** do we write Phase 0 code. And when we do, every line will conform to what we've defined here.
+
+Your call.

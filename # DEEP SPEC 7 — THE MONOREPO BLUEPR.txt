@@ -1,0 +1,2285 @@
+# DEEP SPEC 7 — THE MONOREPO BLUEPRINT
+
+**System:** DSRT COCO
+**Layer:** Source Organization, Build System, Development Workflow
+**Status:** Approved & Locked Specification
+**Governing Standards:** All prior Deep Specs (1-6); Constitutional Dimension 4 (13 Fabrics)
+**Purpose:** Establish the physical layout, build system, language boundaries, testing infrastructure, and development workflow that makes 13 fabrics, 134+ specialists, and a growing platform maintainable at scale.
+
+---
+
+## 0. MONOREPO PHILOSOPHY
+
+The monorepo is not a folder. It is **the organizational contract** that lets 13 fabrics evolve independently while maintaining a single source of truth for protocols, schemas, and shared types.
+
+### The Ten Governing Laws of the Monorepo
+
+```text
+LAW 1  — ONE REPO, MANY BOUNDARIES
+         All COCO code lives in one repo. Package boundaries are strict —
+         a package may only depend on packages listed in its manifest.
+
+LAW 2  — LANGUAGE-PER-JOB, NOT LANGUAGE-PER-TEAM
+         Python for AI/agent/orchestration. TypeScript for user surfaces.
+         Go for high-throughput fabric services. Rust for security-critical
+         sandbox runtime. No language is used because someone "prefers" it.
+
+LAW 3  — PROTOCOL IS THE SOURCE OF TRUTH
+         Every cross-fabric contract is defined in .proto files.
+         Code in every language is GENERATED from these protos.
+         Hand-written cross-fabric types are banned.
+
+LAW 4  — EVERY PACKAGE IS SEPARATELY BUILDABLE AND TESTABLE
+         `just build <package>` and `just test <package>` must work in isolation.
+         No package requires "run the whole thing" to be validated.
+
+LAW 5  — CI IS THE ONLY MERGE AUTHORITY
+         No PR merges to main without: format ✓ · lint ✓ · type ✓ ·
+         test ✓ · security ✓ · protocol-schema ✓ · dependency-audit ✓
+
+LAW 6  — LOCAL DEV MATCHES PROD TOPOLOGY
+         `just up` starts the same fabric topology developers will deploy.
+         "Works on my machine" is a bug, not an excuse.
+
+LAW 7  — DEPENDENCIES ARE PINNED, AUDITED, MINIMAL
+         Every dependency is pinned to a specific version.
+         Every dependency is license-scanned and CVE-scanned in CI.
+         New dependencies require justification in the PR.
+
+LAW 8  — TESTS ARE FIRST-CLASS ARTIFACTS
+         Test code has the same review bar as production code.
+         Test coverage is measured, tracked, and non-negotiable per package.
+
+LAW 9  — RELEASES ARE ORCHESTRATED, NOT ANNOUNCED
+         Every deployable artifact has: version · changelog · signed image ·
+         rollback plan · SBOM · verification report.
+
+LAW 10 — DEVELOPER EXPERIENCE IS A FEATURE
+         From `git clone` to running COCO locally: ≤ 15 minutes on any
+         supported platform. If it takes longer, that is a P1 incident.
+```
+
+---
+
+## 1. TOP-LEVEL REPOSITORY LAYOUT
+
+```text
+coco/
+│
+├── README.md                              # Entry point — start here
+├── LICENSE
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md                            # Vuln disclosure policy
+├── CHANGELOG.md                           # Auto-generated (release-please)
+├── .github/                               # PR templates, issue templates
+├── .editorconfig                          # Uniform whitespace rules
+├── .gitignore
+├── .gitattributes                         # LF everywhere; binary lockfiles
+├── .env.example                           # Every env var COCO reads
+├── justfile                               # Task runner (see §10)
+├── Makefile                               # Thin wrapper → justfile
+│
+├── docs/                                  # Human docs (not code)
+├── constitution/                          # Executable constitution (§16)
+├── protocols/                             # .proto files (source of truth)
+├── schemas/                               # JSON Schemas, DB migrations
+├── apps/                                  # User-facing surfaces
+├── services/                              # Long-running fabric services
+├── packages/                              # Reusable libraries per language
+├── agents/                                # Agent definitions (YAML + code)
+├── operators/                             # Tier-4 operator implementations
+├── infrastructure/                        # IaC, deployment manifests
+├── tools/                                 # Dev tooling scripts
+├── evaluation/                            # Benchmarks, evaluators, datasets
+├── tests/                                 # Cross-package integration tests
+├── examples/                              # Example missions, corpora
+└── vendor/                                # Third-party we've forked (rare)
+```
+
+### 1.1 Rationale for Top-Level Directories
+
+```text
+docs/                → Human-only. Never imported. Renders on the docs site.
+constitution/        → Constitution YAML/JSON that loads into runtime.
+protocols/           → Protobuf definitions. Generated stubs live inside packages/.
+schemas/             → JSON Schemas + SQL migrations. Loaded at runtime.
+apps/                → Everything users see or invoke directly.
+services/            → Everything users don't see but depends on the network.
+packages/            → Libraries: importable Python, TS, Go, Rust.
+agents/              → All 134+ agent definitions, prompt templates.
+operators/           → The 5 Tier-4 operator implementations.
+infrastructure/      → Deployment (Docker, K8s, Terraform).
+tools/               → Scripts developers run (not services).
+evaluation/          → Benchmarks + graders + datasets for continuous elevation.
+tests/               → Integration + system tests spanning packages.
+examples/            → Reference missions/corpora for onboarding.
+```
+
+---
+
+## 2. THE `apps/` DIRECTORY (User-Facing Surfaces)
+
+```text
+apps/
+│
+├── web/                                   # Next.js — coco.dev primary surface
+│   ├── src/
+│   │   ├── app/                           # Next.js App Router pages
+│   │   ├── components/
+│   │   ├── features/                      # Feature slices (missions, projects…)
+│   │   ├── lib/
+│   │   └── styles/
+│   ├── public/
+│   ├── package.json
+│   ├── next.config.ts
+│   ├── tailwind.config.ts
+│   ├── tsconfig.json
+│   └── README.md
+│
+├── desktop/                               # Tauri v2 — cross-platform desktop
+│   ├── src/                               # React + shared web components
+│   ├── src-tauri/                         # Rust shell
+│   ├── package.json
+│   └── README.md
+│
+├── mobile/                                # React Native — iOS & Android
+│   ├── src/
+│   ├── ios/
+│   ├── android/
+│   ├── package.json
+│   └── README.md
+│
+├── cli/                                   # `coco` command-line
+│   ├── src/                               # TypeScript (@commander-js/extra-typings)
+│   ├── package.json
+│   ├── bin/coco
+│   └── README.md
+│
+├── vscode/                                # VS Code extension
+│   ├── src/
+│   ├── package.json
+│   └── README.md
+│
+├── jetbrains/                             # JetBrains plugin (Kotlin)
+│   ├── src/
+│   ├── build.gradle.kts
+│   └── README.md
+│
+└── admin/                                 # Internal admin console
+    ├── src/
+    ├── package.json
+    └── README.md
+```
+
+### 2.1 Key Rules for `apps/`
+
+```text
+1. Apps are LEAF nodes in the dependency graph — nothing depends on them.
+2. Apps depend on packages/ and services/ (via generated clients).
+3. Every app has a README describing: run locally, build, test, deploy.
+4. Every app has feature flags via packages/feature-flags.
+5. No app makes direct DB calls — always via the Gateway service.
+```
+
+---
+
+## 3. THE `services/` DIRECTORY (Fabric Services)
+
+Each fabric that runs as a long-lived process is a service. Every service is:
+- Independently deployable
+- Owns its own health/readiness endpoints
+- Emits OpenTelemetry traces and Prometheus metrics
+- Reads configuration from environment + `constitution/`
+
+```text
+services/
+│
+├── gateway/                               # Fabric 2: API Gateway
+│   ├── src/                               # Go (high-throughput; mTLS termination)
+│   ├── proto-gen/                         # Generated protobuf stubs
+│   ├── Dockerfile
+│   ├── go.mod
+│   └── README.md
+│
+├── kernel/                                # Fabric 3: Mission engine (heart)
+│   ├── src/coco_kernel/                   # Python 3.12
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   ├── tests/
+│   └── README.md
+│
+├── context-service/                       # Fabric 4: Context compilation
+│   ├── src/coco_context/                  # Python
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── intelligence-service/                  # Fabric 5: Agent runtime + model router
+│   ├── src/coco_intelligence/             # Python
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── execution-service/                     # Fabric 6: Sandbox orchestration
+│   ├── src/coco_execution/                # Go (goroutines for sandbox pool)
+│   ├── proto-gen/
+│   ├── Dockerfile
+│   ├── go.mod
+│   └── README.md
+│
+├── sandbox-runtime/                       # Fabric 6 helper: per-sandbox agent
+│   ├── src/                               # Rust (security-critical)
+│   ├── Cargo.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── forge-service/                         # Fabric 7: Software forge
+│   ├── src/coco_forge/                    # Python
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── verification-service/                  # Fabric 8: Verification orchestrator
+│   ├── src/coco_verification/             # Python
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── brain-service/                         # Fabric 9: Project brain / knowledge graph
+│   ├── src/coco_brain/                    # Python
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── evolution-service/                     # Fabric 10: Evaluation + policy updates
+│   ├── src/coco_evolution/                # Python
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── security-service/                      # Fabric 11: Auth, permissions, secrets
+│   ├── src/                               # Go
+│   ├── proto-gen/
+│   ├── Dockerfile
+│   ├── go.mod
+│   └── README.md
+│
+├── event-bus/                             # Fabric 3: NATS JetStream deployment
+│   ├── config/
+│   ├── Dockerfile
+│   └── README.md
+│
+├── observability-collector/               # Fabric 12: OTel collector config
+│   ├── config/
+│   └── README.md
+│
+├── memory-service/                        # Fabric 4 helper: memory read/write API
+│   ├── src/coco_memory/                   # Python
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── inference-gateway/                     # Fabric 5 helper: model adapter gateway
+│   ├── src/coco_inference/                # Python (adapters live here)
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+└── check-runners/                         # Fabric 8 helper: verification workers
+    ├── src/coco_checks/                   # Python
+    ├── pyproject.toml
+    ├── Dockerfile
+    └── README.md
+```
+
+### 3.1 Service Boundaries — Language Justification
+
+```text
+SERVICE                    LANGUAGE    JUSTIFICATION
+──────────────────────    ─────────   ─────────────────────────────────────────
+gateway                   Go          High QPS · mTLS termination · low GC pause
+kernel                    Python      Complex orchestration · rich async · agent code
+context-service           Python      Memory/vector integration · Python ML libs
+intelligence-service      Python      Agent runtime · model calls · Python ecosystem
+execution-service         Go          Sandbox pool mgmt · goroutine-per-sandbox
+sandbox-runtime           Rust        Security-critical · memory-safe · minimal deps
+forge-service             Python      Repo generation · leverages agent infrastructure
+verification-service      Python      Check orchestration · rich Python ecosystem
+brain-service             Python      Knowledge graph · vector · rich domain code
+evolution-service         Python      Data science · sklearn/numpy · nightly jobs
+security-service          Go          Token issuance · crypto perf · deterministic
+event-bus                 —           NATS binary + config only
+observability-collector   —           OTel binary + config only
+memory-service            Python      Vector + graph + provenance in one place
+inference-gateway         Python      Provider adapters + streaming
+check-runners             Python      Test runner integrations
+```
+
+### 3.2 Service Contract Enforcement
+
+Every service directory MUST contain:
+
+```text
+services/<name>/
+├── README.md                      # Purpose, ports, env vars, quickstart
+├── Dockerfile
+├── openapi.yaml OR grpc.proto     # Public contract
+├── health/                        # /healthz, /readyz endpoints in code
+├── config/                        # Constitution overlays; sane defaults
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   └── contract/                  # Contract tests against openapi/proto
+└── CHANGELOG.md
+```
+
+---
+
+## 4. THE `packages/` DIRECTORY (Reusable Libraries)
+
+```text
+packages/
+│
+├── python/                                # All Python libraries
+│   ├── coco-protocol/                     # Generated protobuf + shared types
+│   │   ├── src/coco_protocol/
+│   │   ├── pyproject.toml
+│   │   └── README.md
+│   ├── coco-common/                       # ULIDs, hashing, time, errors
+│   │   ├── src/coco_common/
+│   │   └── pyproject.toml
+│   ├── coco-config/                       # Config loader with schema validation
+│   ├── coco-observability/                # OTel setup, metric decorators
+│   ├── coco-events/                       # Event bus client (NATS)
+│   ├── coco-storage/                      # DB access + RLS helpers + object store
+│   ├── coco-vector/                       # pgvector helpers + embedding utils
+│   ├── coco-agent-sdk/                    # SDK to define/register agents
+│   ├── coco-model-adapter/                # Base classes for model adapters
+│   ├── coco-tool-sdk/                     # SDK to define/register tools
+│   ├── coco-verification-sdk/             # SDK to define/register checks & critics
+│   ├── coco-context-sdk/                  # SDK to compile context packets
+│   ├── coco-memory-sdk/                   # SDK to read/write memory scopes
+│   ├── coco-secrets/                      # Secret broker client
+│   ├── coco-permissions/                  # Permission check helpers
+│   ├── coco-testing/                      # pytest fixtures, mocks, factories
+│   └── coco-devtools/                     # CLI dev helpers
+│
+├── typescript/                            # All TS/JS libraries
+│   ├── coco-protocol/                     # Generated TS types from proto
+│   │   ├── src/
+│   │   ├── package.json
+│   │   └── README.md
+│   ├── coco-common/                       # ULIDs, hashing, time
+│   ├── coco-client/                       # Typed API client for gateway
+│   ├── coco-ui/                           # Shared React components
+│   │   ├── src/
+│   │   ├── package.json
+│   │   └── stories/                       # Storybook
+│   ├── coco-design-tokens/                # Design system tokens
+│   ├── coco-hooks/                        # React hooks
+│   ├── coco-stream/                       # Streaming/SSE helpers
+│   ├── coco-observability/                # OTel-web
+│   ├── coco-testing/                      # Vitest fixtures, MSW handlers
+│   └── coco-feature-flags/                # Feature flag client
+│
+├── go/                                    # All Go libraries
+│   ├── coco-protocol/                     # Generated Go from proto
+│   │   ├── go.mod
+│   │   └── README.md
+│   ├── coco-common/
+│   ├── coco-observability/
+│   ├── coco-events/                       # NATS client wrappers
+│   └── coco-testing/
+│
+└── rust/                                  # All Rust libraries (minimal)
+    ├── coco-sandbox-api/                  # Sandbox runtime shared types
+    │   ├── src/
+    │   └── Cargo.toml
+    └── coco-common/
+```
+
+### 4.1 Package Layout Convention (Python)
+
+```text
+packages/python/coco-<name>/
+├── pyproject.toml
+├── README.md
+├── CHANGELOG.md
+├── src/
+│   └── coco_<name>/
+│       ├── __init__.py
+│       ├── py.typed                       # PEP 561 typed marker
+│       └── ...
+├── tests/
+│   ├── conftest.py
+│   ├── unit/
+│   └── integration/
+└── docs/
+```
+
+### 4.2 Package Layout Convention (TypeScript)
+
+```text
+packages/typescript/coco-<name>/
+├── package.json
+├── tsconfig.json
+├── tsup.config.ts                         # Build (ESM + CJS + .d.ts)
+├── README.md
+├── CHANGELOG.md
+├── src/
+│   ├── index.ts
+│   └── ...
+├── tests/
+└── dist/                                  # Build output (gitignored)
+```
+
+### 4.3 Package Layout Convention (Go)
+
+```text
+packages/go/coco-<name>/
+├── go.mod
+├── go.sum
+├── README.md
+├── CHANGELOG.md
+├── <name>.go
+├── <name>_test.go
+└── internal/
+```
+
+### 4.4 Package Layout Convention (Rust)
+
+```text
+packages/rust/coco-<name>/
+├── Cargo.toml
+├── README.md
+├── CHANGELOG.md
+├── src/
+│   └── lib.rs
+└── tests/
+```
+
+---
+
+## 5. THE `agents/`, `operators/`, `protocols/` DIRECTORIES
+
+### 5.1 `agents/`
+
+```text
+agents/
+│
+├── tier_1_core/                           # A1-A8
+│   ├── a1_coco_director/
+│   │   ├── definition.yaml                # AgentDefinitionContract (Deep Spec 1 §6)
+│   │   ├── system_prompt.md
+│   │   ├── methodology.md
+│   │   ├── evaluation_rubric.yaml
+│   │   ├── tests/
+│   │   └── README.md
+│   ├── a2_mission_planner/
+│   ├── a3_universal_critic/
+│   ├── a4_memory_manager/
+│   ├── a5_model_router/
+│   ├── a6_risk_officer/
+│   ├── a7_synthesis_agent/
+│   └── a8_evolution_evaluator/
+│
+├── tier_2_directors/                      # B1-B10
+│   ├── b1_engineering_director/
+│   ├── b2_research_director/
+│   ├── b3_legal_director/
+│   ├── b4_finance_director/
+│   ├── b5_medical_director/
+│   ├── b6_product_director/
+│   ├── b7_creative_director/
+│   ├── b8_security_director/
+│   ├── b9_operations_director/
+│   └── b10_hardware_director/
+│
+├── tier_3_specialists/                    # C1-C134 (folder per specialist)
+│   ├── c1_python_architect/
+│   │   ├── definition.yaml
+│   │   ├── system_prompt.md
+│   │   ├── methodology.md
+│   │   ├── critic/
+│   │   │   ├── definition.yaml
+│   │   │   ├── attack_patterns.yaml
+│   │   │   └── prompt.md
+│   │   ├── knowledge_sources.yaml         # References to corpora
+│   │   ├── tool_bindings.yaml             # Which tools this specialist grants
+│   │   ├── evaluation_rubric.yaml
+│   │   ├── benchmark_suite/               # Beat-Human benchmark tasks
+│   │   │   ├── tasks.yaml
+│   │   │   └── fixtures/
+│   │   └── README.md
+│   ├── c36_legal_corporate_attorney/
+│   │   └── ...
+│   └── ... (up to C134)
+│
+├── tier_4_operators/                      # D1-D5 (metadata only; impl in operators/)
+│   ├── d1_browser_operator/
+│   ├── d2_terminal_operator/
+│   ├── d3_git_operator/
+│   ├── d4_database_operator/
+│   └── d5_deploy_operator/
+│
+├── shared_prompts/                        # Reusable prompt fragments
+│   ├── coco_voice.md
+│   ├── epistemic_status.md
+│   ├── coco_method.md
+│   └── ...
+│
+└── registry.yaml                          # Master registry — CI validates
+```
+
+### 5.2 Agent Definition Enforcement
+
+CI validates that every `definition.yaml` in `agents/`:
+1. Parses against `packages/python/coco-protocol/agent_contract.schema.json`
+2. Every `tool_bindings.yaml` tool exists in the tool registry
+3. Every `critic_agent_id` exists in the agent registry
+4. Every `knowledge_sources.yaml` source exists in the corpus registry
+5. Beat-Human benchmark has ≥ 3 tasks (Rung 4 gate)
+6. Registered in top-level `registry.yaml`
+
+### 5.3 `operators/`
+
+```text
+operators/
+│
+├── browser-operator/                      # D1
+│   ├── src/                               # Python + Playwright
+│   ├── Dockerfile                         # Isolated Playwright container
+│   ├── pyproject.toml
+│   └── README.md
+│
+├── terminal-operator/                     # D2
+│   ├── src/                               # Rust + subprocess isolation
+│   ├── Cargo.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── git-operator/                          # D3
+│   ├── src/                               # Python + libgit2
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+├── database-operator/                     # D4
+│   ├── src/                               # Python + sqlglot for validation
+│   ├── pyproject.toml
+│   ├── Dockerfile
+│   └── README.md
+│
+└── deploy-operator/                       # D5
+    ├── src/                               # Go + K8s/Docker/Terraform SDKs
+    ├── go.mod
+    ├── Dockerfile
+    └── README.md
+```
+
+### 5.4 `protocols/`
+
+```text
+protocols/
+│
+├── buf.yaml                               # buf module config
+├── buf.gen.yaml                           # buf codegen config
+├── buf.lock                               # Pinned protobuf deps
+│
+├── v1/                                    # Versioned protocol packages
+│   ├── envelope.proto                     # CocoEnvelope (Deep Spec 2 §1)
+│   ├── mission.proto                      # Mission protocol (§2)
+│   ├── agent.proto                        # Agent protocol (§3)
+│   ├── tool.proto                         # Tool protocol (§4)
+│   ├── model.proto                        # Model protocol (§5)
+│   ├── event.proto                        # Event protocol (§6)
+│   ├── verification.proto                 # Verification protocol (§7)
+│   ├── shared.proto                       # Shared value types (§8)
+│   ├── error.proto                        # CocoError (§10)
+│   └── services/
+│       ├── kernel_service.proto           # gRPC service (§11)
+│       ├── intelligence_service.proto
+│       ├── execution_service.proto
+│       ├── verification_service.proto
+│       ├── context_service.proto
+│       └── security_service.proto
+│
+├── v2/                                    # (empty; created when v1 needs breaking change)
+│
+└── generated/                             # Never edited; only regenerated
+    ├── python/                            # ← copied into packages/python/coco-protocol/
+    ├── typescript/                        # ← copied into packages/typescript/coco-protocol/
+    ├── go/                                # ← copied into packages/go/coco-protocol/
+    └── rust/                              # ← copied into packages/rust/coco-protocol/
+```
+
+### 5.5 Protocol Regeneration Rule
+
+```text
+Never hand-edit anything in generated/.
+Never hand-edit generated stubs inside packages/*/coco-protocol/.
+
+Workflow:
+  1. Edit .proto file in protocols/v1/
+  2. Run:  just proto-gen
+  3. Commit the .proto + regenerated stubs together
+  4. CI verifies stubs match .proto (no drift)
+```
+
+---
+
+## 6. THE `infrastructure/`, `schemas/`, `constitution/`, `evaluation/` DIRECTORIES
+
+### 6.1 `infrastructure/`
+
+```text
+infrastructure/
+│
+├── docker/                                # Development compose files
+│   ├── docker-compose.yaml                # Full local stack
+│   ├── docker-compose.dev.yaml            # Dev overrides
+│   ├── docker-compose.gpu.yaml            # + Ollama + vLLM
+│   └── docker-compose.test.yaml           # For CI integration tests
+│
+├── kubernetes/                            # Prod deployment manifests
+│   ├── base/                              # Kustomize base
+│   │   ├── namespaces.yaml
+│   │   ├── gateway/
+│   │   ├── kernel/
+│   │   ├── intelligence-service/
+│   │   ├── execution-service/
+│   │   ├── event-bus/
+│   │   └── ...
+│   ├── overlays/
+│   │   ├── dev/
+│   │   ├── staging/
+│   │   └── prod/
+│   └── helm/                              # Alternative: Helm charts
+│       └── coco/
+│           ├── Chart.yaml
+│           ├── values.yaml
+│           └── templates/
+│
+├── terraform/                             # Cloud infra
+│   ├── modules/
+│   │   ├── database/                      # RDS Postgres + pgvector
+│   │   ├── redis/
+│   │   ├── s3/
+│   │   ├── kms/                           # Encryption keys
+│   │   ├── vpc/
+│   │   ├── eks/                           # Kubernetes cluster
+│   │   ├── observability/
+│   │   └── gpu-nodepool/                  # GPU worker nodes
+│   ├── envs/
+│   │   ├── dev/
+│   │   ├── staging/
+│   │   └── prod/
+│   └── README.md
+│
+├── ansible/                               # Bare-metal GPU node provisioning
+│   ├── playbooks/
+│   └── inventories/
+│
+└── monitoring/                            # Grafana dashboards + Prom rules
+    ├── grafana/
+    │   ├── dashboards/
+    │   │   ├── mission_overview.json
+    │   │   ├── model_fabric.json
+    │   │   ├── verification.json
+    │   │   ├── cost_governance.json
+    │   │   ├── agent_performance.json
+    │   │   └── system_health.json
+    │   └── provisioning/
+    ├── prometheus/
+    │   ├── rules/
+    │   │   ├── availability.yaml
+    │   │   ├── budget.yaml
+    │   │   └── verification.yaml
+    │   └── alertmanager.yaml
+    └── loki/                              # Log aggregation config
+```
+
+### 6.2 `schemas/`
+
+```text
+schemas/
+│
+├── database/                              # Postgres (Deep Spec 3)
+│   ├── migrations/                        # Versioned SQL migrations
+│   │   ├── 001__baseline_extensions_roles.sql
+│   │   ├── 002__identity_schema.sql
+│   │   ├── ... (per Deep Spec 3 §20)
+│   │   └── verify/                        # Paired verify.sql per migration
+│   ├── seeds/                             # Reference data seeding
+│   │   ├── seed_agent_definitions.sql
+│   │   ├── seed_tool_registry.sql
+│   │   ├── seed_model_registry.sql
+│   │   └── seed_prompt_templates.sql
+│   ├── policies/                          # Retention, index policies (yaml)
+│   └── README.md
+│
+├── json/                                  # JSON Schemas (loaded at runtime)
+│   ├── agent_contract.schema.json
+│   ├── model_descriptor.schema.json
+│   ├── tool_descriptor.schema.json
+│   ├── check_descriptor.schema.json
+│   ├── critic_report.schema.json
+│   ├── verification_report.schema.json
+│   └── ...
+│
+└── openapi/                               # OpenAPI specs per service
+    ├── gateway.openapi.yaml
+    ├── admin.openapi.yaml
+    └── ...
+```
+
+### 6.3 `constitution/`
+
+```text
+constitution/
+│
+├── identity.yaml                          # Who COCO is (Dimension 1)
+├── laws.yaml                              # 12 Constitutional Laws (Dimension 2)
+├── voice.yaml                             # Voice spec, response modes
+├── persona.yaml                           # Professional character
+│
+├── cognitive/
+│   ├── state_machine.yaml                 # S1-S15
+│   ├── depth_policy.yaml                  # D0-D6 selector rules
+│   ├── assumption_policy.yaml
+│   ├── contradiction.yaml
+│   ├── evidence.yaml
+│   └── modes.yaml
+│
+├── policies/
+│   ├── clarification.yaml
+│   ├── challenge.yaml
+│   ├── verification.yaml
+│   ├── safety.yaml
+│   ├── permissions.yaml
+│   ├── communication.yaml
+│   ├── autonomy.yaml
+│   └── data_residency.yaml
+│
+├── methods/
+│   ├── coco_method.yaml                   # 11-step signature method
+│   ├── research_method.yaml
+│   ├── engineering_method.yaml
+│   ├── legal_method.yaml
+│   ├── medical_method.yaml
+│   ├── financial_method.yaml
+│   └── ...
+│
+├── evolution/
+│   ├── metrics.yaml
+│   ├── learning_policy.yaml
+│   └── governance.yaml
+│
+└── loader/
+    └── validate.py                        # Runtime + CI validator
+```
+
+### 6.4 `evaluation/`
+
+```text
+evaluation/
+│
+├── benchmarks/
+│   ├── specialists/                       # Beat-Human benchmarks per specialist
+│   │   ├── c1_python_architect/
+│   │   │   ├── tasks.yaml
+│   │   │   └── fixtures/
+│   │   ├── c36_legal_corporate_attorney/
+│   │   └── ...
+│   ├── critics/                           # Critic calibration suites
+│   ├── verifiers/                         # Verifier regression suites
+│   ├── models/                            # Model capability benchmarks
+│   ├── routing/                           # Router policy A/B benchmarks
+│   └── missions/                          # End-to-end mission benchmarks
+│
+├── graders/                               # Rubric graders (Python)
+│   ├── code_grader/
+│   ├── legal_memo_grader/
+│   ├── financial_model_grader/
+│   ├── research_report_grader/
+│   └── ...
+│
+├── datasets/                              # Curated eval datasets
+│   ├── nda_pack/
+│   ├── financial_filings/
+│   ├── clinical_trials/
+│   ├── legal_precedents/
+│   └── ...
+│
+├── experiments/                           # Long-running experiments
+│   ├── router_thompson_v2/
+│   └── ...
+│
+└── reports/                               # Generated eval reports (gitignored, S3)
+```
+
+---
+
+## 7. LANGUAGE STANDARDS
+
+### 7.1 Python Standard
+
+```toml
+# All Python packages share these baseline requirements.
+
+[project]
+requires-python = ">=3.12"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",    # pycodestyle + pyflakes
+  "I",              # isort
+  "N",              # pep8-naming
+  "UP",             # pyupgrade
+  "ANN",            # flake8-annotations
+  "S",              # flake8-bandit (security)
+  "B",              # flake8-bugbear
+  "A",              # flake8-builtins
+  "C4",             # flake8-comprehensions
+  "T20",            # flake8-print
+  "RET",            # flake8-return
+  "SIM",            # flake8-simplify
+  "TID",            # flake8-tidy-imports
+  "ARG",            # flake8-unused-arguments
+  "PL",             # pylint
+  "RUF",            # ruff-specific
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra --strict-markers --strict-config"
+asyncio_mode = "auto"
+markers = [
+  "unit: fast isolated tests",
+  "integration: tests requiring docker services",
+  "e2e: full-stack tests",
+  "slow: tests > 5s",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+```
+
+**Toolchain:**
+```text
+Package manager:   uv                       (10-100x faster than pip)
+Formatter:         ruff format
+Linter:            ruff check
+Type checker:      mypy --strict
+Test runner:       pytest + pytest-asyncio
+Coverage:          coverage.py
+Security scanner:  bandit + pip-audit
+Dependency mgmt:   uv.lock (locked deps)
+```
+
+### 7.2 TypeScript Standard
+
+```json
+// tsconfig.base.json — inherited by every TS package
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true
+  }
+}
+```
+
+**Toolchain:**
+```text
+Package manager:   pnpm (workspaces enabled)
+Formatter:         Prettier
+Linter:            ESLint (typescript-eslint strict + rules per package)
+Bundler:           tsup (libraries) / Next.js (apps)
+Test runner:       Vitest
+Component tests:   Vitest + @testing-library/react
+E2E tests:         Playwright
+Storybook:         For coco-ui, apps/web
+```
+
+### 7.3 Go Standard
+
+```text
+Version:           1.23+
+Formatter:         gofumpt
+Linter:            golangci-lint (config below)
+Test runner:       go test + testify
+Race detection:    go test -race (required in CI)
+Coverage:          go test -cover (min 85%)
+Security:          gosec + govulncheck
+```
+
+```yaml
+# .golangci.yml
+run:
+  timeout: 5m
+  go: '1.23'
+
+linters:
+  enable:
+    - errcheck
+    - gosec
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - contextcheck
+    - errorlint
+    - gofumpt
+    - gosimple
+    - nilerr
+    - nolintlint
+    - revive
+    - unconvert
+    - unparam
+    - wastedassign
+```
+
+### 7.4 Rust Standard
+
+```text
+Version:           Latest stable (via rustup)
+Formatter:         rustfmt
+Linter:            clippy -- -D warnings
+Test runner:       cargo test
+Security:          cargo audit + cargo deny
+```
+
+```toml
+# rustfmt.toml
+edition = "2021"
+max_width = 100
+imports_granularity = "Module"
+group_imports = "StdExternalCrate"
+```
+
+---
+
+## 8. BUILD SYSTEM
+
+### 8.1 The Two-Tier Build Approach
+
+COCO deliberately does NOT use a single monolithic build tool (Bazel/Pants/Buck). Instead:
+
+```text
+TIER 1 — LANGUAGE-NATIVE BUILDS
+  Python:      uv (fast, standard)
+  TypeScript:  pnpm + Turborepo (task caching)
+  Go:          go build
+  Rust:        cargo
+
+TIER 2 — CROSS-LANGUAGE ORCHESTRATION
+  just         (task runner, thin wrapper)
+  buf          (protobuf codegen)
+  docker-compose (local topology)
+
+RATIONALE:
+  - Language-native tools are best-in-class for their language
+  - Developers already know them
+  - No custom BUILD file dialect to learn
+  - Turborepo provides task caching across JS packages
+  - just orchestrates cross-language workflows
+```
+
+### 8.2 Turborepo Configuration
+
+```json
+// turbo.json — root
+{
+  "$schema": "https://turbo.build/schema.json",
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "cache": true
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "cache": true
+    },
+    "lint": {
+      "outputs": [],
+      "cache": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "cache": true
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
+```
+
+### 8.3 Buf Configuration (Protobuf)
+
+```yaml
+# protocols/buf.yaml
+version: v2
+modules:
+  - path: v1
+deps:
+  - buf.build/googleapis/googleapis
+  - buf.build/bufbuild/protovalidate
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE
+```
+
+```yaml
+# protocols/buf.gen.yaml
+version: v2
+plugins:
+  - remote: buf.build/protocolbuffers/python
+    out: generated/python
+  - remote: buf.build/grpc/python
+    out: generated/python
+  - remote: buf.build/community/nrfta-nanopb
+    out: generated/typescript
+  - remote: buf.build/protocolbuffers/go
+    out: generated/go
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go
+    out: generated/go
+    opt: paths=source_relative
+```
+
+### 8.4 Python Workspace (uv Workspaces)
+
+```toml
+# pyproject.toml — root
+[tool.uv.workspace]
+members = [
+  "packages/python/*",
+  "services/kernel",
+  "services/context-service",
+  "services/intelligence-service",
+  "services/forge-service",
+  "services/verification-service",
+  "services/brain-service",
+  "services/evolution-service",
+  "services/memory-service",
+  "services/inference-gateway",
+  "services/check-runners",
+  "operators/browser-operator",
+  "operators/git-operator",
+  "operators/database-operator",
+]
+
+[tool.uv.sources]
+# Ensures workspace packages resolve to local copies
+coco-protocol      = { workspace = true }
+coco-common        = { workspace = true }
+coco-config        = { workspace = true }
+coco-observability = { workspace = true }
+coco-events        = { workspace = true }
+coco-storage       = { workspace = true }
+coco-vector        = { workspace = true }
+coco-agent-sdk     = { workspace = true }
+coco-model-adapter = { workspace = true }
+coco-tool-sdk      = { workspace = true }
+coco-verification-sdk = { workspace = true }
+coco-context-sdk   = { workspace = true }
+coco-memory-sdk    = { workspace = true }
+coco-secrets       = { workspace = true }
+coco-permissions   = { workspace = true }
+coco-testing       = { workspace = true }
+```
+
+### 8.5 pnpm Workspace
+
+```yaml
+# pnpm-workspace.yaml
+packages:
+  - apps/*
+  - packages/typescript/*
+```
+
+### 8.6 Go Multi-Module (with workspace)
+
+```text
+# go.work — root
+go 1.23
+
+use (
+  ./packages/go/coco-protocol
+  ./packages/go/coco-common
+  ./packages/go/coco-observability
+  ./packages/go/coco-events
+  ./packages/go/coco-testing
+  ./services/gateway
+  ./services/execution-service
+  ./services/security-service
+  ./operators/deploy-operator
+)
+```
+
+### 8.7 Rust Workspace
+
+```toml
+# Cargo.toml — root
+[workspace]
+resolver = "2"
+members = [
+  "packages/rust/coco-common",
+  "packages/rust/coco-sandbox-api",
+  "services/sandbox-runtime",
+  "operators/terminal-operator",
+]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+serde = { version = "1", features = ["derive"] }
+```
+
+---
+
+## 9. THE PROTOBUF PIPELINE
+
+```text
+                     ┌─────────────────────┐
+                     │  protocols/v1/*.proto│  ← Source of truth
+                     └──────────┬───────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │  buf lint            │
+                     │  buf breaking (vs main)│
+                     └──────────┬───────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │  buf generate        │
+                     │  → protocols/generated/*│
+                     └──────────┬───────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              ▼                 ▼                 ▼
+      ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+      │ copy to       │ │ copy to       │ │ copy to       │
+      │ packages/     │ │ packages/     │ │ packages/     │
+      │ python/       │ │ typescript/   │ │ go/           │
+      │ coco-protocol │ │ coco-protocol │ │ coco-protocol │
+      └───────────────┘ └───────────────┘ └───────────────┘
+                                │
+                                ▼
+                     ┌─────────────────────┐
+                     │ CI diff check:      │
+                     │ generated ≡ commit  │
+                     │ (no drift allowed)  │
+                     └─────────────────────┘
+```
+
+**One command produces all stubs:**
+```bash
+just proto-gen        # runs buf generate + copies to package dirs
+```
+
+---
+
+## 10. THE `justfile` — TASK RUNNER
+
+```text
+# justfile — every developer's entry point
+# Run:   just <task>
+# List:  just --list
+
+set dotenv-load
+
+# ─── SETUP ─────────────────────────────────────────────────────
+setup:                            # Fresh clone → ready to develop
+    ./tools/setup/bootstrap.sh
+
+install:
+    uv sync --all-packages
+    pnpm install --recursive --frozen-lockfile
+    go work sync
+    cargo fetch --workspace
+
+doctor:                           # Diagnose local env issues
+    ./tools/doctor.sh
+
+# ─── PROTOCOL ─────────────────────────────────────────────────
+proto-lint:
+    cd protocols && buf lint
+    cd protocols && buf breaking --against '.git#branch=main'
+
+proto-gen: proto-lint
+    cd protocols && buf generate
+    ./tools/proto-sync.sh         # Copy stubs to per-language packages
+
+# ─── LOCAL TOPOLOGY ───────────────────────────────────────────
+up:                               # Start full local COCO topology
+    docker compose -f infrastructure/docker/docker-compose.yaml up -d
+    just db-migrate
+    just db-seed
+    @echo "COCO is up. Web: http://localhost:3000 · API: http://localhost:8080"
+
+up-gpu:                           # Add local model serving
+    docker compose \
+      -f infrastructure/docker/docker-compose.yaml \
+      -f infrastructure/docker/docker-compose.gpu.yaml \
+      up -d
+
+down:
+    docker compose -f infrastructure/docker/docker-compose.yaml down
+
+logs service:
+    docker compose -f infrastructure/docker/docker-compose.yaml logs -f {{service}}
+
+# ─── DATABASE ─────────────────────────────────────────────────
+db-migrate:
+    uv run --package coco-storage coco-migrate up
+
+db-seed:
+    uv run --package coco-storage coco-migrate seed
+
+db-reset:
+    docker compose -f infrastructure/docker/docker-compose.yaml \
+      exec postgres psql -U coco_migrator -c "DROP DATABASE IF EXISTS coco;"
+    just db-migrate
+    just db-seed
+
+# ─── FORMAT · LINT · TYPE ─────────────────────────────────────
+fmt:
+    uv run ruff format .
+    pnpm exec prettier -w '**/*.{ts,tsx,md,json,yaml}'
+    gofumpt -l -w services/ operators/ packages/go/
+    cargo fmt --all
+
+lint:
+    uv run ruff check .
+    pnpm turbo lint
+    golangci-lint run ./...
+    cargo clippy --workspace --all-targets -- -D warnings
+
+typecheck:
+    uv run mypy .
+    pnpm turbo typecheck
+
+# ─── TEST ─────────────────────────────────────────────────────
+test:                             # Run everything
+    just test-unit
+    just test-integration
+
+test-unit:
+    uv run pytest -m unit --cov
+    pnpm turbo test -- --run
+    go test -race ./...
+    cargo test --workspace
+
+test-integration:
+    docker compose -f infrastructure/docker/docker-compose.test.yaml up -d
+    uv run pytest -m integration
+    docker compose -f infrastructure/docker/docker-compose.test.yaml down
+
+test-e2e:
+    pnpm --filter web exec playwright test
+
+test-package pkg:
+    uv run pytest packages/python/{{pkg}}
+    pnpm --filter {{pkg}} test
+
+# ─── BUILD ────────────────────────────────────────────────────
+build:
+    uv build --all
+    pnpm turbo build
+    go build ./...
+    cargo build --workspace --release
+
+build-image service:
+    docker build -f services/{{service}}/Dockerfile -t coco/{{service}}:dev .
+
+# ─── SECURITY ─────────────────────────────────────────────────
+security:
+    uv run bandit -r packages/python services operators
+    uv run pip-audit
+    pnpm audit --audit-level=high
+    gosec ./...
+    cargo audit
+    ./tools/security/secret-scan.sh
+    ./tools/security/license-check.sh
+
+# ─── AGENTS ───────────────────────────────────────────────────
+validate-agents:
+    uv run python tools/validate_agents.py
+
+validate-constitution:
+    uv run python constitution/loader/validate.py
+
+# ─── EVALUATION ───────────────────────────────────────────────
+eval-specialists:
+    uv run python evaluation/run_specialist_benchmarks.py
+
+eval-critics:
+    uv run python evaluation/run_critic_calibration.py
+
+# ─── CI EQUIVALENT ────────────────────────────────────────────
+ci: fmt lint typecheck proto-lint validate-agents validate-constitution test security
+
+# ─── RELEASE ──────────────────────────────────────────────────
+release-plan:
+    ./tools/release/plan.sh
+
+release-cut version:
+    ./tools/release/cut.sh {{version}}
+
+# ─── DEV UX ───────────────────────────────────────────────────
+dev:                              # Watch mode for active development
+    pnpm turbo dev
+
+dev-service service:
+    ./tools/dev/watch-service.sh {{service}}
+
+clean:
+    ./tools/clean.sh
+```
+
+---
+
+## 11. LOCAL DEVELOPMENT ENVIRONMENT
+
+### 11.1 Docker Compose (Baseline Stack)
+
+```yaml
+# infrastructure/docker/docker-compose.yaml
+name: coco-dev
+
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: coco_migrator
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_DB: coco
+    ports: ["5432:5432"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-pg.sh:/docker-entrypoint-initdb.d/init.sh
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "coco_migrator"]
+      interval: 5s
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    command: ["redis-server", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+
+  nats:
+    image: nats:2-alpine
+    command: ["-js", "-sd", "/data"]
+    ports: ["4222:4222", "8222:8222"]
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8222/healthz"]
+      interval: 5s
+
+  minio:                          # S3-compatible object store
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports: ["9000:9000", "9001:9001"]
+    volumes:
+      - minio_data:/data
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel-config.yaml:/etc/otel/config.yaml
+    ports: ["4317:4317", "4318:4318"]
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9090:9090"]
+    volumes:
+      - ../monitoring/prometheus/dev.yaml:/etc/prometheus/prometheus.yaml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3001:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+    volumes:
+      - ../monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ../monitoring/grafana/provisioning:/etc/grafana/provisioning
+
+  # ─── COCO Services (built from source) ───
+  gateway:
+    build: {context: ../..; dockerfile: services/gateway/Dockerfile}
+    depends_on: [postgres, redis, nats]
+    ports: ["8080:8080"]
+    environment:
+      COCO_ENV: dev
+      DATABASE_URL: postgres://coco_app:dev@postgres/coco
+      REDIS_URL: redis://redis:6379
+      NATS_URL: nats://nats:4222
+
+  kernel:
+    build: {context: ../.., dockerfile: services/kernel/Dockerfile}
+    depends_on: [gateway, nats, postgres]
+    environment:
+      COCO_ENV: dev
+
+  intelligence-service:
+    build: {context: ../.., dockerfile: services/intelligence-service/Dockerfile}
+    depends_on: [kernel, nats, redis]
+
+  execution-service:
+    build: {context: ../.., dockerfile: services/execution-service/Dockerfile}
+    depends_on: [kernel, nats]
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]     # Sandbox access
+
+  verification-service:
+    build: {context: ../.., dockerfile: services/verification-service/Dockerfile}
+    depends_on: [kernel, execution-service]
+
+  brain-service:
+    build: {context: ../.., dockerfile: services/brain-service/Dockerfile}
+    depends_on: [postgres, nats]
+
+  evolution-service:
+    build: {context: ../.., dockerfile: services/evolution-service/Dockerfile}
+    depends_on: [postgres]
+
+  security-service:
+    build: {context: ../.., dockerfile: services/security-service/Dockerfile}
+    depends_on: [postgres, redis]
+
+volumes:
+  postgres_data:
+  nats_data:
+  minio_data:
+```
+
+### 11.2 GPU Overlay (Local Model Serving)
+
+```yaml
+# infrastructure/docker/docker-compose.gpu.yaml
+services:
+
+  ollama:
+    image: ollama/ollama:latest
+    ports: ["11434:11434"]
+    volumes: [ollama_data:/root/.ollama]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  vllm-qwen-coder:
+    image: vllm/vllm-openai:latest
+    command:
+      - --model=Qwen/Qwen2.5-Coder-32B-Instruct
+      - --tensor-parallel-size=1
+      - --served-model-name=qwen/qwen2.5-coder-32b@vllm
+      - --port=8001
+    ports: ["8001:8001"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  ollama_data:
+```
+
+### 11.3 Devcontainer
+
+```json
+// .devcontainer/devcontainer.json
+{
+  "name": "COCO",
+  "dockerComposeFile": "docker-compose.devcontainer.yaml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {},
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/node:1": {"version": "20"},
+    "ghcr.io/devcontainers/features/python:1": {"version": "3.12"},
+    "ghcr.io/devcontainers/features/go:1": {"version": "1.23"},
+    "ghcr.io/devcontainers/features/rust:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "charliermarsh.ruff",
+        "ms-python.python",
+        "ms-python.mypy-type-checker",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "golang.go",
+        "rust-lang.rust-analyzer",
+        "zxh404.vscode-proto3",
+        "bufbuild.vscode-buf",
+        "ms-azuretools.vscode-docker",
+        "github.copilot",
+        "github.vscode-github-actions",
+        "yzhang.markdown-all-in-one",
+        "redhat.vscode-yaml"
+      ]
+    }
+  },
+
+  "postCreateCommand": "just setup",
+  "forwardPorts": [3000, 3001, 5432, 6379, 8080, 9000, 9090, 11434]
+}
+```
+
+### 11.4 The 15-Minute Onboarding Contract
+
+```bash
+# From zero to running COCO locally
+git clone https://github.com/dsrt/coco.git
+cd coco
+just setup           # Installs uv, pnpm, go, rust; hydrates deps
+just up              # Starts full topology
+just eval-specialists  # Runs first benchmark
+
+# Total time on modern laptop: ≤ 15 minutes.
+# If longer: file a P1 with tools/onboarding.
+```
+
+---
+
+## 12. CI/CD PIPELINE
+
+### 12.1 GitHub Actions Workflow Structure
+
+```text
+.github/workflows/
+│
+├── pr.yaml                        # Runs on every PR
+├── main.yaml                      # Runs on merge to main
+├── nightly.yaml                   # Nightly benchmarks + eval
+├── release.yaml                   # Cuts releases (release-please)
+├── deploy-staging.yaml            # Auto-deploys main to staging
+├── deploy-prod.yaml               # Manual approval → prod
+├── security-scan.yaml             # Weekly deep security scan
+├── dependency-update.yaml         # Renovate/Dependabot
+└── docs-preview.yaml              # Preview docs on PRs
+```
+
+### 12.2 PR Workflow (Merge Gate)
+
+```yaml
+# .github/workflows/pr.yaml
+name: PR Check
+on: [pull_request]
+
+concurrency:
+  group: pr-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+      go: ${{ steps.filter.outputs.go }}
+      rust: ${{ steps.filter.outputs.rust }}
+      proto: ${{ steps.filter.outputs.proto }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+      agents: ${{ steps.filter.outputs.agents }}
+      constitution: ${{ steps.filter.outputs.constitution }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: .github/paths.yaml
+
+  protocol:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.proto == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: bufbuild/buf-setup-action@v1
+      - run: cd protocols && buf lint
+      - run: cd protocols && buf breaking --against ".git#branch=main"
+      - run: just proto-gen
+      - run: git diff --exit-code   # Fail if generated stubs drift
+
+  python:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --all-packages
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy .
+      - run: uv run bandit -r packages/python services operators
+      - run: uv run pip-audit
+      - run: uv run pytest -m unit --cov --cov-report=xml
+      - uses: codecov/codecov-action@v4
+
+  typescript:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.typescript == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '20', cache: pnpm}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo lint typecheck test build
+      - run: pnpm audit --audit-level=high
+
+  go:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: {go-version: '1.23'}
+      - uses: golangci/golangci-lint-action@v6
+      - run: go test -race -coverprofile=coverage.out ./...
+      - run: gosec ./...
+      - run: govulncheck ./...
+
+  rust:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: {components: rustfmt, clippy}
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo audit
+
+  migrations:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env: {POSTGRES_PASSWORD: pw}
+        options: --health-cmd pg_isready
+        ports: ['5432:5432']
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./tools/migrations/verify_all.sh
+
+  agents:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.agents == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv run python tools/validate_agents.py
+
+  constitution:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.constitution == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv run python constitution/loader/validate.py
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: gitleaks/gitleaks-action@v2
+
+  license:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./tools/security/license-check.sh
+
+  integration:
+    needs: [python, typescript, go, protocol]
+    if: always() && !failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f infrastructure/docker/docker-compose.test.yaml up -d
+      - run: just test-integration
+      - run: docker compose -f infrastructure/docker/docker-compose.test.yaml down
+
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env: {GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}}
+```
+
+### 12.3 Main Branch Workflow
+
+```text
+On merge to main:
+  1. Full CI runs again (belt-and-braces)
+  2. Build & push container images (tagged with commit SHA)
+  3. Push protocol stubs to Buf schema registry
+  4. Deploy to staging (automatic)
+  5. Run smoke tests against staging
+  6. Update release-please PR
+  7. Refresh docs site preview
+```
+
+### 12.4 Release Workflow
+
+```text
+Trigger: merge of release-please PR
+  1. Tag commit with version
+  2. Sign container images (cosign)
+  3. Generate SBOM (syft)
+  4. Publish release notes (from conventional commits)
+  5. Publish TypeScript packages to npm
+  6. Publish Python packages to internal PyPI
+  7. Publish Go modules
+  8. Publish protobuf stubs to buf.build
+  9. Request prod deploy approval (human gate)
+```
+
+### 12.5 Nightly Workflow
+
+```text
+02:00 UTC daily:
+  1. Run full evaluation suite (all specialist benchmarks)
+  2. Run critic calibration suite
+  3. Run verifier regression suite
+  4. Refresh domain corpora (per §5 refresh policy)
+  5. Compute model_performance aggregates → evolution.model_performance
+  6. Compute agent_performance aggregates → evolution.agent_performance
+  7. Alert on regressions (route to appropriate Domain Director)
+  8. Publish nightly report to internal dashboard
+```
+
+---
+
+## 13. TESTING PYRAMID
+
+### 13.1 Per-Package Test Structure
+
+```text
+Every package MUST contain (at minimum):
+
+  tests/
+  ├── conftest.py                 # Fixtures (Python) or setup (other)
+  ├── unit/                       # Fast, isolated, no I/O
+  ├── integration/                # Requires infrastructure (docker services)
+  └── e2e/                        # Full-stack (rare per-package)
+```
+
+### 13.2 Coverage Requirements
+
+```text
+PACKAGE CLASS                     MIN COVERAGE      RATIONALE
+────────────────────────────      ──────────────    ──────────────────────
+Protocol packages                 100%              Auto-generated + smoke
+Security-critical packages        95%               No excuses
+Kernel + agent-sdk                90%               Core reliability
+Business logic services           85%
+UI components                     80%               Includes snapshot tests
+Utility packages                  90%
+Experimental packages             70%               Explicit label required
+```
+
+### 13.3 Contract Testing
+
+Every service that exposes gRPC/HTTP has **contract tests** — tests that verify the OpenAPI/proto contract is upheld:
+
+```python
+# services/gateway/tests/contract/test_openapi_conformance.py
+from schemathesis import from_uri
+
+schema = from_uri("http://localhost:8080/openapi.json")
+
+@schema.parametrize()
+def test_openapi_conformance(case):
+    case.call_and_validate()
+```
+
+### 13.4 Integration Test Environment
+
+```yaml
+# infrastructure/docker/docker-compose.test.yaml
+# Minimal topology for CI integration tests
+name: coco-test
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    tmpfs: /var/lib/postgresql/data       # Ephemeral, fast
+  redis:
+    image: redis:7-alpine
+  nats:
+    image: nats:2-alpine
+    command: ["-js"]
+  minio:
+    image: minio/minio:latest
+    command: server /data
+```
+
+### 13.5 E2E Test Strategy
+
+```text
+Location:         tests/e2e/
+Runner:           Playwright (for web) + pytest (for API workflows)
+Environment:      Full stack via docker compose
+Frequency:        Every PR + nightly
+Scope:            Golden-path missions (create → plan → execute → deliver)
+```
+
+---
+
+## 14. RELEASE & VERSIONING
+
+### 14.1 Versioning Scheme
+
+```text
+COCO PLATFORM (overall):          Calendar versioning · 2025.11.4
+Individual packages:              Semantic versioning · 1.4.2
+Protocol schemas:                 SemVer major = new versioned .proto dir
+Container images:                 Git SHA + semver tag
+Constitution:                     Semver; loaded with version check
+```
+
+### 14.2 Conventional Commits
+
+```text
+feat(kernel):        add mission checkpoint compaction
+fix(verification):   correct L4 timeout on large repositories
+docs(protocol):      clarify envelope signing algorithm
+chore(deps):         bump pnpm to 9.14
+refactor(context):   split memory scope resolvers
+test(agent):         add benchmark task for C36
+perf(model-router):  cache Thompson posteriors in Redis
+build(ci):           add SBOM generation to release
+```
+
+### 14.3 Release Trains
+
+```text
+CADENCE                    ARTIFACT                   ROLLOUT
+──────────────────────    ──────────────────────    ────────────────────
+Daily                     Container images           dev auto
+Weekly (Tue)              staging deployment         staging auto
+Bi-weekly (Wed)           prod release               human-approved
+Monthly                   protocol version review    RFC required
+Quarterly                 constitution review        governance approval
+```
+
+### 14.4 Rollback Contract
+
+Every deployable artifact ships with:
+- Prior-version container image tag
+- `just rollback <service>` command
+- Automatic rollback triggers wired to Prometheus alerts
+- 60-second rollback SLO for production services
+
+---
+
+## 15. CONTRIBUTION CONVENTIONS
+
+### 15.1 Branch Model
+
+```text
+main                     Always deployable to staging
+release/*                Cut from main for prod release stabilization
+feat/*                   Feature branches (short-lived)
+fix/*                    Bug-fix branches
+chore/*                  Refactors, deps, docs
+experiment/*             Explorations that may never merge
+```
+
+### 15.2 PR Requirements
+
+```text
+Every PR MUST:
+  ✓ Have a conventional commit title
+  ✓ Reference an issue (or explain why not)
+  ✓ Pass all CI checks
+  ✓ Include tests for new behavior
+  ✓ Include CHANGELOG.md entry (auto-generated via release-please for most)
+  ✓ Have ≥ 1 approving review (2 for security-critical packages)
+  ✓ Have ≤ 500 lines diff (or explicit "large PR" label with justification)
+  ✓ Not decrease coverage below package floor
+  ✓ Not add un-audited dependencies
+```
+
+### 15.3 Code Review Etiquette
+
+```text
+Reviewers MUST:
+  - Respond within 1 business day
+  - Prefer suggestions over ambiguous critiques
+  - Distinguish blocking issues from nits
+  - Approve or request changes explicitly (no lingering PRs)
+
+Authors MUST:
+  - Respond to every comment (resolve or discuss)
+  - Force-push only during active review, then avoid it
+  - Rebase before merge (linear history)
+```
+
+### 15.4 CODEOWNERS
+
+```text
+# .github/CODEOWNERS
+# Every path has an explicit owner team
+
+/protocols/                     @coco/platform-eng
+/constitution/                  @coco/governance
+/schemas/database/              @coco/platform-eng
+/services/kernel/               @coco/kernel-team
+/services/intelligence-service/ @coco/intelligence-team
+/services/execution-service/    @coco/execution-team
+/services/verification-service/ @coco/verification-team
+/services/security-service/     @coco/security @coco/platform-eng
+/agents/tier_1_core/            @coco/core-agents
+/agents/tier_3_specialists/c36* @coco/legal-team
+/agents/tier_3_specialists/c60* @coco/medical-team
+/agents/tier_3_specialists/c1*  @coco/eng-agents
+/apps/web/                      @coco/frontend
+/infrastructure/kubernetes/     @coco/platform-eng
+/infrastructure/terraform/      @coco/platform-eng
+/evaluation/                    @coco/eval-team
+```
+
+---
+
+## 16. THE CONSTITUTION LOADER (Runtime Contract)
+
+The `constitution/` directory is not documentation. It is loaded and enforced at runtime.
+
+```python
+# constitution/loader/validate.py
+"""
+Validates every YAML in constitution/ against its schema.
+Run in CI on every PR touching constitution/.
+Run at every service boot before accepting traffic.
+"""
+
+from pathlib import Path
+import yaml
+import jsonschema
+
+CONSTITUTION_SCHEMAS = {
+    "identity.yaml":               "identity.schema.json",
+    "laws.yaml":                   "laws.schema.json",
+    "voice.yaml":                  "voice.schema.json",
+    "persona.yaml":                "persona.schema.json",
+    "cognitive/state_machine.yaml": "state_machine.schema.json",
+    "cognitive/depth_policy.yaml":  "depth_policy.schema.json",
+    "cognitive/assumption_policy.yaml": "assumption_policy.schema.json",
+    "cognitive/contradiction.yaml": "contradiction.schema.json",
+    "cognitive/evidence.yaml":     "evidence.schema.json",
+    "cognitive/modes.yaml":        "modes.schema.json",
+    # ... policies/, methods/, evolution/
+}
+
+def validate_all(constitution_root: Path, schemas_root: Path) -> None:
+    errors: list[str] = []
+    for rel_path, schema_name in CONSTITUTION_SCHEMAS.items():
+        yaml_path = constitution_root / rel_path
+        schema_path = schemas_root / "constitution" / schema_name
+        if not yaml_path.exists():
+            errors.append(f"Missing: {rel_path}")
+            continue
+        try:
+            doc = yaml.safe_load(yaml_path.read_text())
+            schema = yaml.safe_load(schema_path.read_text())
+            jsonschema.validate(doc, schema)
+        except Exception as e:
+            errors.append(f"{rel_path}: {e}")
+    if errors:
+        raise ConstitutionValidationError("\n".join(errors))
+```
+
+**Every service loads the constitution at boot:**
+```python
+# services/kernel/src/coco_kernel/boot.py
+from coco_config import load_constitution
+
+def boot() -> None:
+    constitution = load_constitution(strict=True)
+    # constitution now available to depth_selector, response_composer, etc.
+```
+
+---
+
+## 17. SECRETS & CONFIGURATION
+
+### 17.1 Configuration Layers (highest priority wins)
+
+```text
+1. Command-line flags                     (rare, dev only)
+2. Environment variables                  (deploy-time overrides)
+3. Constitution overlays                  (per-tenant, per-env)
+4. Constitution defaults                  (constitution/ directory)
+5. Package defaults                       (in-code)
+```
+
+### 17.2 Secret Handling
+
+```text
+NEVER:
+  ✗ Commit secrets to git
+  ✗ Bake secrets into container images
+  ✗ Log secrets (structured logging must scrub)
+  ✗ Pass secrets in URLs
+
+ALWAYS:
+  ✓ Retrieve secrets from Secret Broker at runtime
+  ✓ Cache in-memory only, never on disk
+  ✓ Rotate on schedule
+  ✓ Audit access via security-service
+```
+
+### 17.3 Local Dev Secrets
+
+```text
+.env.example      Committed template with dummy values
+.env              Local overrides (gitignored)
+tools/secrets/dev.sh   Pulls dev secrets from shared vault (with 2FA)
+```
+
+---
+
+## 18. OBSERVABILITY BUILT-IN
+
+### 18.1 Every Service Emits
+
+```text
+✓ OpenTelemetry traces (auto-instrumented HTTP/gRPC clients + servers)
+✓ Prometheus metrics (RED: Rate, Errors, Duration)
+✓ Structured JSON logs (correlation-id, mission-id, tenant-id)
+✓ Health endpoints (/healthz, /readyz)
+```
+
+### 18.2 Metric Naming Convention
+
+```text
+coco_<fabric>_<subject>_<action>_<unit>
+
+Examples:
+  coco_kernel_mission_created_total
+  coco_intelligence_agent_run_duration_seconds
+  coco_model_call_completed_total
+  coco_verification_level_pass_rate
+  coco_execution_sandbox_active_count
+```
+
+### 18.3 Trace Attribute Convention
+
+```text
+Every span carries:
+  coco.mission.id
+  coco.run.id (if in agent run)
+  coco.task.id (if in task)
+  coco.tenant.id
+  coco.fabric
+  coco.component
+```
+
+---
+
+## 19. THE `tools/` DIRECTORY
+
+```text
+tools/
+│
+├── setup/
+│   ├── bootstrap.sh              # First-time setup
+│   └── platform-checks.sh
+│
+├── doctor/
+│   ├── check-deps.sh
+│   ├── check-docker.sh
+│   └── check-gpu.sh
+│
+├── proto-sync.sh                 # Copies generated stubs to package dirs
+│
+├── migrations/
+│   ├── new.sh                    # Create new migration file with paired verify
+│   └── verify_all.sh             # Apply + verify in ephemeral DB
+│
+├── security/
+│   ├── secret-scan.sh
+│   ├── license-check.sh
+│   └── sbom.sh
+│
+├── release/
+│   ├── plan.sh
+│   ├── cut.sh
+│   └── rollback.sh
+│
+├── dev/
+│   ├── watch-service.sh
+│   ├── seed-mission.sh           # Load an example mission into local
+│   └── replay-mission.sh         # Replay event log for debugging
+│
+├── validate_agents.py            # CI validator for agents/
+├── validate_tools.py             # CI validator for tool registry
+├── validate_models.py            # CI validator for model registry
+├── validate_corpora.py           # CI validator for corpus sources
+│
+└── clean.sh                      # Nuclear reset of local env
+```
+
+---
+
+## 20. DOCS SITE
+
+```text
+docs/
+├── site.config.ts                 # Docusaurus config
+├── src/
+│   └── theme/                     # DSRT-branded theme
+├── content/
+│   ├── introduction/
+│   ├── getting-started/
+│   ├── architecture/              # High-level fabric explainers
+│   ├── protocols/                 # Auto-generated from .proto
+│   ├── specialists/               # Specialist datasheets (Deep Spec 5 §7)
+│   ├── operations/
+│   ├── security/
+│   ├── deploying/
+│   ├── contributing/
+│   ├── governance/                # Constitution + governance
+│   └── changelog/                 # Auto-generated
+├── static/
+└── package.json
+
+Deployment:
+  Auto-deploys to docs.coco.dev on merge to main.
+  PR previews at docs-preview-<pr>.coco.dev.
+```
+
+---
+
+## 21. SUMMARY OF SPECIFICATION 7 LOCKS
+
+The **Monorepo Blueprint** is now fully specified:
+
+1. **Ten Governing Laws Locked** — one repo/many boundaries, language-per-job, protocol as source of truth, per-package build/test, CI as merge authority, dev==prod topology, pinned dependencies, first-class tests, orchestrated releases, DX as a feature.
+2. **Top-Level Layout Locked** — 15 top-level directories with explicit ownership and purpose.
+3. **`apps/` Directory Locked** — 7 user-facing surfaces with strict leaf-node rules.
+4. **`services/` Directory Locked** — 15 fabric services with per-service language justifications.
+5. **`packages/` Directory Locked** — 4 language groups (Python, TS, Go, Rust) with per-language conventions.
+6. **`agents/`, `operators/`, `protocols/` Directories Locked** — full folder structure for all 4 agent tiers, 5 operators, and versioned protobuf packages.
+7. **Language Standards Locked** — Python 3.12+ / uv / ruff / mypy strict; TypeScript strict / pnpm / Vitest; Go 1.23+ / golangci-lint; Rust stable / clippy.
+8. **Two-Tier Build System Locked** — language-native tools + `just` orchestrator + Turborepo caching + buf for protobuf.
+9. **Protobuf Pipeline Locked** — `just proto-gen` regenerates all stubs; CI verifies no drift.
+10. **`justfile` Locked** — canonical developer entry point covering setup, dev, test, build, security, release.
+11. **Local Development Environment Locked** — docker-compose baseline + GPU overlay + devcontainer + 15-minute onboarding contract.
+12. **CI/CD Pipeline Locked** — PR merge gate, main pipeline, release train, nightly evaluation, weekly security scan.
+13. **Testing Pyramid Locked** — per-package structure, coverage requirements per package class, contract testing, e2e strategy.
+14. **Release & Versioning Locked** — CalVer for platform, SemVer for packages, conventional commits, release trains, 60-second rollback SLO.
+15. **Contribution Conventions Locked** — branch model, PR requirements, review etiquette, CODEOWNERS.
+16. **Constitution Loader Locked** — runtime + CI validation of every constitution YAML against schemas.
+17. **Secrets & Configuration Locked** — 5-layer config precedence, secret broker rules, local dev secret workflow.
+18. **Observability Built-In Locked** — OTel traces, Prometheus metrics, structured logs, health endpoints on every service.
+19. **`tools/` Directory Locked** — canonical developer scripts covering setup, migrations, security, release, dev, validation.
+20. **Docs Site Locked** — Docusaurus with per-PR previews and auto-generated protocol/changelog content.
+
+Everything downstream — code, tests, deployments, releases, contributions — now has a physical home and a deterministic workflow. **A new engineer can clone the repo and be productive on any fabric within a day. The architecture defined in Deep Specs 1-6 has a place to live.**
+
+---
+
+## NEXT DEEP SPECIFICATION
+
+The physical structure is locked. We proceed to **DEEP SPEC 8 — The Security & Isolation Spec**:
+
+- Full sandbox architecture (container isolation, firecracker microVM tier for higher trust needs, network policies)
+- Capability-based permission model (fine-grained, revocable, auditable)
+- Secret broker deep spec (Vault integration, dynamic credentials, rotation)
+- Multi-tenancy hardening beyond RLS (cryptographic separation for restricted data)
+- Prompt injection defense architecture (pre-inference, in-context, post-inference)
+- Supply chain security (SBOM, signed containers, verified builds, SLSA attestation)
+- Data residency & sovereignty
+- HIPAA / GDPR / SOC 2 posture built into the platform
+- Incident response playbooks
+- Red-team & bug-bounty program structure
+- Audit log design and tamper-evidence
+
+**Confirm: proceed to Deep Spec 8 — Security & Isolation?**

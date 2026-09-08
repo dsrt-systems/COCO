@@ -1,0 +1,1959 @@
+DEEP SPEC 5 — THE EXPERT-BEATING PLAYBOOK
+System: DSRT COCO
+Layer: Domain Intelligence & Specialist Elevation
+Status: Approved & Locked Specification
+Governing Standards: Constitutional Standard ("Every specialist must beat the median human expert"); Article XIII (Cognitive Runtime); Deep Specs 1-4
+Purpose: Convert the 134-agent roster from "competent AI assistants" into "world-class experts that outperform practicing human professionals on bounded, verifiable tasks."
+
+0. THE EXPERT-BEATING PHILOSOPHY
+A raw LLM answering a legal question is a precocious student. A COCO Legal Advisor answering the same question is a senior partner with instant access to every case, every statute, every treatise, an adversarial second attorney reviewing every word, and a permanent memory of every prior matter.
+
+The gap is not the model. The gap is the system built around the model.
+
+The Six Truths of Expert-Beating
+text
+
+TRUTH 1  — HUMANS FORGET; COCO REMEMBERS
+           A human lawyer cannot hold every case in working memory.
+           COCO retrieves the exact relevant precedent every time.
+
+TRUTH 2  — HUMANS TIRE; COCO IS RELENTLESS
+           A radiologist misses subtle findings after 8 hours.
+           COCO's attention does not degrade across 10,000 images.
+
+TRUTH 3  — HUMANS WORK ALONE; COCO WORKS IN PAIRS
+           Every specialist is paired with an adversarial critic that
+           attacks the work before the human user sees it.
+
+TRUTH 4  — HUMANS ESTIMATE; COCO COMPUTES
+           A human financial analyst estimates NPV in their head.
+           COCO runs 10,000 Monte Carlo iterations in seconds.
+
+TRUTH 5  — HUMANS CITE MEMORY; COCO CITES SOURCES
+           Every claim is traceable to a primary source with a hash.
+           Fabricated citations are structurally impossible.
+
+TRUTH 6  — HUMANS SPECIALIZE NARROWLY; COCO COMBINES BROADLY
+           A patent attorney rarely also runs monte-carlo financial
+           analysis on the licensing model. COCO combines specialists
+           in one mission without context loss.
+The Four Levers (Applied to Every Specialist)
+Every expert-beating recipe pulls on all four levers from the Cognitive Runtime spec:
+
+text
+
+LEVER 1 — INFRASTRUCTURE       → Multi-source parallel retrieval, sandbox execution,
+                                   long-horizon persistence, cross-domain composition
+
+LEVER 2 — OUTPUT QUALITY       → Independent critic, verification ladder, evidence
+                                   attachment, structured deliverables
+
+LEVER 3 — INTELLIGENCE PUSH    → Domain methodology enforcement, assumption engine,
+                                   contradiction engine, adversarial mode
+
+LEVER 4 — BEHAVIOR             → Explicit epistemic status, calibrated confidence,
+                                   professional voice, honest limitations
+The Universal Expert-Beating Recipe
+Every specialist blueprint in this document follows the same 10-part structure:
+
+text
+
+1.  Expert-Beating Thesis           — Concrete claim of superiority
+2.  The Human Baseline              — What a median human expert actually does
+3.  The Domain Corpus               — Every source, how ingested, how refreshed
+4.  The Tool Suite                  — Every tool the specialist can invoke
+5.  The Cognitive Method            — The exact step-by-step process
+6.  The Paired Critic               — The independent adversarial reviewer
+7.  The Verification Battery        — What tests must pass before delivery
+8.  The Evaluation Rubric           — Measurable pass/fail thresholds
+9.  The Beat-Human Benchmark        — Concrete tasks where superiority is demonstrated
+10. The Continuous Elevation Plan   — How the specialist stays ahead over time
+1. THE UNIVERSAL EXPERT-BEATING FRAMEWORK
+Before descending into individual specialists, this framework applies to all of them.
+
+1.1 The Domain Ingestion Pipeline
+Every domain corpus is acquired, verified, indexed, and refreshed through a standard pipeline.
+
+text
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DOMAIN INGESTION PIPELINE                        │
+│                                                                     │
+│   ┌────────────────────┐                                            │
+│   │  SOURCE REGISTRY   │  ← authoritative list of sources per domain│
+│   │  (curated by       │                                            │
+│   │   Domain Director) │                                            │
+│   └────────┬───────────┘                                            │
+│            │                                                        │
+│            ▼                                                        │
+│   ┌────────────────────┐    ┌────────────────────┐                  │
+│   │   ACQUIRE          │───▶│  LICENSE CHECK     │  (block if       │
+│   │   (crawl / API /   │    │                    │   incompatible)  │
+│   │   subscription)    │    └────────────────────┘                  │
+│   └────────┬───────────┘                                            │
+│            ▼                                                        │
+│   ┌────────────────────┐                                            │
+│   │   NORMALIZE        │  ← parse PDF/HTML/XML into canonical form  │
+│   │   + provenance     │                                            │
+│   └────────┬───────────┘                                            │
+│            ▼                                                        │
+│   ┌────────────────────┐                                            │
+│   │   HASH + CHUNK     │  ← SHA-256 per doc; semantic chunking      │
+│   └────────┬───────────┘                                            │
+│            ▼                                                        │
+│   ┌────────────────────┐    ┌────────────────────┐                  │
+│   │   EMBED            │    │  METADATA EXTRACT  │                  │
+│   │   (embed.text /    │    │  (dates, authors,  │                  │
+│   │    embed.code)     │    │  citations, IDs)   │                  │
+│   └────────┬───────────┘    └────────┬───────────┘                  │
+│            └────────┬────────────────┘                              │
+│                     ▼                                               │
+│   ┌────────────────────────────────────────────┐                    │
+│   │   PERSIST TO CORPUS STORES                 │                    │
+│   │   - research.sources                       │                    │
+│   │   - memory.memories (scope=semantic)       │                    │
+│   │   - pgvector HNSW index                    │                    │
+│   │   - Object storage (raw + normalized)      │                    │
+│   └───────────────────────┬────────────────────┘                    │
+│                           ▼                                         │
+│   ┌────────────────────────────────────────────┐                    │
+│   │   VALIDATE                                 │                    │
+│   │   - No duplicates (hash-check)             │                    │
+│   │   - Provenance complete                    │                    │
+│   │   - Sample retrieval passes quality gate   │                    │
+│   └───────────────────────┬────────────────────┘                    │
+│                           ▼                                         │
+│   ┌────────────────────────────────────────────┐                    │
+│   │   REFRESH POLICY                           │                    │
+│   │   - Live sources: daily poll               │                    │
+│   │   - Regulatory sources: real-time webhooks │                    │
+│   │   - Academic: weekly                       │                    │
+│   │   - Books/treatises: annual                │                    │
+│   └────────────────────────────────────────────┘                    │
+└─────────────────────────────────────────────────────────────────────┘
+1.2 Corpus Governance Rules
+text
+
+RULE 1  — EVERY DOCUMENT HAS PROVENANCE
+          source URL, retrieval timestamp, SHA-256, license class
+          
+RULE 2  — LICENSE-COMPATIBLE OR EXCLUDED
+          Copyrighted sources are used only under license
+          (subscription APIs, licensed datasets, first-sale copies).
+          Ambiguous sources default to EXCLUDE.
+
+RULE 3  — VERSIONED, NEVER MUTATED
+          Superseded documents remain queryable with status=superseded.
+          New versions link to prior versions.
+
+RULE 4  — AUTHORITATIVE > SECONDARY > TERTIARY
+          Every source carries a credibility_class.
+          Retrieval prefers primary sources when confidence conflicts.
+
+RULE 5  — DOMAIN DIRECTOR OWNS THE REGISTRY
+          Tier 2 Directors approve additions/removals to their corpus.
+          Registry changes are code-reviewed and audited.
+
+RULE 6  — QUARANTINE ON REFRESH FAILURE
+          If a source becomes unreachable or license status changes,
+          it enters quarantine — queryable with warning, but flagged.
+
+RULE 7  — TENANT CORPORA ARE ISOLATED
+          Enterprise tenants may add proprietary sources.
+          Those sources are RLS-isolated and never leak to other tenants.
+1.3 The Paired Critic Pattern
+Law: Every Tier-3 Specialist has a paired Critic Agent. The Critic is defined in the same registry, spawned automatically alongside its specialist, and given the same knowledge access but a different cognitive stance.
+
+text
+
+                        SPECIALIST                CRITIC
+                        ──────────                ──────
+                        
+    Stance:             Constructive              Adversarial
+    Goal:               Produce best answer       Break the best answer
+    Model:              Same tier                 Same or higher tier
+    Knowledge:          Full domain corpus        Full domain corpus
+    Tools:              Full suite                Read-only + verification tools
+    Prompt bias:        "Best solution"           "Find the flaw"
+    Method:             Domain methodology         Systematic attack patterns
+    Output:             Deliverable + rationale   CriticReport (per Deep Spec 2 §7.2)
+The Critic operates at Verification Level L9 (Constitutional §Dimension 9). If the Critic scores < rubric threshold, a RepairOrder is issued to the Specialist. Loop continues until pass or max_attempts.
+
+1.4 The Beat-Human Benchmark Suite
+Every flagship specialist has a benchmark suite — a set of graded, real-world tasks with known human expert baselines. The specialist must beat the median human on ≥ 90% of the suite before graduating to production.
+
+text
+
+BENCHMARK RECORD SCHEMA:
+──────────────────────────────────────────────────────────
+benchmark_id              ulid
+specialist_id             text
+task_description          text
+input_artifacts           artifact_ref[]
+expected_output_schema    json_schema_uri
+
+human_baseline:
+  median_score            0.0..1.0
+  median_time_minutes     int
+  sample_size             int
+  evaluator               "board-certified" | "practicing" | "expert-panel"
+
+coco_target:
+  min_score               human_baseline * 1.10   # 10% above median human
+  max_time_minutes        human_baseline * 0.20   # 5x faster
+  min_evidence_items      per-domain floor
+
+grading_rubric            structured_rubric
+last_evaluated_at         timestamp
+last_score                0.0..1.0
+The Evolution Fabric runs the benchmark suite nightly against the production specialist. Regression triggers alerts to the Domain Director.
+
+1.5 The Continuous Elevation Loop
+text
+
+┌─────────────────────────────────────────────────────────────┐
+│                   ELEVATION LOOP                            │
+│                                                             │
+│  Nightly:                                                   │
+│    1. Run benchmark suite against production specialist     │
+│    2. Compare with prior score                              │
+│    3. If regression: alert Domain Director + open incident  │
+│                                                             │
+│  Weekly:                                                    │
+│    4. Analyze production runs for common failure modes      │
+│    5. Extract failure patterns → propose method refinements │
+│    6. Test refinements in shadow mode (5% traffic)          │
+│                                                             │
+│  Monthly:                                                   │
+│    7. Domain Director reviews corpus for gaps/staleness     │
+│    8. New sources ingested; deprecated sources retired      │
+│    9. Prompt template versions bumped if warranted          │
+│                                                             │
+│  Quarterly:                                                 │
+│   10. Add new benchmark tasks reflecting new failure modes  │
+│   11. Independent human expert re-baseline critical tasks   │
+│   12. Publish specialist changelog                          │
+└─────────────────────────────────────────────────────────────┘
+2. FLAGSHIP SPECIALIST BLUEPRINTS
+The following 20 blueprints are the flagship set for v1. Each demonstrates the full recipe and serves as a template for the remaining 114 specialists.
+
+BLUEPRINT F-1 · C36 CORPORATE LEGAL ADVISOR
+Domain: Legal · Reports To: B3 Legal Director
+
+1. Expert-Beating Thesis
+Beats median corporate attorneys on bounded legal questions by exhaustively cross-referencing every relevant statute and precedent in real time, applying strict IRAC analysis, and subjecting every conclusion to an adversarial second attorney — in under 90 seconds for tasks that take humans 4-8 hours.
+
+2. The Human Baseline
+A mid-senior corporate attorney reviewing an NDA typically:
+
+Reads the document once (10 min)
+Compares against firm playbook (20 min)
+Flags 3-8 issues based on memory + intuition (30 min)
+Drafts redlines (60 min)
+Second-partner review (30 min)
+Total: 2-3 hours; misses 15-30% of playbook deviations under time pressure.
+3. The Domain Corpus
+YAML
+
+corpus_id: legal_corporate_v1
+primary_sources:
+  statutes:
+    - US_Code_Title_15_Commerce                    # api: Cornell LII
+    - US_Code_Title_17_Copyright                   # api: Cornell LII
+    - Delaware_General_Corporation_Law             # api: DE.gov
+    - India_Companies_Act_2013                     # api: MCA + India Code
+    - UK_Companies_Act_2006                        # api: legislation.gov.uk
+    - EU_GDPR + Digital_Services_Act               # api: EUR-Lex
+    - SEC_Regulations_S_K_S_X                      # api: SEC.gov
+    refresh: real-time webhook (regulatory alerts) + daily poll
+
+  case_law:
+    - Westlaw / Lexis / vLex                       # commercial subscription
+    - Delaware_Chancery_Court_decisions            # api: Court Listener
+    - SEC_No_Action_Letters                        # api: SEC.gov
+    - CourtListener_bulk_dumps                     # api: CourtListener
+    refresh: daily
+    metadata_extracted: [citation, court, date, holdings, treatment_status]
+
+  secondary_authorities:
+    - Restatements_of_Contracts_2d                 # licensed corpus
+    - Corbin_on_Contracts                          # licensed
+    - Farnsworth_on_Contracts                      # licensed
+    - Chitty_on_Contracts                          # licensed (UK/Commonwealth)
+    refresh: annual editions
+
+  practitioner_resources:
+    - Practical_Law_templates                      # subscription
+    - NVCA_Model_Documents                         # public
+    - ABA_Model_Business_Corporation_Act           # public
+    refresh: quarterly
+
+  citator_data:
+    - Shepards_or_KeyCite                          # subscription
+    purpose: "verify case is still good law"
+    refresh: real-time on query
+
+quality_gates:
+  - every_statute_has_effective_date
+  - every_case_has_treatment_status
+  - every_document_has_jurisdiction_tag
+  - hash_verified_no_duplicates
+
+isolation:
+  tenant_playbooks:                                # per-org custom corpus
+    scope: organization
+    example: "org_acme's_contract_playbook_v3"
+    rls_enforced: true
+4. The Tool Suite
+YAML
+
+tools:
+  - id: statute_lookup
+    scope: read_only
+    contract: "given jurisdiction+section → returns text + effective_date + amendments"
+    
+  - id: case_citation_resolver
+    scope: read_only
+    contract: "given citation → returns full text + treatment_status (KeyCite/Shepard's)"
+    
+  - id: precedent_semantic_search
+    scope: read_only
+    contract: "given fact pattern + jurisdiction → top-K binding + persuasive precedents"
+    
+  - id: jurisdiction_detector
+    scope: read_only
+    contract: "given text → detects choice-of-law + venue clauses"
+    
+  - id: defined_terms_extractor
+    scope: read_only
+    contract: "given contract → extracts defined terms + usage graph"
+    
+  - id: clause_classifier
+    scope: read_only
+    contract: "given clause → classifies (indemnification, limitation, IP assignment, etc.)"
+    
+  - id: playbook_delta_analyzer
+    scope: read_only
+    contract: "given contract + playbook → returns delta list ranked by severity"
+    
+  - id: contract_redline_engine
+    scope: workspace_write
+    contract: "given diff spec → produces tracked-changes DOCX"
+    
+  - id: deadline_calculator
+    scope: compute_exec
+    contract: "computes statutory deadlines (holidays, jurisdiction rules)"
+5. The Cognitive Method (IRAC Enforced)
+text
+
+STEP 1 — INTAKE & JURISDICTION
+   Parse document / query
+   Detect governing law + venue
+   Load jurisdictional context
+
+STEP 2 — ISSUE SPOTTING (I)
+   Extract every legally-material clause
+   Classify each clause
+   List candidate legal issues per clause
+
+STEP 3 — PLAYBOOK COMPARISON (parallel)
+   Compare each clause against tenant playbook (if present)
+   Compare against firm-standard playbook (baseline)
+   Rank deltas by severity: BLOCKER | MATERIAL | ADVISORY | STYLE
+
+STEP 4 — RULE LOOKUP (R)
+   For each issue:
+     - Fetch controlling statutes (with effective_date verified)
+     - Fetch binding precedents (with treatment_status verified)
+     - Fetch persuasive authorities if binding is thin
+   NEVER cite a case without KeyCite/Shepard's verification.
+
+STEP 5 — APPLICATION (A)
+   For each issue: apply rules to facts
+   Identify counter-arguments
+   Assess strength: STRONG | MODERATE | WEAK
+   Compute probability ranges where appropriate
+
+STEP 6 — CONCLUSION (C)
+   Draft recommendation per issue
+   Draft alternative language where redlining is needed
+   Draft explanatory rationale (client-facing + attorney-facing versions)
+
+STEP 7 — DELIVER TO CRITIC
+   Package full analysis for C36_critic
+   Wait for verdict
+   Address every critic finding
+   Iterate until critic recommendation = ACCEPT or ACCEPT_WITH_NOTES
+
+STEP 8 — DELIVERABLE PACKAGING
+   Attorney-facing memo (IRAC format)
+   Client-facing summary (plain language)
+   Redlined document (DOCX + PDF)
+   Citation appendix with hyperlinks
+   Assumption log
+   Limitations disclosure
+6. The Paired Critic (C36_critic)
+YAML
+
+id: C36_critic_adversarial_attorney
+tier: tier_3_specialist
+role: Adversarial senior counsel reviewing junior's work
+model: same tier as specialist (frontier-reasoning-high)
+prompt_bias: "Find every reason this analysis could be wrong."
+
+attack_patterns:
+  citation_verification:
+    - Re-fetch every cited case
+    - Verify quote appears verbatim in cited paragraph
+    - Verify case is still good law (Shepard's/KeyCite)
+    - Flag any citation format errors
+    
+  jurisdictional_attack:
+    - Verify governing law matches jurisdiction of cited authorities
+    - Flag if persuasive authority is being treated as binding
+    - Verify effective_date of statutes cited is applicable
+    
+  counter_argument_check:
+    - Search for cases holding the opposite conclusion
+    - Verify those adverse cases are addressed or distinguished
+    - Flag omissions
+    
+  playbook_completeness:
+    - Verify every playbook clause was checked
+    - Flag any material clauses missed
+    
+  reasoning_soundness:
+    - Test each IRAC application step for logical validity
+    - Flag conclusory statements without support
+    - Flag assertions of "unsettled" law without evidence
+
+output: CriticReport with per-attack-pattern findings
+rejection_threshold: any BLOCKER finding rejects; > 2 MATERIAL findings rejects
+7. The Verification Battery
+text
+
+LEVEL     CHECK                                              BLOCK ON FAIL
+────────  ──────────────────────────────────────────────    ──────────────
+L0        Deliverable exists                                 YES
+L1        Redlined document is valid DOCX/PDF               YES
+L2        Every citation parses (Bluebook format)           YES
+L3        Style: matches firm-standard memo template        NO (advisory)
+L4        Every citation resolves to a real document        YES
+L5        Every citation is verified against KeyCite/       YES
+          Shepard's as still-good law
+L6        Playbook coverage ≥ 100% of BLOCKER + MATERIAL     YES
+L7        No client-confidential data leaked to external    YES
+          models (privilege preservation)
+L8        Response time ≤ 90 seconds for standard NDAs      NO (target)
+L9        Critic recommendation = ACCEPT or ACCEPT_WITH_    YES
+          NOTES (no BLOCKERS)
+L10       For high-value contracts: human attorney review    YES (tier gate)
+8. The Evaluation Rubric
+YAML
+
+rubric_id: legal_corporate_rubric_v1
+metrics:
+  citation_accuracy:         1.00     # 100% cited cases exist and are still good law
+  jurisdictional_correctness: 1.00     # 100% governing law properly applied
+  playbook_coverage:         1.00     # 100% BLOCKER/MATERIAL clauses caught
+  redline_precision:         >= 0.95   # Redlines match human-expert redlines
+  reasoning_soundness:       >= 0.90   # Critic scores IRAC reasoning
+  no_hallucinated_law:       1.00     # Zero invented citations or holdings
+  privilege_preservation:    1.00     # No leakage to non-BAA models
+  overall_rejection_threshold: 0.92
+9. The Beat-Human Benchmark
+YAML
+
+benchmark_suite: legal_corporate_benchmark_v1
+
+tasks:
+  - id: benchmark_nda_review_1
+    description: "Review a 12-page NDA; identify all playbook deviations."
+    input: NDA_pack_of_20_representative_docs
+    human_baseline:
+      panel: 8 mid-senior corporate attorneys
+      median_score: 0.78              # catches 78% of deviations
+      median_time_minutes: 45
+      sample_size: 160 (8 attorneys × 20 docs)
+    coco_target:
+      min_score: 0.95                 # +22% over median human
+      max_time_minutes: 2
+
+  - id: benchmark_msa_negotiation_1
+    description: "Draft counter-proposal for MSA with 47 issues surfaced by counterparty."
+    human_baseline:
+      panel: 5 senior contract attorneys
+      median_score: 0.82
+      median_time_minutes: 240
+    coco_target:
+      min_score: 0.92
+      max_time_minutes: 15
+
+  - id: benchmark_case_research_1
+    description: "Research whether Delaware fiduciary duty extends to LLC managers
+                  under scenario X; provide memo with authorities."
+    human_baseline:
+      panel: 6 corporate litigators
+      median_score: 0.86
+      median_time_minutes: 180
+    coco_target:
+      min_score: 0.96
+      max_time_minutes: 8
+
+  - id: benchmark_indemnity_negotiation_1
+    description: "Analyze cap-and-basket indemnification structure and recommend
+                  optimal caps for a $50M SaaS acquisition."
+    human_baseline:
+      panel: 6 M&A partners
+      median_score: 0.79
+      median_time_minutes: 90
+    coco_target:
+      min_score: 0.90
+      max_time_minutes: 5
+10. Continuous Elevation Plan
+Daily: run benchmark suite; regression alerts to B3
+Weekly: analyze production runs for "attorney marked wrong" flags; extract patterns
+Monthly: Domain Director reviews new case law flagged as "notable"; corpus refresh
+Quarterly: Independent human panel re-baselines the benchmark
+Annual: Bar-adjacent expert audits methodology; publishes annual report
+BLUEPRINT F-2 · C1 PYTHON SYSTEMS ARCHITECT
+Domain: Software Engineering · Reports To: B1 Engineering Director
+
+1. Expert-Beating Thesis
+Beats median senior Python engineers by enforcing strict type safety, exhaustive test-driven development, complete verification (compile→lint→type→unit→integration→security→performance), and adversarial code review — producing production-grade services in minutes with zero unchecked assumptions.
+
+2. The Human Baseline
+A senior Python engineer building a FastAPI service:
+
+Requirements gathering (30 min)
+Data model design (60 min)
+Route/handler skeletons (60 min)
+Business logic (2-4 hours)
+Tests (1-2 hours; often skimped)
+Manual testing (60 min)
+Fix bugs surfaced by QA/production (indefinite tail)
+Typical outcome: 70-85% test coverage, 2-8 bugs per 1000 LOC surface in first month.
+3. The Domain Corpus
+YAML
+
+corpus_id: software_python_v1
+primary_sources:
+  language_specs:
+    - Python_Language_Reference_3.12+
+    - PEP_index_all_accepted_PEPs
+    - typing_module_documentation
+    refresh: with each Python release
+    
+  framework_documentation:
+    - FastAPI_official_docs
+    - Pydantic_v2_docs
+    - SQLAlchemy_2.x_docs
+    - Asyncpg_docs
+    - Pytest_docs
+    - Ruff_rule_catalog
+    - Mypy_documentation
+    refresh: weekly poll of upstream repos
+    
+  security_advisories:
+    - OSV_database                              # api: osv.dev
+    - PyPI_security_advisories                  # api: pypi.org
+    - GitHub_Security_Advisory_DB               # api: github.com/advisories
+    refresh: real-time webhook
+    
+  design_patterns:
+    - Clean_Architecture_reference
+    - Domain_Driven_Design_reference
+    - Twelve_Factor_App
+    - Google_Python_Style_Guide
+    
+  performance_benchmarks:
+    - Pyperformance_baselines
+    - AsyncIO_benchmarks
+    
+  known_good_repositories:
+    curated_examples:
+      - production-quality FastAPI reference implementations
+      - internal COCO gold-standard patterns
+
+quality_gates:
+  - every_pattern_has_test_example
+  - every_security_advisory_has_severity
+  - deprecated_apis_marked_and_alternatives_linked
+4. The Tool Suite
+YAML
+
+tools:
+  - id: workspace_file_editor
+    scope: workspace_write
+    operator: D2_terminal_operator
+
+  - id: python_runtime_sandbox
+    scope: sandbox_exec
+    operator: D2_terminal_operator
+    contract: "isolated Python 3.12 container, mounted workspace, no host network"
+
+  - id: ruff_linter
+    scope: sandbox_exec
+    contract: "runs ruff check + ruff format; returns violations"
+
+  - id: mypy_strict_typechecker
+    scope: sandbox_exec
+    contract: "runs mypy --strict; returns type errors"
+
+  - id: pytest_runner
+    scope: sandbox_exec
+    contract: "runs pytest with coverage; returns results + coverage report"
+
+  - id: bandit_security_scanner
+    scope: sandbox_exec
+    contract: "runs bandit; returns security findings"
+
+  - id: pip_audit_vulnerability_scanner
+    scope: sandbox_exec
+    contract: "audits requirements against OSV database"
+
+  - id: complexity_analyzer
+    scope: sandbox_exec
+    contract: "computes cyclomatic complexity per function; flags > 10"
+
+  - id: profiler
+    scope: sandbox_exec
+    contract: "runs py-spy or cProfile; returns hot paths"
+
+  - id: docker_build_operator
+    scope: sandbox_exec
+    operator: D5_deploy_operator
+    contract: "builds image, runs container, verifies healthcheck"
+5. The Cognitive Method (TDD + Clean Architecture)
+text
+
+STEP 1 — REQUIREMENTS INGESTION
+   Parse mission objective
+   Extract functional + non-functional requirements
+   Flag ambiguities (challenge before building — Cognitive Runtime S6)
+
+STEP 2 — DOMAIN MODELING
+   Identify entities, value objects, aggregates
+   Define Pydantic v2 schemas with strict validation
+   Define interface contracts (Protocol / ABC)
+
+STEP 3 — TEST-FIRST DESIGN
+   For each domain operation:
+     Write pytest unit tests defining expected behavior
+     Write integration test fixtures
+     Tests initially fail (RED)
+
+STEP 4 — MINIMAL IMPLEMENTATION
+   Implement smallest code making tests pass (GREEN)
+   Strict type hints (mypy --strict compliant)
+   Async I/O for all network/disk operations
+   Custom exception hierarchies
+
+STEP 5 — VERIFICATION LOOP
+   Run ruff → fix
+   Run mypy --strict → fix
+   Run pytest with coverage → coverage must be ≥ 90%
+   Run bandit → resolve security findings
+   Run pip-audit → resolve CVEs
+   Run complexity_analyzer → refactor functions > 10 CC
+
+STEP 6 — INTEGRATION VALIDATION
+   Docker build
+   Container starts
+   Health endpoint responds
+   Integration tests pass against running container
+
+STEP 7 — PERFORMANCE VALIDATION
+   Baseline latency benchmarks
+   Load test at expected concurrency
+   Flag any endpoint > SLA target
+
+STEP 8 — CRITIC HANDOFF
+   Package: code, tests, coverage report, docker image ref, benchmark results
+   Submit to C1_critic
+   Address every finding
+   Loop until critic ACCEPTS
+
+STEP 9 — DELIVERABLE PACKAGING
+   Repository structure with README, ARCHITECTURE.md, DECISIONS.md
+   docker-compose.yml for local dev
+   .env.example
+   OpenAPI spec generated
+   Deployment manifest (K8s or docker-compose prod)
+6. The Paired Critic (C1_critic)
+YAML
+
+id: C1_critic_staff_engineer
+stance: adversarial staff-level code reviewer
+prompt_bias: "Find every reason this code will break in production."
+
+attack_patterns:
+  concurrency_attack:
+    - Look for race conditions
+    - Look for missing await
+    - Look for synchronous I/O in async paths
+    - Look for missing timeout/cancellation handling
+    
+  error_handling_attack:
+    - Look for bare except
+    - Look for exceptions swallowed silently
+    - Look for missing error responses in API layer
+    
+  security_attack:
+    - Look for SQL injection surface
+    - Look for hardcoded secrets
+    - Look for missing input validation
+    - Look for CORS misconfigurations
+    - Look for JWT verification bypasses
+    
+  resource_attack:
+    - Look for unbounded loops/queues
+    - Look for missing connection pool limits
+    - Look for missing memory bounds on caches
+    
+  test_quality_attack:
+    - Verify tests actually assert behavior (not just coverage)
+    - Verify integration tests exercise error paths
+    - Verify no tests use production credentials
+7. The Verification Battery
+text
+
+L0 — code files exist
+L1 — Python parses (compile check)
+L2 — mypy --strict: zero errors
+L3 — ruff check + format: zero violations
+L4 — pytest: 100% tests pass; coverage ≥ 90%
+L5 — integration tests pass in Docker container
+L6 — every mission requirement has a corresponding test
+L7 — bandit: zero HIGH/CRITICAL; pip-audit: zero unresolved CVEs
+L8 — p95 latency within SLA under load
+L9 — C1_critic ACCEPT
+L10 — for production deploy: human approval gate
+8. The Evaluation Rubric
+YAML
+
+metrics:
+  compile_success:      1.00
+  mypy_strict_pass:     1.00
+  ruff_pass:            1.00
+  test_pass_rate:       1.00
+  coverage:             >= 0.90
+  security_scan_clean:  1.00
+  cve_clean:            1.00
+  cyclomatic_max:       <= 10
+  critic_recommendation: ACCEPT or ACCEPT_WITH_NOTES
+9. The Beat-Human Benchmark
+YAML
+
+benchmark_suite: python_architect_benchmark_v1
+
+tasks:
+  - id: build_auth_service
+    description: "Build FastAPI auth service with JWT + refresh tokens + rate limiting + PostgreSQL"
+    human_baseline:
+      panel: 6 senior Python engineers
+      median_score: 0.72                # scored on test coverage + security + spec compliance
+      median_time_hours: 8
+      typical_defects: 3-5 issues surface in first week
+    coco_target:
+      min_score: 0.95
+      max_time_minutes: 20
+      zero_critical_defects: true
+
+  - id: refactor_legacy_django
+    description: "Refactor legacy Django view (400 LOC, 12% coverage) to clean, tested, typed code"
+    human_baseline:
+      median_score: 0.68
+      median_time_hours: 6
+    coco_target:
+      min_score: 0.92
+      max_time_minutes: 15
+
+  - id: build_streaming_etl
+    description: "Build async streaming ETL: S3 → parse → validate → PostgreSQL upsert with idempotency"
+    human_baseline:
+      median_score: 0.70
+      median_time_hours: 12
+    coco_target:
+      min_score: 0.93
+      max_time_minutes: 30
+
+  - id: debug_race_condition
+    description: "Given failing test + repo, diagnose and fix the async race condition"
+    human_baseline:
+      median_time_minutes: 90
+      solve_rate: 0.65
+    coco_target:
+      solve_rate: 0.95
+      max_time_minutes: 5
+10. Continuous Elevation Plan
+Daily benchmark runs against latest Python/framework versions
+Weekly analysis of production runs for "test skipped" or "type: ignore" patterns
+Monthly corpus refresh: new PEPs, framework releases, CVE feed
+Quarterly panel review by external senior engineers
+BLUEPRINT F-3 · C48 CORPORATE FINANCIAL MODELER
+Domain: Finance · Reports To: B4 Financial Director
+
+1. Expert-Beating Thesis
+Beats median investment-bank associates by building dynamic 3-statement models with zero balance-identity errors, extracting historical data directly from primary SEC filings with cryptographic citation, and stress-testing every model with 10,000 Monte Carlo scenarios in seconds.
+
+2. The Human Baseline
+A first-year IB associate building a 3-statement operating model:
+
+Data extraction from filings (4 hours; often via copy-paste, prone to errors)
+Historical build (4-6 hours)
+Forecast drivers (3-4 hours)
+Formula linkage debugging (2-4 hours; balance sheet plugs common)
+Sensitivity tables (1-2 hours)
+Total: 14-20 hours; balance-sheet-plug errors present in 30-40% of models per academic studies.
+3. The Domain Corpus
+YAML
+
+corpus_id: finance_corporate_modeling_v1
+primary_sources:
+  filings:
+    - SEC_EDGAR_full_filings                     # api: SEC EDGAR
+    - IFRS_reporting_databases                    # licensed
+    - India_MCA_filings                          # api: MCA
+    refresh: real-time (webhook on new filing)
+    
+  standards:
+    - US_GAAP_ASC_codification                   # licensed FASB
+    - IFRS_full_standards                         # licensed IFRS Foundation
+    - SEC_Regulation_S_X_S_K
+    refresh: with standard-setter releases
+    
+  market_data:
+    - Treasury_yields                             # api: US Treasury
+    - Historical_beta_databases                   # api: Bloomberg / Refinitiv
+    - Comparable_company_multiples                # licensed FactSet
+    refresh: real-time
+    
+  valuation_playbooks:
+    - McKinsey_Valuation_9th_ed
+    - Damodaran_online_databases                  # public + api
+    - CFA_curriculum_reference
+    
+  precedent_transactions:
+    - M&A_deal_databases                          # licensed Mergermarket
+    refresh: daily
+4. The Tool Suite
+YAML
+
+tools:
+  - id: sec_edgar_extractor
+    contract: "given ticker+form+period → returns structured financial statements + citations"
+    
+  - id: financial_calculator_engine
+    contract: "computes DCF, LBO, comparable multiples, WACC, terminal value"
+    
+  - id: monte_carlo_simulator
+    contract: "given input distributions → runs N iterations, returns full distribution"
+    
+  - id: three_statement_builder
+    contract: "given driver assumptions → constructs linked IS/BS/CF with balance verification"
+    
+  - id: sensitivity_engine
+    contract: "generates 2D sensitivity tables across specified drivers"
+    
+  - id: excel_formula_builder
+    contract: "produces .xlsx with dynamic formulas, no hardcoded values"
+    
+  - id: chart_generator
+    contract: "produces publication-quality valuation charts"
+    
+  - id: comps_analyzer
+    contract: "given target + comparable set → returns trading & transaction multiples"
+5. The Cognitive Method (Audited Dynamic Modeling)
+text
+
+STEP 1 — INTAKE
+   Parse mission (valuation? forecast? scenario?)
+   Identify target entity + jurisdiction
+   Determine required output (memo, model, presentation)
+
+STEP 2 — HISTORICAL EXTRACTION
+   For each required period:
+     - Retrieve primary filing from EDGAR/MCA
+     - Extract statements using sec_edgar_extractor
+     - Attach citation: {filing_url, page, table, hash}
+     - Verify balance-sheet balances historically
+     - Compute derived metrics (LTM, adjusted EBITDA, etc.)
+
+STEP 3 — DRIVER IDENTIFICATION
+   For each line item: identify economic driver
+     - Revenue → volume × price
+     - COGS → volume × unit cost
+     - Working capital → days ratios
+     - CapEx → maintenance + growth
+   Every driver traced to historical basis OR flagged as forward-looking assumption.
+
+STEP 4 — FORECAST CONSTRUCTION
+   Build 5-10 year forecast:
+     - IS: driver-based, no hardcoded growth rates
+     - BS: linked to IS via retained earnings + working capital
+     - CF: derived from IS + BS changes
+   Verify balance identity holds every projected period (error = $0.00)
+   Verify CF ties to change in cash on BS
+
+STEP 5 — VALUATION
+   DCF:
+     - Compute WACC (with citation to CAPM inputs)
+     - Compute terminal value (multiple methods; reconcile)
+     - Present enterprise value → equity value bridge
+   Comparable multiples:
+     - Retrieve comp set via comps_analyzer
+     - Compute median/quartile multiples
+     - Triangulate with DCF
+   Precedent transactions:
+     - If M&A context: pull deal comps
+
+STEP 6 — SENSITIVITY & MONTE CARLO
+   2D sensitivity tables on top 4-6 drivers
+   Monte Carlo: define distributions for uncertain drivers
+   Run 10,000 iterations → present distribution of EV/EPS
+
+STEP 7 — CRITIC HANDOFF
+   Package: model + memo + citation appendix
+   Submit to C48_critic
+   Address every finding
+
+STEP 8 — DELIVERABLE PACKAGING
+   Excel file with formulas + audit tab
+   Investment memo (McKinsey/BCG format)
+   Chart pack
+   Assumption log
+   Full citation appendix
+6. The Paired Critic (C48_critic)
+YAML
+
+id: C48_critic_forensic_analyst
+stance: forensic financial analyst
+prompt_bias: "Find every accounting error, formula error, or unsupported assumption."
+
+attack_patterns:
+  identity_verification:
+    - Verify Assets = Liabilities + Equity in every period
+    - Verify CF from Ops + Investing + Financing = ΔCash
+    - Verify Retained Earnings roll-forward
+    
+  formula_audit:
+    - Every cell must be a formula OR a documented assumption
+    - Zero hardcoded values in calculation cells
+    - No circular references without documented iteration
+    
+  historical_verification:
+    - Re-fetch every cited filing
+    - Verify extracted number matches source page/table
+    - Flag any transcription errors
+    
+  assumption_reasonableness:
+    - Growth rates > industry median → require justification
+    - Margin expansion > 200bps → require justification
+    - Terminal growth > long-run GDP → flag
+    - WACC components each traced to observable source
+    
+  comparability:
+    - Comp set includes appropriate peers
+    - Multiples calculated consistently across peers
+7. The Verification Battery
+text
+
+L0 — model file exists
+L1 — Excel file opens without errors
+L2 — All formulas parse
+L3 — Model follows firm-standard template
+L4 — Balance identity = $0.00 in all periods
+L5 — CF reconciles to BS cash change
+L6 — Every mission requirement addressed
+L7 — No leaked confidential inputs
+L8 — Model runs in < 5 seconds
+L9 — C48_critic ACCEPT
+L10 — high-value valuations: human MD review
+8. The Evaluation Rubric
+YAML
+
+metrics:
+  balance_identity_error_max: 0.00
+  formula_hardcode_count:     0
+  citation_completeness:      1.00
+  historical_accuracy:        1.00
+  assumption_documentation:   1.00
+  overall_critic_pass:        true
+9. The Beat-Human Benchmark
+YAML
+
+tasks:
+  - id: dcf_valuation_public_company
+    description: "Build DCF for public company; produce IB-quality investment memo"
+    human_baseline:
+      panel: 8 IB associates
+      median_score: 0.74
+      median_time_hours: 12
+      balance_error_rate: 0.35
+    coco_target:
+      min_score: 0.95
+      max_time_minutes: 5
+      balance_error_rate: 0.00
+
+  - id: lbo_model_construction
+    description: "Build full LBO with debt schedule, IRR waterfall, exit sensitivity"
+    human_baseline:
+      median_score: 0.68
+      median_time_hours: 20
+    coco_target:
+      min_score: 0.93
+      max_time_minutes: 10
+10. Continuous Elevation Plan
+Daily benchmark against curated valuations from CFA society + academic case studies
+Weekly review of market-data corpus for staleness
+Monthly recalibration of Monte Carlo priors against realized outcomes
+Quarterly independent MD-level review
+BLUEPRINT F-4 · C60 CLINICAL RESEARCH INVESTIGATOR
+Domain: Medical · Reports To: B5 Medical Director
+
+1. Expert-Beating Thesis
+Beats median clinical researchers by executing PRISMA-compliant systematic reviews across PubMed, Cochrane, and ClinicalTrials.gov in minutes; extracting statistical effect sizes with citation-level precision; grading evidence via GRADE framework; and never conflating association with causation.
+
+2. The Human Baseline
+A clinical researcher conducting a systematic review:
+
+Search strategy (2-3 days)
+Screening (1-2 weeks)
+Data extraction (2-4 weeks)
+Risk-of-bias assessment (1 week)
+Meta-analysis (1 week)
+Total: 4-8 weeks; inter-rater reliability of extraction typically κ = 0.6-0.8.
+3. The Domain Corpus
+YAML
+
+corpus_id: medical_clinical_v1
+primary_sources:
+  literature:
+    - PubMed_MEDLINE                              # api: NCBI Entrez
+    - Embase                                      # licensed
+    - Cochrane_Library                            # licensed
+    refresh: daily
+    
+  trials:
+    - ClinicalTrials_gov                         # api: NCT
+    - EU_CTR                                     # api: EMA
+    - WHO_ICTRP                                  # api: WHO
+    refresh: daily
+    
+  drug_information:
+    - FDA_Drug_Labels                            # api: openFDA
+    - EMA_EPAR
+    - DailyMed
+    refresh: real-time (label changes)
+    
+  guidelines:
+    - USPSTF_recommendations
+    - NICE_guidelines
+    - WHO_guidelines
+    - Specialty_society_guidelines               # multiple licensed
+    refresh: with guideline updates
+    
+  standards:
+    - CONSORT_statement
+    - PRISMA_2020_checklist
+    - GRADE_framework
+    - Cochrane_Risk_of_Bias_2
+4. The Tool Suite
+YAML
+
+tools:
+  - id: pubmed_entrez_search
+    contract: "structured PubMed search with MeSH terms + filters"
+  - id: clinical_trials_parser
+    contract: "given NCT → extracts protocol, arms, endpoints, results"
+  - id: meta_analysis_calculator
+    contract: "given effect sizes + variances → forest plot + heterogeneity"
+  - id: cochrane_bias_evaluator
+    contract: "given trial → RoB2 assessment across 5 domains"
+  - id: grade_scorer
+    contract: "given evidence body → GRADE assessment"
+  - id: forest_plot_generator
+    contract: "publication-quality forest plots"
+  - id: pico_query_builder
+    contract: "given clinical question → structured PICO + boolean queries"
+5. The Cognitive Method (PRISMA + GRADE)
+text
+
+STEP 1 — PICO FORMULATION
+   Parse clinical question
+   Extract Population, Intervention, Comparator, Outcomes
+   Define inclusion/exclusion criteria
+
+STEP 2 — STRUCTURED SEARCH
+   Build boolean queries per PICO element
+   Execute across PubMed, Embase, Cochrane, trials registries
+   Record every query for PRISMA flow diagram
+
+STEP 3 — SCREENING
+   Deduplicate results across databases
+   Title/abstract screen against inclusion criteria
+   Full-text screen for candidates
+   Document exclusion reasons
+
+STEP 4 — DATA EXTRACTION
+   For each included study:
+     - Design (RCT, cohort, case-control)
+     - Sample size, demographics
+     - Intervention/comparator details
+     - Primary/secondary outcomes with effect sizes + 95% CIs
+     - Attach citation: {PMID, DOI, page/table}
+
+STEP 5 — RISK OF BIAS
+   Apply RoB2 (RCTs) or ROBINS-I (observational)
+   Score across all domains
+   Flag high-risk studies
+
+STEP 6 — SYNTHESIS
+   If quantitative synthesis appropriate: run meta-analysis
+   Compute pooled effect (fixed/random effects per heterogeneity)
+   Generate forest plot
+   Assess publication bias (Egger's, funnel plot)
+
+STEP 7 — GRADE ASSESSMENT
+   Grade evidence body across outcomes
+   Downgrade for: risk of bias, inconsistency, indirectness, imprecision, publication bias
+   Upgrade for: large effects, dose-response, plausible confounding
+
+STEP 8 — CRITIC HANDOFF
+   Submit to C60_critic
+   Address findings
+
+STEP 9 — DELIVERABLE
+   PRISMA flow diagram
+   Data extraction tables
+   Forest plots
+   GRADE evidence profile
+   Structured summary (with careful causation language)
+6. The Paired Critic (C60_critic)
+YAML
+
+id: C60_critic_journal_peer_reviewer
+stance: journal peer reviewer
+attack_patterns:
+  extraction_verification:
+    - Sample 20% of extracted numbers; re-verify against source PDF
+  bias_assessment_verification:
+    - Re-apply RoB2 independently; compare
+  meta_analysis_verification:
+    - Verify heterogeneity properly assessed
+    - Verify appropriate model (fixed vs random) chosen
+  causation_language_check:
+    - Flag any causal claims from observational-only evidence
+    - Verify hedging language matches evidence strength
+  guideline_adherence:
+    - Verify PRISMA checklist completeness
+7. The Verification Battery
+text
+
+L0-L2 — standard deliverable checks
+L4 — extraction accuracy (sample audit) ≥ 98%
+L5 — PRISMA flow reconciles
+L6 — every clinical question addressed with GRADE score
+L7 — no PHI leakage
+L9 — C60_critic ACCEPT
+L10 — for clinical decision support: human clinician review
+8. The Evaluation Rubric
+YAML
+
+metrics:
+  extraction_accuracy:       >= 0.98
+  prisma_compliance:         1.00
+  grade_scoring_fidelity:    >= 0.95
+  causation_language_correct: 1.00
+  citation_completeness:     1.00
+9. The Beat-Human Benchmark
+YAML
+
+tasks:
+  - id: systematic_review_reproduction
+    description: "Reproduce a published Cochrane systematic review from scratch"
+    human_baseline:
+      panel: 5 clinical researchers with methodologist support
+      median_time_weeks: 6
+      inter_rater_agreement: 0.75
+    coco_target:
+      time_hours: 1
+      inter_rater_agreement_with_gold: 0.95
+10. Continuous Elevation Plan
+Daily PubMed corpus refresh
+Weekly review of new guideline releases
+Monthly comparison against newly published systematic reviews
+BLUEPRINT F-5 · C21 DEEP WEB INVESTIGATOR
+Domain: Research · Reports To: B2 Research Director
+
+1. Expert-Beating Thesis
+Beats median research analysts by executing multi-hop parallel searches across open web, archives, regulatory registries, and primary documents; triangulating every factual claim across ≥3 independent primary sources; and attaching SHA-256 provenance hashes making fabrication structurally impossible.
+
+2. Domain Corpus (Abbreviated)
+YAML
+
+sources:
+  - Google_Programmable_Search_API
+  - Bing_Web_Search_API
+  - Wayback_Machine_CDX_API
+  - Common_Crawl
+  - SEC_EDGAR, MCA, OpenCorporates, WHOIS
+  - Patent_databases (USPTO, EPO, WIPO)
+  - Academic (OpenAlex, CORE, arXiv)
+  - GDELT news database
+  - Court_Listener
+3. Cognitive Method (Triangulated Evidence)
+text
+
+1. Decompose topic → claims → entities → keywords
+2. Parallel search across ≥5 indices
+3. Headless-browser fetch of top candidates
+4. Extract quoted claims + surrounding context
+5. Compute SHA-256 of extracted quote + full page
+6. Require ≥3 independent primary sources per material claim
+7. Cross-check dates + attributions
+8. C21_critic re-fetches every URL to verify quote existence
+9. Deliverable: structured report with per-claim provenance
+4. Rubric
+YAML
+
+metrics:
+  provenance_completeness: 1.00
+  triangulation_rate_material_claims: >= 0.90
+  hallucination_rate: 0.00
+  primary_source_ratio: >= 0.75
+BLUEPRINT F-6 · C94 SECURITY AUDITOR
+Domain: Security · Reports To: B8 Security Director
+
+1. Thesis
+Beats median penetration testers by combining SAST + DAST + dependency scanning + secret detection + threat modeling under MITRE ATT&CK, then attempting active exploitation of surfaced findings in an isolated sandbox — producing exhaustive attack surface reports with reproducible PoCs.
+
+2. Corpus
+YAML
+
+- MITRE_ATT&CK, CAPEC
+- OWASP_Top_10, OWASP_ASVS
+- CWE_MITRE
+- NVD_CVE_feed
+- Exploit_DB
+- Vendor_security_advisories
+- STRIDE_reference
+3. Tools
+YAML
+
+- semgrep_sast, bandit, cargo_audit, npm_audit
+- trivy_container_scan
+- gitleaks, trufflehog (secret detection)
+- zap_dast_proxy
+- nuclei_vulnerability_scanner
+- burp_active_scanner (licensed)
+- exploit_sandbox (isolated network segment)
+- threat_model_builder (STRIDE)
+4. Method (STRIDE + MITRE ATT&CK)
+text
+
+1. Asset & trust boundary mapping
+2. STRIDE decomposition per boundary
+3. SAST across codebase
+4. Dependency scanning against NVD
+5. Secret scanning across history
+6. DAST against running instance
+7. Attempt exploitation of P1/P2 findings in sandbox
+8. Attach reproducible PoC + severity + remediation
+9. C94_critic verifies each finding is real + exploitable
+5. Rubric
+YAML
+
+metrics:
+  false_positive_rate:  < 0.05
+  critical_finding_recall_vs_expert: >= 0.98
+  every_p1_has_reproducible_poc: 1.00
+BLUEPRINT F-7 · C72 PRODUCT STRATEGIST
+Domain: Product · Reports To: B6 Product Director
+
+1. Thesis
+Beats median product managers by grounding every product decision in JTBD analysis, verified market data, competitive moat analysis, and first-principles unit economics — never confusing "user requests" with "user problems."
+
+2. Corpus
+YAML
+
+- Christensen JTBD reference corpus
+- Blue Ocean Strategy reference
+- Public product analytics datasets
+- Competitive intelligence (SimilarWeb, App Annie APIs)
+- Public S-1s and 10-Ks (via C21)
+- Y Combinator library, First Round Review
+3. Method
+text
+
+1. JTBD reconstruction: what job is the user hiring the product to do?
+2. Competitive landscape: alternatives (including non-consumption)
+3. Moat analysis (network / scale / brand / regulation / tech)
+4. First-principles unit economics
+5. Wedge strategy identification
+6. Roadmap sequencing with explicit hypotheses to test
+7. Success/failure kill criteria per initiative
+4. Rubric
+YAML
+
+metrics:
+  jtbd_evidence_grounded:  1.00
+  unit_economics_verified: 1.00
+  competitive_completeness: >= 0.90
+  hypothesis_testability:  1.00
+BLUEPRINT F-8 · C40 GDPR & PRIVACY COMPLIANCE OFFICER
+Domain: Legal/Privacy · Reports To: B3 Legal Director
+
+1. Thesis
+Beats median privacy counsel by mapping every data flow against GDPR/CCPA/DPDP legal bases, generating exhaustive Records of Processing Activities in minutes, and identifying every cross-border transfer requiring SCCs — with zero missed data flows across audited codebases.
+
+2. Corpus
+YAML
+
+- GDPR full text + recitals
+- EDPB guidelines (all)
+- ICO / CNIL guidance
+- CCPA/CPRA + regulations
+- India DPDP Act 2023
+- SCC clauses (2021)
+- DPIA templates
+3. Tools
+YAML
+
+- data_flow_scanner (traces PII through codebases)
+- pii_classifier (identifies personal data categories)
+- transfer_mechanism_analyzer
+- ropa_generator (Article 30 records)
+- dpia_builder
+4. Method
+text
+
+1. Data inventory: scan codebase + database schemas + docs
+2. Classify each data category (Article 4 + special categories)
+3. Map every processing activity → legal basis
+4. Identify controllers vs processors vs joint controllers
+5. Map cross-border transfers → mechanism required
+6. Assess whether DPIA triggered (Article 35)
+7. Generate ROPA (Article 30)
+8. Generate privacy notice draft
+9. C40_critic verifies coverage vs codebase
+5. Rubric
+YAML
+
+metrics:
+  data_flow_coverage:      1.00
+  legal_basis_assigned:    1.00
+  transfer_mechanism_correct: 1.00
+  ropa_completeness:       1.00
+BLUEPRINT F-9 · C50 UNIT ECONOMICS & SaaS ANALYST
+Domain: Finance · Reports To: B4 Financial Director
+
+1. Thesis
+Beats median SaaS finance analysts by computing CAC, LTV, cohort retention curves, and payback periods from raw event data — with per-cohort granularity, statistical confidence intervals, and forward-looking projections calibrated against observed retention patterns.
+
+2. Method (Abbreviated)
+text
+
+1. Ingest raw event stream (signups, activations, subscriptions, cancellations)
+2. Build cohort retention matrices
+3. Fit survival curves (Weibull / power-law)
+4. Compute CAC by channel with attribution
+5. Compute LTV with per-cohort discount rates
+6. Compute payback with statistical CI
+7. Project LTV/CAC forward with sensitivity
+8. Flag any assumption violating observed cohort behavior
+3. Rubric
+YAML
+
+metrics:
+  cohort_math_correct:     1.00
+  attribution_methodology_documented: 1.00
+  ltv_confidence_interval_reported: 1.00
+BLUEPRINT F-10 · C22 ACADEMIC PAPER SYNTHESIZER
+Domain: Research · Reports To: B2 Research Director
+
+1. Thesis
+Beats median academic researchers by synthesizing hundreds of papers across arXiv, PubMed, OpenAlex, and CORE into structured summaries with citation graphs, methodology comparisons, and gap analyses — grounded in what the papers actually say, not the model's prior.
+
+2. Method (Abbreviated)
+text
+
+1. Structured search across academic indices
+2. Retrieve full text (PDF → text via layout-preserving extractor)
+3. Extract methodology + claims + limitations per paper
+4. Build citation graph
+5. Identify convergent vs contested findings
+6. Identify methodological gaps
+7. Synthesize into structured review with explicit citation per claim
+8. C22_critic verifies no misattribution of findings
+3. Rubric
+YAML
+
+metrics:
+  citation_accuracy:       1.00
+  no_misattribution:       1.00
+  contested_findings_flagged: 1.00
+BLUEPRINT F-11 · C84 MECHANICAL & CAD DESIGNER
+Domain: Hardware · Reports To: B10 Hardware Director
+
+1. Thesis
+Beats median mechanical designers by generating parametric CAD (via OpenSCAD/CadQuery), running FEA simulations, computing tolerance stack-ups, and validating against DFMA (Design for Manufacturing and Assembly) rules — producing manufacturable designs in minutes.
+
+2. Tools
+YAML
+
+- cadquery_parametric_engine
+- openscad_operator
+- fea_simulator (CalculiX / Elmer FEM)
+- tolerance_stack_calculator
+- dfma_rule_checker
+- material_selector (Ashby-chart-informed)
+- gd&t_validator
+3. Method
+text
+
+1. Requirements → functional decomposition
+2. Material selection (Ashby chart + cost + supply)
+3. Parametric design in CadQuery
+4. FEA under specified loads
+5. Tolerance stack analysis
+6. DFMA rule check
+7. Cost estimation (material + process)
+8. C84_critic runs FEA independently + verifies DFMA
+BLUEPRINT F-12 · C119 WAREHOUSING & LOGISTICS SPECIALIST
+Domain: Operations · Reports To: B9 Operations Director
+
+1. Thesis
+Beats median warehouse ops managers by running exact operations research on layouts, pick-paths, slotting, and inventory positioning — producing solutions that reduce pick time 20-40% vs human intuition-driven layouts.
+
+2. Tools
+YAML
+
+- or_tools_solver (linear + constraint programming)
+- discrete_event_simulator (SimPy)
+- ABC_slotting_analyzer
+- pick_path_optimizer
+- inventory_positioning_optimizer
+- warehouse_layout_visualizer
+3. Method
+text
+
+1. Ingest SKU velocity data + physical layout
+2. ABC classification
+3. Slotting optimization (assign SKUs to locations)
+4. Pick-path optimization (TSP variants)
+5. Discrete-event simulation of proposed layout
+6. Compare KPIs to baseline
+7. C119_critic runs sensitivity analysis + edge cases
+BLUEPRINT F-13 · C129 AEROSPACE & AVIONICS ENGINEER
+Domain: Operational/Specialized · Reports To: B10 Hardware Director
+
+1. Thesis
+Beats median avionics engineers on bounded certification tasks by running DO-178C traceability analysis, ARP4754A safety analysis, and DO-254 hardware analysis with exhaustive coverage — producing certification-ready artifacts that pass first-time review.
+
+2. Corpus
+YAML
+
+- DO-178C, DO-254, ARP4754A, ARP4761
+- FAA_Advisory_Circulars
+- EASA_CS-25
+- Historical airworthiness directives
+3. Method
+text
+
+1. Requirements traceability matrix
+2. Failure Mode & Effects Analysis (FMEA)
+3. Fault Tree Analysis (FTA)
+4. Common cause analysis
+5. Safety objective allocation
+6. DAL assignment (Design Assurance Level)
+7. Generate certification artifacts
+BLUEPRINT F-14 · C61 DIAGNOSTIC DECISION SUPPORT SPECIALIST
+Domain: Medical · Reports To: B5 Medical Director
+
+1. Thesis
+On bounded diagnostic decision-support tasks (differential generation, drug interaction check, guideline alignment), matches or exceeds median attending physicians — while operating strictly within a decision-support role (never replacing clinician judgment).
+
+2. Constraint (Constitutional)
+text
+
+MUST: only operate as decision support
+MUST: every recommendation reviewed by licensed clinician (L10)
+MUST NOT: generate patient-facing diagnostic conclusions
+3. Method
+text
+
+1. Structured patient data intake (age, sex, presenting sxs, PMH, labs, imaging)
+2. Generate differential diagnosis with prior probabilities
+3. Compute likelihood ratios from findings
+4. Update posteriors via Bayesian reasoning
+5. Check drug-drug + drug-disease interactions
+6. Cross-reference against USPSTF/specialty society guidelines
+7. Present prioritized workup recommendations
+8. Every recommendation tied to evidence with GRADE score
+9. C61_critic verifies no dangerous omissions
+BLUEPRINT F-15 · C55 TAX OPTIMIZATION SPECIALIST
+Domain: Finance · Reports To: B4 Financial Director
+
+1. Thesis
+Beats median CPAs on multi-jurisdictional tax optimization by exhaustively evaluating entity structures, transfer pricing scenarios, and treaty benefits against the full text of tax codes + court decisions + published rulings.
+
+2. Corpus
+YAML
+
+- US Internal Revenue Code
+- Treasury Regulations
+- Rev. Rul., Rev. Proc., PLRs, TAMs
+- Tax treaties (all bilateral)
+- Foreign jurisdiction tax codes
+- Tax Court + Circuit + Supreme Court decisions
+3. Method
+text
+
+1. Fact pattern intake
+2. Identify applicable tax regime(s)
+3. Enumerate structuring alternatives
+4. Compute after-tax outcomes per alternative
+5. Assess treaty benefits + limitations (LOB clauses)
+6. Assess anti-avoidance risk (economic substance, BEPS)
+7. Rank alternatives with risk-adjusted outcomes
+8. C55_critic runs adversarial "IRS challenge" analysis
+BLUEPRINT F-16 · C94 UI/UX DESIGN SYSTEM SPECIALIST
+Domain: Creative · Reports To: B7 Creative Director
+
+1. Thesis
+Beats median product designers by generating token-based design systems with WCAG AAA accessibility, complete component libraries, and Figma+code parity — producing production-ready design systems in hours vs weeks.
+
+2. Method
+text
+
+1. Brand foundation (color science with contrast ratios)
+2. Typography scale (modular, WCAG compliant)
+3. Spacing system (base-8 grid)
+4. Token architecture (semantic + primitive layers)
+5. Component library (accessible variants)
+6. Interaction patterns (motion tokens)
+7. Accessibility audit (WCAG AAA)
+8. Figma export + React/Tailwind code export
+9. C94_critic verifies WCAG compliance
+BLUEPRINT F-17 · C86 FIRMWARE & MICROCONTROLLER SPECIALIST
+Domain: Hardware · Reports To: B10 Hardware Director
+
+1. Thesis
+Beats median embedded engineers by producing MISRA-C compliant firmware with formal timing analysis, deterministic memory footprint, and full FreeRTOS or Zephyr integration — on hardware-in-the-loop verified.
+
+BLUEPRINT F-18 · C104 STATISTICAL MODELING SPECIALIST
+Domain: Applied Sciences · Reports To: B9 Operations Director
+
+1. Thesis
+Beats median data scientists by rigorously matching model choice to data characteristics, computing bootstrap confidence intervals, running causal inference where appropriate, and never confusing correlation with causation.
+
+2. Method
+text
+
+1. Data profiling (types, distributions, missingness, outliers)
+2. Model selection based on data + question type
+3. Split methodology (train/val/test or CV)
+4. Fit + diagnostics (residuals, calibration)
+5. Bootstrap CIs on all reported effects
+6. If causal question: DAG + backdoor adjustment or IV
+7. Sensitivity analysis
+8. Structured report with reproducible notebook
+BLUEPRINT F-19 · C15 MACHINE LEARNING INFRASTRUCTURE ENGINEER
+Domain: Software · Reports To: B1 Engineering Director
+
+1. Thesis
+Beats median MLOps engineers by producing full MLOps pipelines (training + evaluation + deployment + monitoring) with data versioning, model registry, drift detection, and rollback — from data to production in one mission.
+
+BLUEPRINT F-20 · C10 WEB SECURITY & CRYPTOGRAPHY ENGINEER
+Domain: Software/Security · Reports To: B1 Engineering Director
+
+1. Thesis
+Beats median AppSec engineers by producing cryptographically-correct implementations (proper AEAD, forward-secret session handling, secure random, side-channel-aware) validated against tls-attacker and TLS test suites.
+
+3. THE EXPERT-BEATING LADDER
+Every specialist — flagship or not — is elevated through the same four-rung ladder. This is the universal upgrade path from "competent" to "expert-beating."
+
+text
+
+┌──────────────────────────────────────────────────────────────────┐
+│  RUNG 1 — COMPETENT                                              │
+│  Definition: matches a junior professional's baseline output     │
+│  Requirements:                                                   │
+│    - Base model + system prompt                                  │
+│    - Basic tool suite                                            │
+│    - Passes L0-L4 verification                                   │
+│  Standard: 60-70% of median human expert baseline               │
+└─────────────────────────────┬────────────────────────────────────┘
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  RUNG 2 — PROFICIENT                                             │
+│  Definition: matches a mid-level professional's output           │
+│  Additions:                                                      │
+│    - Domain-specific corpus with provenance                      │
+│    - Extended tool suite (domain-specific)                       │
+│    - Domain methodology (structured process)                     │
+│    - Passes L0-L6 verification                                   │
+│  Standard: 85-90% of median human expert baseline               │
+└─────────────────────────────┬────────────────────────────────────┘
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  RUNG 3 — EXPERT                                                 │
+│  Definition: matches a senior professional's output              │
+│  Additions:                                                      │
+│    - Paired adversarial critic                                   │
+│    - Contradiction engine active                                 │
+│    - Assumption engine active                                    │
+│    - Evidence attachment mandatory                               │
+│    - Passes L0-L9 verification                                   │
+│  Standard: 100-110% of median human expert baseline             │
+└─────────────────────────────┬────────────────────────────────────┘
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  RUNG 4 — EXPERT-BEATING (Constitutional Standard)               │
+│  Definition: outperforms median human expert on benchmark suite  │
+│  Additions:                                                      │
+│    - Continuous elevation loop active                            │
+│    - Beat-Human benchmark suite passing ≥ 90%                    │
+│    - Independent human expert quarterly re-baseline              │
+│    - Speed multiplier ≥ 5x over human baseline                   │
+│    - Zero-defect verification for L7 (security) and L9 (critic)  │
+│  Standard: ≥ 110% of median human expert with 5x speed          │
+└──────────────────────────────────────────────────────────────────┘
+Every flagship specialist must reach Rung 4 before shipping in production tier (Pro/Ranger/Enterprise). Default tier ships specialists at Rung 3 with clearly labeled "confidence: high" upgrades in Pro+.
+
+4. THE DOMAIN INGESTION PLAYBOOK AT SCALE
+4.1 New-Domain Playbook
+When a new domain must be added (e.g., "Maritime Law", "Precision Agriculture"), the following playbook is executed:
+
+text
+
+PHASE 1 — SCOPE (1 week)
+  Domain Director defines: bounded scope, target user, key tasks,
+  human-expert baseline, ROI justification
+
+PHASE 2 — CORPUS DESIGN (2 weeks)
+  Identify: primary sources (must be authoritative + licensable)
+             secondary sources
+             practitioner resources
+             benchmark data (existing human-expert answers)
+  License review: block anything ambiguous
+  Refresh policy per source
+
+PHASE 3 — INGESTION (2-4 weeks)
+  Run Domain Ingestion Pipeline
+  Quality gates enforced
+  Provenance verified
+
+PHASE 4 — METHODOLOGY (2 weeks)
+  Domain Director codifies: cognitive method
+                             tool suite
+                             critic patterns
+                             verification battery
+                             rubric
+
+PHASE 5 — BENCHMARK CONSTRUCTION (2-4 weeks)
+  Curate 30-100 benchmark tasks with known human-expert answers
+  Independent human expert panel scores each task
+  Establish median human baseline + variance
+
+PHASE 6 — SHADOW DEPLOYMENT (4-6 weeks)
+  Specialist runs shadow traffic in Rung 2 configuration
+  Every output reviewed by human expert
+  Failure patterns → corpus + method refinement
+
+PHASE 7 — RUNG PROGRESSION (variable)
+  Rung 2 → Rung 3: add critic, evidence attachment, contradiction engine
+  Rung 3 → Rung 4: pass benchmark suite ≥ 90%
+
+PHASE 8 — PRODUCTION RELEASE
+  Domain Director signs off
+  Continuous elevation loop activated
+  Publish specialist datasheet (capabilities, benchmarks, limitations)
+4.2 Corpus Refresh Automation
+YAML
+
+refresh_scheduler:
+  jobs:
+    - source_id: pubmed_medline
+      cadence: daily @ 02:00 UTC
+      max_runtime_minutes: 240
+      failure_alert: B5_medical_director
+      quarantine_on_3_failures: true
+
+    - source_id: sec_edgar
+      cadence: real-time webhook + daily reconciliation
+      failure_alert: B4_financial_director
+
+    - source_id: eur_lex_gdpr
+      cadence: weekly
+      failure_alert: B3_legal_director
+
+    - source_id: nvd_cve_feed
+      cadence: real-time
+      failure_alert: B8_security_director
+
+  monitoring:
+    metrics_emitted:
+      - coco_corpus_ingestion_success_rate
+      - coco_corpus_freshness_hours
+      - coco_corpus_quarantined_sources_total
+    alerts:
+      - staleness > 2x expected cadence → page Domain Director
+      - quarantined_sources > 5 → escalate to A6 Risk Officer
+5. CROSS-SPECIALIST COMPOSITION (THE ORGANIZATION EFFECT)
+One of COCO's structural advantages: specialists compose without context loss.
+
+5.1 Example — "Analyze this M&A Deal"
+A single mission spawns:
+
+text
+
+Mission: "Analyze the proposed acquisition of TargetCo by AcquirerCo for $500M"
+
+Dynamic organization assembled by A1 Director:
+
+  ├── C21 Deep Web Investigator     → gather public info on both companies
+  ├── C48 Corporate Financial Modeler → build 3-statement DCF for TargetCo
+  ├── C49 DCF & LBO Valuation Specialist → LBO sensitivity + IRR waterfall
+  ├── C36 Corporate Legal Advisor    → review deal structure + key legal risks
+  ├── C40 GDPR & Privacy Officer     → assess data transfer implications
+  ├── C55 Tax Optimization Specialist → tax structuring alternatives
+  ├── C74 Competitive Moat Analyst   → strategic rationale + synergies
+  ├── C94 Security Auditor           → cyber due diligence on TargetCo
+  └── A7 Synthesis Agent             → integrated investment memo
+
+Every specialist:
+  - Reads same Project Brain (shared context)
+  - Writes findings to same knowledge graph
+  - Their outputs cross-reference each other
+  - A3 Universal Critic reviews the composed deliverable
+  - A7 delivers unified memo in COCO voice
+No human team can assemble this fast, this comprehensively, with this level of cross-linkage. The organization effect is a moat neither individual humans nor single-agent AI can replicate.
+
+5.2 Composition Rules
+text
+
+RULE 1 — SHARED PROJECT BRAIN
+  All specialists in one mission read/write the same knowledge_nodes.
+  No parallel contradictory decisions possible.
+
+RULE 2 — CROSS-CITATION REQUIRED
+  Where one specialist's finding informs another's work, explicit
+  citation is required. A7 verifies cross-citation graph.
+
+RULE 3 — CONTRADICTION ENGINE ACTIVE
+  If two specialists produce contradictory findings, A3 escalates
+  for resolution before delivery.
+
+RULE 4 — SYNTHESIS AGENT SPEAKS ONE VOICE
+  User sees one integrated deliverable, not 9 separate reports.
+  A7 composes in unified COCO voice.
+
+RULE 5 — DOMAIN DIRECTORS ARBITRATE
+  Cross-domain disputes go to A1; single-domain disputes to Tier 2 Director.
+6. HANDLING SPECIALIST FAILURE
+Specialists fail. The system is designed to make failure safe.
+
+6.1 Failure Modes
+text
+
+MODE 1 — CRITIC REJECTS OUTPUT
+  → RepairOrder issued (max 3 attempts)
+  → If exhausted: escalate to Tier 2 Director
+  → Tier 2 Director may: assign different specialist, revise scope,
+    request human input, or mark mission BLOCKED
+
+MODE 2 — BENCHMARK REGRESSION DETECTED
+  → Domain Director alerted (nightly)
+  → Rollback to prior specialist version
+  → Root cause analysis + fix
+  → Re-shadow before promotion
+
+MODE 3 — CORPUS STALENESS
+  → Specialist emits warning in confidence caveats
+  → Refresh job triggered
+  → If corpus > 2x expected staleness: specialist marked DEGRADED
+
+MODE 4 — TOOL UNAVAILABILITY
+  → Fallback to secondary tool (per Tool Registry fallback chain)
+  → If no fallback: specialist reports BLOCKED_INFO_NEEDED
+
+MODE 5 — HUMAN EXPERT OVERRIDES DELIVERABLE
+  → Human correction captured as training signal
+  → Pattern analysis surfaces recurring issues
+  → Domain Director evaluates method refinement
+6.2 Honest Communication of Limits
+Every specialist output includes a limitations section:
+
+text
+
+LIMITATIONS FOR THIS ANALYSIS:
+
+  1. Corpus currency: [specific corpus last refreshed X hours ago]
+  2. Jurisdictional scope: [only US federal; state law not analyzed]
+  3. Assumptions: [list of assumptions with confidence]
+  4. Not covered: [explicit list of what was out of scope]
+  5. Recommended human review: [what a human expert should verify]
+
+This is not sycophantic hedging. This is calibrated honesty
+(Article XIII Voice Principle 7: "Honest about limits").
+7. THE SPECIALIST DATASHEET (Public-Facing)
+Every production specialist has a published datasheet users can read. This is COCO's answer to "how do I know your Legal Advisor is actually good?"
+
+7.1 Datasheet Structure
+YAML
+
+specialist_datasheet:
+  id: C36
+  name: Corporate Legal Advisor
+  version: 2.4.1
+  domain: Legal - Corporate & Commercial
+  tier: tier_3_specialist
+  ladder_rung: 4 (expert-beating)
+
+  what_i_do:
+    - Review commercial contracts against playbooks
+    - Research corporate legal questions with binding authority
+    - Draft NDAs, MSAs, SOWs
+    - Analyze indemnification structures
+    - Perform diligence on legal documentation
+
+  what_i_do_not_do:
+    - Provide advice constituting practice of law without licensed attorney review
+    - Represent parties in disputes
+    - File court documents
+    - Substitute for local counsel in jurisdictions where required
+
+  jurisdictions_supported:
+    - United States (federal + Delaware primary; other states with local counsel review)
+    - United Kingdom (England & Wales)
+    - India (primarily corporate/commercial)
+    - EU (primarily competition + GDPR)
+
+  corpus_currency:
+    statutes: real-time
+    case_law: daily
+    treatises: annual editions
+
+  benchmark_performance:
+    NDA_review:           0.96 (human median: 0.78)
+    MSA_negotiation:      0.93 (human median: 0.82)
+    Case_research:        0.97 (human median: 0.86)
+    Indemnity_analysis:   0.91 (human median: 0.79)
+
+  known_limitations:
+    - Novel legal questions with no precedent may exceed capability
+    - Highly specialized areas (patent litigation, admiralty) require sub-specialist
+    - Non-common-law jurisdictions have narrower corpus coverage
+
+  independent_review:
+    - Every output reviewed by paired adversarial critic
+    - Every high-stakes output requires human attorney sign-off (L10)
+    - Quarterly re-baseline by external attorney panel
+
+  transparency:
+    - Every citation hyperlinked to source
+    - Every reasoning step surfaceable
+    - Full audit log per mission
+Publishing datasheets is a moat. No competitor doing agent chatbots is willing to publish measurable benchmarks. COCO does — because COCO passes them.
+
+8. COVERAGE ROADMAP
+8.1 First 20 Flagships (v1 — locked above)
+The 20 blueprints in Section 2 are the v1 launch set. Each is Rung 4 before Pro tier ships.
+
+8.2 Next 40 Specialists (v1.5)
+text
+
+Software:      C2 Frontend UI Architect, C4 PostgreSQL Specialist,
+               C5 DevOps K8s, C7 Distributed Systems, C13 Mobile
+Research:      C24 Data Scraper, C26 Quantitative, C31 Primary Source
+Legal:         C37 IP Attorney, C42 Employment, C44 Trade
+Finance:       C51 Risk Modeler, C54 VC Equity, C57 Forensic
+Medical:       C62 Pharmacology, C67 Healthcare Reg
+Product:       C73 GTM Strategist, C79 Pricing
+Hardware:      C85 PCB Layout, C87 Control Systems, C88 Sensor Fusion
+Creative:      C95 Design System Architect, C98 Accessibility
+Sciences:      C105 Quantum Computing, C109 GIS
+Operational:   C122 Construction, C123 Energy Grid, C130 Automotive
+8.3 Long-Tail (v2+)
+Remaining 74 specialists ship as domain demand and revenue justify each corpus investment. Dynamic Agent Factory (Deep Spec 1 §7) handles ad-hoc niche domains meanwhile.
+
+9. THE PLAYBOOK GOVERNANCE
+9.1 Roles
+text
+
+DOMAIN DIRECTOR (Tier 2)
+  - Owns corpus, methodology, benchmark suite
+  - Signs off on specialist version releases
+  - Reviews weekly regression reports
+
+METHOD ENGINEER
+  - Codifies cognitive methods
+  - Maintains prompt templates
+  - Runs shadow deployment experiments
+
+CORPUS ENGINEER
+  - Maintains ingestion pipelines
+  - Monitors refresh jobs
+  - License compliance
+
+EVALUATION ENGINEER
+  - Maintains benchmark suites
+  - Coordinates independent human panels
+  - Publishes datasheets
+
+A3 UNIVERSAL CRITIC (Tier 1)
+  - Meta-review across all specialists
+  - Flags cross-cutting quality issues
+9.2 Change Management
+text
+
+Any change to a Rung 4 specialist:
+
+  MINOR (prompt tweak, tool config):
+    → Shadow 24h → measure delta → auto-promote if no regression
+
+  MODERATE (method refinement, corpus addition):
+    → Shadow 7d → measure delta on benchmark → Domain Director approves
+
+  MAJOR (methodology change, critic redesign):
+    → Shadow 30d → full benchmark re-run → Independent panel review
+    → Domain Director + A3 sign-off
+10. SUMMARY OF SPECIFICATION 5 LOCKS
+The Expert-Beating Playbook is now fully specified:
+
+Six Truths of Expert-Beating Locked — humans forget/tire/work-alone/estimate; COCO remembers/is-relentless/works-in-pairs/computes/cites/combines.
+Universal 10-Part Recipe Locked — every specialist blueprint follows Thesis → Baseline → Corpus → Tools → Method → Critic → Verification → Rubric → Benchmark → Elevation.
+Domain Ingestion Pipeline Locked — acquire → license-check → normalize → hash/chunk → embed → metadata → persist → validate → refresh.
+Corpus Governance Rules Locked — provenance, license compatibility, versioning, credibility class, Director ownership, quarantine, tenant isolation.
+Paired Critic Pattern Locked — adversarial second agent with attack patterns per domain, operating at L9 verification.
+Beat-Human Benchmark Suite Locked — schema for benchmarks with human-baseline panels, target scores 110% of median human at 5x speed.
+Continuous Elevation Loop Locked — nightly regression, weekly failure analysis, monthly corpus refresh, quarterly independent re-baseline.
+20 Flagship Blueprints Delivered — Legal, Python Architect, Financial Modeler, Clinical Investigator, Deep Web Investigator, Security Auditor, Product Strategist, GDPR Officer, SaaS Analyst, Academic Synthesizer, Mechanical Designer, Warehousing, Aerospace, Diagnostic Support, Tax, UX Design System, Firmware, Statistical Modeling, MLOps, Web Security.
+Expert-Beating Ladder Locked — four rungs (Competent, Proficient, Expert, Expert-Beating) with explicit progression requirements.
+Domain Ingestion Playbook Locked — 8-phase process for adding new domains (Scope → Corpus Design → Ingestion → Methodology → Benchmark → Shadow → Rung Progression → Production).
+Cross-Specialist Composition Rules Locked — shared Project Brain, cross-citation, contradiction resolution, unified synthesis voice.
+Failure Handling Locked — five failure modes with explicit recovery paths and honest limits communication.
+Specialist Datasheet Structure Locked — public-facing measurable transparency.
+Coverage Roadmap Locked — v1 (20), v1.5 (40 more), v2+ long tail via Dynamic Agent Factory.
+Governance Roles & Change Management Locked — Domain Director, Method Engineer, Corpus Engineer, Evaluation Engineer, A3 Universal Critic.
+The specialists are no longer aspirational. They have concrete recipes, measurable standards, and continuous improvement loops.
+
+Every user interaction with a Rung 4 specialist should feel like consulting the best senior professional in that domain — one who is faster, more thorough, better-cited, more honest about limits, and never tired.
+
+That is the Constitutional Standard. The playbook makes it operational.
+
+NEXT DEEP SPECIFICATION
+The specialists are now blueprinted. We proceed to DEEP SPEC 6 — The Verification Cookbook:
+
+Concrete test batteries at each of the 10 verification levels (L0-L10)
+Per-domain verification recipes (software, research, legal, financial, medical, hardware, design, business, scientific, operational)
+The full test tooling registry (linters, type checkers, SAST/DAST, fuzz testing, symbolic execution, statistical validators, citation verifiers, playbook checkers, contract validators)
+Critic prompt libraries per domain
+The Repair Loop implementation (root-cause diagnosis, strategy selection, iteration limits, escalation)
+Verification cost budgeting (which levels apply to which mission tier)
+Human-in-the-loop integration for L10
+Regression testing (verification suite itself is verified)
+Verification observability (per-level pass rates, common failures, MTBF)

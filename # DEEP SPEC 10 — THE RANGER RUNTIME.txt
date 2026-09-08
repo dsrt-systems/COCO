@@ -1,0 +1,1957 @@
+# DEEP SPEC 10 — THE RANGER RUNTIME
+
+**System:** DSRT COCO
+**Layer:** Ranger Autonomous Mission Runtime (cross-cutting; anchored in Kernel Fabric)
+**Status:** Approved & Locked Specification
+**Governing Standards:** Constitutional Dimensions 7 (Mission Model), 10 (Economic & Tier Model); Article XIII (Cognitive Runtime); Deep Specs 1-9
+**Purpose:** Define the runtime that lets COCO execute long-running, autonomous, multi-hour-to-multi-day missions with hundreds of agents, robust to model outages, human unavailability, and mid-mission drift — while remaining safe, auditable, and always under human authority.
+
+---
+
+## 0. RANGER PHILOSOPHY
+
+Ranger is not "COCO with a bigger budget." Ranger is a **fundamentally different mode of operation**:
+
+- **Default** — one agent, one turn, sub-minute response.
+- **Pro** — organized team, minutes to hours, human-in-the-loop per gate.
+- **Ranger** — autonomous organization, hours to days, human-out-of-the-loop between gates.
+
+To operate autonomously for hours or days at Ranger scale, the runtime must survive: model provider outages, sandbox failures, network partitions, mid-mission drift, budget shifts, human unavailability, cross-day continuity, and its own bugs. It must never wander outside its authorized scope. It must always be resumable. It must always be stoppable.
+
+### The Twelve Governing Laws of Ranger
+
+```text
+LAW 1  — AUTHORITY IS EXPLICIT AND SCOPED
+         Every Ranger mission has a written charter defining what it may do
+         and what it may not. The charter is signed by a human authorizer.
+         Nothing outside the charter is attempted.
+
+LAW 2  — TIME IS AN ADVERSARY
+         Anything running for hours will encounter failure. The runtime
+         assumes: model outages, sandbox crashes, network partitions,
+         drift, retries. It survives all of them.
+
+LAW 3  — CHECKPOINTS ARE THE UNIT OF PROGRESS
+         State advances only through durable checkpoints. Between
+         checkpoints, work is best-effort. At checkpoints, work is committed.
+
+LAW 4  — RESUMABLE OR NOT DONE
+         Every phase, every task, every agent run must be resumable from
+         its most recent checkpoint. No mission is "started over."
+
+LAW 5  — HUMAN AUTHORITY IS EVENTUALLY ASYNCHRONOUS
+         Ranger operates without a human in the immediate loop. Human
+         approval gates use TTLs, escalation chains, and degraded-operation
+         modes. Missions never freeze because one approver is on vacation.
+
+LAW 6  — BUDGET IS A HARD BOUNDARY
+         Compute, cost, and wall-time budgets are enforced atomically.
+         Approaching exhaustion triggers graceful degradation, not silent
+         failure. Exhaustion triggers checkpoint + human hand-back.
+
+LAW 7  — AUTONOMY LEVEL GATES EVERY ACTION
+         L0-L5 autonomy governs what may be done without human approval.
+         The runtime never elevates itself. Escalation is explicit.
+
+LAW 8  — DRIFT-AWARE, NOT DRIFT-BLIND
+         Long missions can drift: objectives clarified, world facts change,
+         corpus updates land. Ranger detects mid-mission drift and pauses
+         for human confirmation.
+
+LAW 9  — PARALLELISM IS EARNED, NOT ASSUMED
+         Spawning 64 parallel specialists is powerful and dangerous.
+         Parallelism is authorized per mission tier, per objective type,
+         per budget headroom.
+
+LAW 10 — OBSERVABILITY IS THE OPERATOR'S RIGHT
+         Human operators can inspect any Ranger mission at any moment:
+         current phase, next action, blocked reason, projected completion,
+         cost burn, verification posture. Zero opacity.
+
+LAW 11 — HAND-OFF IS FIRST-CLASS
+         Ranger missions can be handed between operators, between shifts,
+         between organizations (Enterprise). Full context transfers.
+
+LAW 12 — STOP MEANS STOP
+         A stop signal from any authorized human halts the mission within
+         seconds. In-flight work is checkpointed. Committed work is preserved.
+         No agent can "just finish this one thing" against a stop signal.
+```
+
+---
+
+## 1. THE RANGER RUNTIME — TOPOLOGY
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                          RANGER RUNTIME (per mission)                           │
+│                                                                                 │
+│    ┌──────────────────────────────────────────────────────────────────┐         │
+│    │                     MISSION CHARTER                              │         │
+│    │  - objective, scope, exclusions                                  │         │
+│    │  - authorized tools, data, spend, wall-time                      │         │
+│    │  - autonomy level (L0-L5)                                        │         │
+│    │  - human approvers + escalation chain                            │         │
+│    │  - stop-conditions                                               │         │
+│    │  - signed by authorizing user (Ed25519)                          │         │
+│    └───────────────────────────┬──────────────────────────────────────┘         │
+│                                ▼                                                │
+│    ┌──────────────────────────────────────────────────────────────────┐         │
+│    │                MISSION SUPERVISOR (singleton per mission)         │         │
+│    │  - owns MissionState machine                                     │         │
+│    │  - schedules phases, checkpoints, drift checks                   │         │
+│    │  - enforces charter constraints                                  │         │
+│    │  - listens for stop / pause / adjust signals                     │         │
+│    └───────────────────────────┬──────────────────────────────────────┘         │
+│                                ▼                                                │
+│    ┌──────────────────────────────────────────────────────────────────┐         │
+│    │               ORGANIZATION BUILDER                                │         │
+│    │  - resolves domain → team composition                             │         │
+│    │  - allocates parallel workers per objective                       │         │
+│    │  - respects parallelism envelope (§6)                             │         │
+│    └───────────────────────────┬──────────────────────────────────────┘         │
+│                                ▼                                                │
+│    ┌──────────────────────────────────────────────────────────────────┐         │
+│    │            AUTONOMOUS EXECUTION LOOP                              │         │
+│    │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐              │         │
+│    │  │ TASK    │  │ REPAIR  │  │  DRIFT  │  │  GATE   │              │         │
+│    │  │ SCHED   │  │  LOOP   │  │  CHECK  │  │  CHECK  │              │         │
+│    │  └─────────┘  └─────────┘  └─────────┘  └─────────┘              │         │
+│    │                                                                  │         │
+│    │  Runs continuously; publishes progress + checkpoints              │         │
+│    └───────────────────────────┬──────────────────────────────────────┘         │
+│                                ▼                                                │
+│    ┌──────────────────────────────────────────────────────────────────┐         │
+│    │               CHECKPOINT MANAGER                                  │         │
+│    │  - schedules durable snapshots                                    │         │
+│    │  - snapshots mission state, task graph, artifacts, context        │         │
+│    │  - handles resumption after any failure                           │         │
+│    └───────────────────────────┬──────────────────────────────────────┘         │
+│                                ▼                                                │
+│    ┌──────────────────────────────────────────────────────────────────┐         │
+│    │               BUDGET ENFORCER                                     │         │
+│    │  - atomic reservations for tokens, tool time, wall time           │         │
+│    │  - warnings at 50/75/90%; degradation at 90/95/98/100%            │         │
+│    │  - hand-back to human at exhaustion                               │         │
+│    └───────────────────────────┬──────────────────────────────────────┘         │
+│                                ▼                                                │
+│    ┌──────────────────────────────────────────────────────────────────┐         │
+│    │               AUTONOMY & APPROVAL GATE                            │         │
+│    │  - every action classified by autonomy requirement                │         │
+│    │  - async human approval workflows                                 │         │
+│    │  - degraded modes when approvers unreachable                      │         │
+│    └───────────────────────────┬──────────────────────────────────────┘         │
+│                                ▼                                                │
+│    ┌──────────────────────────────────────────────────────────────────┐         │
+│    │               OPERATOR CONSOLE                                    │         │
+│    │  - real-time observability                                        │         │
+│    │  - pause / stop / adjust / hand-off                               │         │
+│    │  - approval queue                                                 │         │
+│    └──────────────────────────────────────────────────────────────────┘         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1.1 Ranger Sits Above the Kernel
+
+Ranger is not a separate service — it is a specialization of the Mission Engine (Kernel Fabric §3, Deep Spec 2) with a dedicated **Mission Supervisor** process spawned per Ranger mission. The Supervisor uses standard fabric services (Intelligence, Execution, Verification, Context, Security, Evolution) but wraps them in the additional discipline described below.
+
+---
+
+## 2. THE MISSION CHARTER
+
+Every Ranger mission begins with a **charter** — a signed, immutable declaration of scope and authority.
+
+### 2.1 Charter Schema
+
+```protobuf
+message MissionCharter {
+  string charter_id                = 1;   // ULID
+  string mission_id                = 2;
+  string organization_id           = 3;
+
+  // ─── AUTHORIZATION ─────────────────────────────────────
+  string authorized_by_user_id     = 4;
+  string authorization_reason      = 5;
+  int64  authorized_at_unix_ns     = 6;
+  string charter_signature         = 7;   // Ed25519 over canonical form
+
+  // ─── OBJECTIVE ─────────────────────────────────────────
+  string objective                 = 8;
+  repeated string success_criteria = 9;
+  repeated string explicit_exclusions = 10;   // "Never do X"
+  repeated Deliverable expected_deliverables = 11;
+
+  // ─── SCOPE ─────────────────────────────────────────────
+  ScopeAuthority scope             = 12;
+
+  // ─── EXECUTION ENVELOPE ───────────────────────────────
+  MissionTier tier                 = 13;   // Must be RANGER or ENTERPRISE
+  AutonomyLevel autonomy_level     = 14;
+  ResourceBudget budget            = 15;
+  int64  max_wall_clock_seconds    = 16;   // e.g. 259200 (72h)
+  int32  max_parallel_agents       = 17;
+
+  // ─── HUMAN INTERFACE ──────────────────────────────────
+  repeated Approver approvers      = 18;
+  EscalationChain escalation       = 19;
+  int64  default_approval_ttl_hours = 20;
+  DegradedModePolicy degraded_mode = 21;
+
+  // ─── OBSERVABILITY ────────────────────────────────────
+  repeated string subscribers      = 22;   // Users notified on events
+  NotificationSchedule schedule    = 23;   // Daily digest, milestone, etc.
+
+  // ─── STOP CONDITIONS ──────────────────────────────────
+  repeated StopCondition stop_conditions = 24;
+}
+
+message ScopeAuthority {
+  repeated string allowed_tools          = 1;
+  repeated string forbidden_tools        = 2;
+  repeated string allowed_data_scopes    = 3;   // Memory scopes, projects, corpora
+  repeated string forbidden_data_scopes  = 4;
+  repeated string allowed_domains        = 5;   // For network egress
+  repeated string forbidden_domains      = 6;
+  repeated string allowed_deploy_targets = 7;   // "staging" | "prod-canary"
+  bool   may_spawn_dynamic_agents        = 8;
+  bool   may_modify_project_brain        = 9;
+  bool   may_produce_external_outputs    = 10;  // Email, publish, transfer
+}
+
+message Approver {
+  string user_id                   = 1;
+  string role                      = 2;   // "primary", "backup", "domain_expert"
+  repeated string approval_scopes  = 3;   // "deployment", "financial_decision", "legal_signoff"
+  repeated string notification_channels = 4;   // "email", "sms", "slack", "pager"
+}
+
+message EscalationChain {
+  int64  primary_wait_hours        = 1;   // Wait before escalating
+  int64  backup_wait_hours         = 2;   // Then escalate again
+  string final_fallback            = 3;   // "checkpoint_and_wait" | "abort_mission"
+}
+
+message DegradedModePolicy {
+  DegradedModeKind on_approver_unreachable = 1;
+  DegradedModeKind on_budget_warning       = 2;
+  DegradedModeKind on_provider_outage      = 3;
+  DegradedModeKind on_drift_detected       = 4;
+}
+
+enum DegradedModeKind {
+  DEGRADED_UNSPECIFIED   = 0;
+  CONTINUE_LOW_RISK_ONLY = 1;   // Only autonomy-safe work continues
+  CHECKPOINT_AND_WAIT    = 2;   // Full stop; await human
+  ABORT_MISSION          = 3;   // End mission gracefully
+  ROLLBACK_TO_CHECKPOINT = 4;   // Revert; then wait
+}
+
+message StopCondition {
+  StopConditionKind kind           = 1;
+  google.protobuf.Struct params    = 2;
+  string action                    = 3;   // "checkpoint_and_wait" | "abort" | "notify_only"
+}
+
+enum StopConditionKind {
+  STOP_KIND_UNSPECIFIED = 0;
+  BUDGET_EXHAUSTED      = 1;
+  WALL_TIME_EXCEEDED    = 2;
+  VERIFICATION_REPEATEDLY_FAILING = 3;
+  DRIFT_DETECTED        = 4;
+  EXTERNAL_SIGNAL       = 5;   // User pressed STOP
+  SAFETY_INCIDENT       = 6;
+  DELIVERABLE_MET       = 7;   // Success stop
+  CUSTOM                = 8;
+}
+```
+
+### 2.2 Charter Creation Flow
+
+```text
+User initiates Ranger mission
+   │
+   ▼
+Ranger UI presents Charter Wizard:
+  - Objective (free text)
+  - Suggested organization (COCO drafts; user edits)
+  - Scope (tools, data, network, deployment targets)
+  - Autonomy level (L0-L5, default L3 for Ranger)
+  - Budget (compute, cost, wall-time)
+  - Approvers + escalation
+  - Notification preferences
+  - Stop conditions
+   │
+   ▼
+COCO Director (A1) previews charter:
+  - Estimates feasibility given budget
+  - Flags contradictions (e.g., "deploy to prod" but "no external outputs")
+  - Suggests refinements
+   │
+   ▼
+User confirms; Ed25519 signature computed
+   │
+   ▼
+Charter persisted (immutable) → mission_charters table
+   │
+   ▼
+Mission Supervisor spawned
+```
+
+### 2.3 Charter Amendments
+
+Charters are **immutable**, but can be **amended** during a live mission:
+
+```text
+Amendment types:
+  - Budget extension              (approver + audit)
+  - Autonomy level change         (higher authority: L0→L3 fine; L3→L5 requires CTO)
+  - Scope expansion               (adding tools/domains; approver required)
+  - Scope contraction             (safe; single approver)
+  - Deliverable clarification     (does not change scope)
+  - Approver replacement          (safe if replacement is authorized)
+
+Amendments are:
+  - Signed new documents linked to original charter_id
+  - Audit-chain-hashed
+  - Never destructive to prior state
+```
+
+---
+
+## 3. THE MISSION SUPERVISOR
+
+One `MissionSupervisor` process per Ranger mission. Owns the mission for its entire lifetime.
+
+### 3.1 Supervisor Responsibilities
+
+```text
+1. Load charter; verify signature; verify authorizer still has authority
+2. Initialize MissionState from checkpoint (if resume) or from scratch
+3. Drive the state machine (Deep Spec 2 §2.2 phases)
+4. Schedule task execution respecting charter scope
+5. Enforce parallelism envelope
+6. Trigger checkpoints on schedule + phase transitions
+7. Monitor budget; trigger warnings + degradation
+8. Run drift checks at defined intervals
+9. Enqueue approval requests; process approvals
+10. Publish progress events for operators
+11. Respond to control signals (pause, resume, stop, hand-off)
+12. On completion or termination: seal checkpoint, emit final deliverable event
+```
+
+### 3.2 Supervisor Placement
+
+```text
+Deployment:
+  - Runs as a dedicated pod per active Ranger mission
+  - Kubernetes StatefulSet with pod-per-mission
+  - Persistent volume for local WAL + working state
+  - Pod naming: coco-ranger-<mission_id>
+
+Availability:
+  - Supervisor pod crashes → K8s restarts within seconds
+  - On restart: reads WAL + latest checkpoint → resumes cleanly
+  - No mission state lives only in the supervisor's memory
+```
+
+### 3.3 Supervisor's Local WAL
+
+Between checkpoints, the supervisor writes a local write-ahead log for durability:
+
+```text
+Every action taken between checkpoints appended to:
+  /var/lib/coco/ranger/<mission_id>/wal/<seq>.log
+
+Entries include:
+  - Task started/completed
+  - Approval issued/received
+  - Model call initiated/completed
+  - Sandbox allocated/released
+  - Budget deducted
+  - Event published
+
+On restart:
+  1. Load latest checkpoint (durable in Postgres/S3)
+  2. Replay WAL entries after checkpoint sequence number
+  3. Verify replay consistency
+  4. If replay diverges from expected state → mark REPLAY_INCONSISTENT
+     and pause for human review
+  5. Otherwise → resume normally
+```
+
+---
+
+## 4. CHECKPOINT MECHANICS
+
+Checkpoints are the beating heart of Ranger's resilience.
+
+### 4.1 What a Checkpoint Contains
+
+Extending Deep Spec 2 §2.4 (`Checkpoint`) and Deep Spec 3 §4 (`checkpoints`), the Ranger checkpoint carries:
+
+```protobuf
+message RangerCheckpoint {
+  // ─── IDENTITY ────────────────────────────────────────
+  string checkpoint_id             = 1;
+  string mission_id                = 2;
+  int32  checkpoint_number         = 3;
+  string prev_checkpoint_id        = 4;   // Chain to prior
+  string chain_hash                = 5;   // sha256 of prev + this canonical
+
+  // ─── TRIGGER ─────────────────────────────────────────
+  CheckpointTrigger trigger        = 6;
+  int64  created_at_unix_ns        = 7;
+
+  // ─── MISSION STATE ───────────────────────────────────
+  MissionStateSnapshot mission     = 8;
+  TaskGraphSnapshot graph          = 9;
+  repeated AgentInstanceSnapshot agents = 10;
+  repeated ArtifactRef artifacts   = 11;
+  ContextSnapshot context          = 12;
+
+  // ─── BUDGET STATE ────────────────────────────────────
+  ResourceUsage usage_so_far       = 13;
+  ResourceBudget remaining_budget  = 14;
+
+  // ─── PENDING WORK ────────────────────────────────────
+  repeated PendingApproval pending_approvals = 15;
+  repeated PendingRepair pending_repairs     = 16;
+  repeated string in_flight_task_ids         = 17;
+
+  // ─── DRIFT STATE ─────────────────────────────────────
+  repeated DriftMarker drift_markers = 18;
+
+  // ─── STORAGE ─────────────────────────────────────────
+  string full_snapshot_uri         = 19;   // S3 URI to full serialized state
+  int64  full_snapshot_size_bytes  = 20;
+  string snapshot_encryption_key_id = 21;
+
+  // ─── SIGNATURE ───────────────────────────────────────
+  string signature                 = 22;   // Ed25519 over checkpoint content
+}
+
+enum CheckpointTrigger {
+  TRIGGER_UNSPECIFIED     = 0;
+  SCHEDULED_INTERVAL      = 1;   // Every N minutes
+  PHASE_TRANSITION        = 2;   // Mission moves to new phase
+  APPROVAL_REQUESTED      = 3;   // Before waiting on human
+  RISK_GATE               = 4;   // Before high-risk action
+  DRIFT_DETECTED          = 5;   // Before pausing for drift
+  BUDGET_WARNING          = 6;   // At 75%/90%/95% thresholds
+  MANUAL                  = 7;   // Operator-requested
+  PRE_STOP                = 8;   // Before graceful stop
+  PRE_HANDOFF             = 9;   // Before mission handoff
+}
+```
+
+### 4.2 Checkpoint Schedule
+
+```text
+DEFAULT CHECKPOINT CADENCE:
+
+  Every 15 minutes wall-clock          (SCHEDULED_INTERVAL)
+  Before every phase transition        (PHASE_TRANSITION)
+  Before every approval request        (APPROVAL_REQUESTED)
+  Before every deploy operation        (RISK_GATE)
+  Before every destructive tool call   (RISK_GATE)
+  At 50/75/90/95/98% budget usage      (BUDGET_WARNING)
+  When drift detected                  (DRIFT_DETECTED)
+  On operator manual request           (MANUAL)
+  Before stop/abort                    (PRE_STOP)
+  Before handoff                       (PRE_HANDOFF)
+
+TUNING:
+  - Charter may set custom interval (min: 1 min, max: 60 min)
+  - Ranger-tier default: 15 min
+  - Enterprise: configurable per contract
+```
+
+### 4.3 Checkpoint Storage & Retention
+
+```text
+CHECKPOINT STORAGE:
+
+  Metadata:        Postgres missions.checkpoints (Deep Spec 3 §4)
+  Full snapshot:   Object storage (encrypted with tenant DEK)
+  Chain hash:      Postgres for tamper-evidence
+
+RETENTION:
+  - Last 20 checkpoints always retained
+  - Last checkpoint of every phase transition retained
+  - PRE_STOP / PRE_HANDOFF retained indefinitely
+  - Older checkpoints tiered to cold storage after 30 days
+  - Deleted on mission deletion (subject to retention policy)
+
+SIZE CONSTRAINTS:
+  - Warning if checkpoint > 500 MB
+  - Hard limit: 5 GB
+  - Beyond limit: split into base + delta checkpoints
+  - Cross-checkpoint deduplication for artifacts (content-addressed)
+```
+
+### 4.4 Resume Semantics
+
+Resuming from a checkpoint is deterministic:
+
+```text
+Supervisor restarts (crash, redeployment, handoff):
+   │
+   ▼
+1. Load charter (verify signature)
+   │
+   ▼
+2. Find latest sealed checkpoint for mission
+   │
+   ▼
+3. Verify checkpoint chain integrity (hash chain)
+   │
+   ▼
+4. Decrypt snapshot with tenant DEK
+   │
+   ▼
+5. Load state into memory:
+   - MissionState → last known phase
+   - TaskGraph → last known status per task
+   - AgentInstances → last known state
+   - Pending approvals → re-check status in DB
+   - In-flight tasks → mark for restart (may have been mid-execution)
+   │
+   ▼
+6. Reconcile with world:
+   - Query DB for approvals resolved since checkpoint
+   - Query DB for verification outcomes since checkpoint
+   - Fetch remaining budget from Redis (source of truth)
+   - Health-check every model endpoint
+   │
+   ▼
+7. Replay WAL entries after checkpoint sequence
+   │
+   ▼
+8. Handle in-flight tasks:
+   - Idempotent tasks → re-run
+   - Non-idempotent tasks → mark FAILED_MID_FLIGHT; enter repair loop
+   │
+   ▼
+9. Resume state machine from current phase
+   │
+   ▼
+10. Emit `mission.checkpoint_restored` event
+```
+
+### 4.5 Cross-Day Continuity
+
+Missions that span days handle **timezone drift, human availability windows, and cross-day rollovers**:
+
+```text
+- Wall-clock is always UTC internally
+- Notification schedules honor approver timezones
+- "Do not disturb" windows per approver (from user preferences)
+- Business-hours-only approval mode for certain scopes
+- Overnight parking:
+    * At end of primary approvers' business day, missions may enter
+      NOCTURNAL mode: only autonomy-safe work continues
+    * All decisions requiring higher autonomy accumulate in queue
+    * Next business day, approver reviews the queue in bulk
+```
+
+---
+
+## 5. AUTONOMY LEVELS ENFORCED
+
+Recap Deep Spec 2 §2.1 `AutonomyLevel`. Ranger enforces these with per-action classification.
+
+### 5.1 Autonomy Level Semantics
+
+```text
+LEVEL           DEFINITION                                 EXAMPLES
+────────       ──────────────────────────────────────    ─────────────────────────────
+L0_ANSWER       Answer only; no side effects              Research memo; analysis
+L1_RECOMMEND    Recommend actions; no execution           "Here's the plan; approve to run"
+L2_REVERSIBLE   Execute reversible actions                Create draft; write to workspace
+L3_MULTISTEP    Execute multi-step reversible plans       Build repo; run tests; iterate
+L4_CHECKPOINTED Long autonomous runs with checkpoints     Ranger builder mission
+L5_CONTINUOUS   Operate continuously within scope         "Watch this project forever"
+```
+
+### 5.2 Per-Action Autonomy Classification
+
+Every action a Ranger mission considers is classified by the **minimum autonomy level** required:
+
+```text
+ACTION KIND                                MIN AUTONOMY  ADDITIONAL GATES
+──────────────────────────────────────    ────────────  ───────────────────────────
+Reading public web                          L0            —
+Reading own project brain                   L0            —
+Model inference (non-tool)                  L0            —
+Writing to isolated sandbox workspace       L2            —
+Committing to isolated git branch           L2            —
+Reading tenant's private data               L2            data_scope in charter
+Executing generated code in sandbox         L3            sandbox tier per §6 Deep 8
+Pushing branch to origin                    L3            branch pattern in charter
+Merging to main                             L3            code review complete + L9 verified
+Deploying to staging                        L4            L10 verification complete
+Deploying to canary (prod)                  L4            L10 + safety metrics green
+Deploying to full prod                      L5            OR L4 + human approval per gate
+Modifying billing/subscription              L5            OR L4 + human approval mandatory
+Sending external email                      L4            approver + spam+PII scan pass
+Publishing to public channel                L5            OR L4 + human approval mandatory
+Financial transfer                          Never auto    L4 + human approval always
+Contract execution (signing)                Never auto    L4 + human approval always
+Regulatory filing                           Never auto    L4 + human approval always
+Any RESTRICTED-data operation               L4            + tenant policy per Deep Spec 8 §8
+```
+
+### 5.3 The Autonomy Gate Function
+
+Every candidate action passes through:
+
+```python
+async def autonomy_gate(action: Action, mission: RangerMission) -> GateDecision:
+    required = classify_action_autonomy(action)
+    charter_level = mission.charter.autonomy_level
+
+    if required > charter_level:
+        # Escalate to human
+        return GateDecision.REQUIRE_APPROVAL(
+            reason=f"Action requires {required.name}; charter authorizes {charter_level.name}",
+            approver_scope=required_approver_scope(action),
+            checkpoint_before_wait=True,
+        )
+
+    if action_hits_scope_boundary(action, mission.charter.scope):
+        return GateDecision.DENY(
+            reason=f"Action outside charter scope: {action.scope_violation}",
+        )
+
+    if action_has_additional_gates(action):
+        for gate in action.additional_gates:
+            if not await gate.check(mission):
+                return GateDecision.REQUIRE_APPROVAL(
+                    reason=gate.failure_reason,
+                )
+
+    return GateDecision.ALLOW
+```
+
+### 5.4 The "Never Auto" Class
+
+Some actions **cannot be granted to autonomy** regardless of charter:
+
+```text
+NEVER AUTONOMOUSLY EXECUTABLE (constitutional):
+  - Money transfer (any amount)
+  - Contract signing (any counterparty)
+  - Regulatory filing (any regulator)
+  - Legal representation (any capacity)
+  - Medical intervention (any patient impact)
+  - Publishing to user-visible public channel
+  - Sending communication to third-party persons
+  - Deleting production data
+  - Rotating production credentials
+  - Modifying subscription/billing
+  - Cross-tenant operations
+```
+
+Ranger presents these as approval requests even at L5. The charter cannot override this.
+
+---
+
+## 6. THE PARALLELISM ENVELOPE
+
+Spawning agents in parallel is Ranger's superpower. It is also its most dangerous action.
+
+### 6.1 Parallelism Limits Per Tier
+
+```text
+                       DEFAULT   PRO    RANGER    ENTERPRISE
+Max parallel agents      4        16      64        contract-defined
+Max concurrent sandboxes 2        8       32        contract-defined
+Max concurrent model     4        16      64        contract-defined
+  inferences
+Max concurrent tools     4        16      32        contract-defined
+```
+
+### 6.2 Dynamic Parallelism Governor
+
+Beyond the hard cap, a **Parallelism Governor** dynamically scales concurrency down based on:
+
+```text
+CONDITIONS THAT REDUCE ALLOWED PARALLELISM:
+
+  Budget consumption > 75%                  → cap at 50% of max
+  Budget consumption > 90%                  → cap at 25% of max
+  P95 model latency > 2× baseline           → cap at 50% of max
+  Verification failure rate > 20% last hour → cap at 25% of max
+  Any P1 incident on affected fabric         → cap at 10% of max
+  Provider rate-limit encountered            → cap at current − 25%
+  Sandbox pool saturation                    → cap at current
+
+CONDITIONS THAT RESTORE PARALLELISM:
+
+  Sustained low latency, low failure rate    → +25% per 15 min
+  Budget refresh (amendment or new day)      → restore per tier
+```
+
+### 6.3 Parallelism Authorization by Objective Type
+
+```text
+OBJECTIVE TYPE               DEFAULT MAX PARALLEL
+───────────────────────     ────────────────────
+Research (read-only)         high — up to charter max
+Code generation              medium — 8-16 typical
+Data processing (idempotent) high — up to charter max
+Web browsing (read-only)     medium — provider rate-limited
+Deployment / destructive     1 — always serialized
+External communication       1 — always serialized
+Cross-project operations     1 — always serialized
+Financial calculation        medium — 4-8 typical
+```
+
+### 6.4 Coordination Primitives
+
+Parallel workers coordinate via:
+
+```text
+1. SHARED PROJECT BRAIN
+   - All parallel workers read/write same knowledge nodes
+   - Contradiction Engine (Article XIII §5) catches divergent conclusions
+   - Deep Spec 5 §5 cross-specialist composition rules apply
+
+2. WORK STEALING QUEUE
+   - Idle workers pull next ready task from task graph
+   - Prevents worker starvation
+
+3. LOCK-FREE ARTIFACT NAMING
+   - Content-addressed artifacts (SHA-256)
+   - Same output from two workers deduplicates automatically
+
+4. VERSIONED WRITES TO PROJECT BRAIN
+   - Optimistic concurrency; retry on conflict
+   - Contradictions surface for A3 resolution
+
+5. CROSS-WORKER SYNTHESIS AT PHASE BOUNDARIES
+   - A7 Synthesis Agent aggregates parallel outputs
+   - No user-facing output until synthesis complete
+```
+
+---
+
+## 7. BUDGET MANAGEMENT
+
+Budgets are enforced atomically. Approaching exhaustion triggers structured degradation.
+
+### 7.1 The Multi-Dimensional Budget
+
+Per Deep Spec 2 §2.1 `ResourceBudget`, but tracked at higher granularity for Ranger:
+
+```yaml
+ranger_budget:
+  # Time
+  max_wall_clock_seconds:      259200      # 72 hours
+  min_wall_clock_seconds:      1800        # 30 min minimum useful mission
+
+  # Compute
+  max_compute_seconds:         360000      # 100 CPU-hours
+  max_gpu_seconds:             36000       # 10 GPU-hours
+
+  # Model
+  max_model_tokens_input:      50_000_000
+  max_model_tokens_output:     10_000_000
+  max_model_tokens_reasoning:  20_000_000
+  max_model_cost_usd:          500.00
+  max_frontier_model_calls:    5000        # Rate-limit frontier tier
+
+  # Tools
+  max_tool_calls:              50000
+  max_sandbox_seconds:         180000
+  max_network_egress_bytes:    107374182400   # 100 GB
+
+  # Parallelism
+  max_parallel_agents:         64
+  max_concurrent_sandboxes:    32
+
+  # Human
+  max_approval_requests:       50           # cap noise
+  max_approver_notifications:  100
+```
+
+### 7.2 Atomic Reservation via Redis
+
+Every consuming operation reserves budget atomically:
+
+```lua
+-- Redis Lua script (executed atomically)
+local mission_id = KEYS[1]
+local dimension = KEYS[2]
+local requested = tonumber(ARGV[1])
+local limit = tonumber(redis.call('HGET', 'ranger:budget:limit:'..mission_id, dimension))
+local used = tonumber(redis.call('HGET', 'ranger:budget:used:'..mission_id, dimension) or 0)
+
+if used + requested > limit then
+  return {'DENIED', tostring(used), tostring(limit)}
+end
+
+redis.call('HINCRBYFLOAT', 'ranger:budget:used:'..mission_id, dimension, requested)
+local reservation_id = ARGV[2]
+redis.call('HSET', 'ranger:budget:reservations:'..mission_id, reservation_id, requested)
+return {'GRANTED', reservation_id}
+```
+
+Reservations are RAII: on completion, the reservation is **reconciled** — if actual usage differed from estimate, the difference is refunded or additionally deducted.
+
+### 7.3 Degradation Ladder
+
+```text
+BUDGET USAGE     EFFECTS
+─────────────    ─────────────────────────────────────────────────────────
+50%              Warning event emitted; operator notified in digest
+75%              Parallelism capped at 50%; cache preference raised
+90%              Frontier models blocked; only ADVANCED-tier eligible
+                 Checkpoint immediately
+                 Emit `mission.budget_warning` severity=HIGH
+95%              Only cached responses + local models
+                 No new parallel spawns
+                 Verification depth capped at L6
+                 Notify all approvers via primary channel
+98%              Halt new task starts; complete in-flight only
+                 Checkpoint aggressively
+100%             Hard stop
+                 Full checkpoint
+                 Publish deliverables produced so far
+                 Emit `mission.budget_exhausted`
+                 Hand back to human: extend budget or accept current state
+```
+
+### 7.4 Budget Amendment Mid-Mission
+
+```text
+When budget nears exhaustion, Supervisor:
+  1. Composes an EXTENSION_PROPOSAL:
+     - Reason: what's still needed
+     - Estimated additional cost/time
+     - Confidence in completion
+     - Expected quality delta
+  2. Sends to primary approver
+  3. If approved: charter amended (§2.3); budget extended
+  4. If denied: mission stops gracefully at 100%
+  5. If no response by approval TTL: fall through to Degraded Mode Policy
+```
+
+---
+
+## 8. HUMAN APPROVAL WORKFLOW (ASYNCHRONOUS)
+
+Ranger cannot pause for hours waiting on a single human. It uses queues, TTLs, escalation, and degraded modes.
+
+### 8.1 The Approval Request Flow
+
+```text
+Action requires approval
+   │
+   ▼
+1. CHECKPOINT (before waiting)
+   │
+   ▼
+2. Compose ApprovalTicket (Deep Spec 8 §15)
+   - Include: action detail, verification report, risk assessment,
+     rollback plan, expected impact, TTL, escalation chain
+   │
+   ▼
+3. Send to primary approver via configured channels
+   - Slack + Email at minimum
+   - SMS/Pager for HIGH+ risk actions
+   │
+   ▼
+4. Supervisor CONTINUES other work
+   - Ranger does NOT block on approval
+   - Other independent tasks proceed
+   - Only tasks dependent on this action queue
+   │
+   ▼
+5. Approval decided (approve | deny | modify)
+   │
+   ▼
+6. Supervisor picks up decision → resumes affected work
+
+OR
+
+5'. TTL expires without response
+   │
+   ▼
+6'. ESCALATION CHAIN:
+   - Wait primary_wait_hours → notify backup approvers
+   - Wait backup_wait_hours → notify escalation targets
+   - Wait final_wait_hours → apply final_fallback (checkpoint | abort)
+```
+
+### 8.2 Approval TTL by Risk
+
+```text
+RISK LEVEL   DEFAULT TTL   NOTIFICATION CHANNELS
+──────────   ───────────   ─────────────────────────────
+LOW          24 hours      Email + dashboard
+MEDIUM       8 hours       Email + Slack
+HIGH         2 hours       Email + Slack + SMS
+CRITICAL     30 minutes    Email + Slack + SMS + Pager
+```
+
+TTLs are configurable in the charter; defaults are conservative.
+
+### 8.3 Batching Approvals
+
+To reduce approver fatigue on long missions:
+
+```text
+APPROVAL BATCHING RULES:
+
+  Within a 15-min window, same approver:
+    - LOW-risk requests → batched into single notification
+    - MEDIUM-risk → batched with individual detail cards
+    - HIGH+ → never batched
+
+  Nocturnal mode (approver's off-hours):
+    - LOW/MEDIUM accumulate in queue
+    - Batched into "morning digest"
+    - HIGH+ still page immediately
+```
+
+### 8.4 Degraded Modes When Approvers Unreachable
+
+```text
+Charter's DegradedModePolicy per trigger:
+
+CONTINUE_LOW_RISK_ONLY:
+  - Only actions at charter_autonomy or below proceed
+  - Higher-autonomy tasks queue in APPROVAL_PENDING state
+  - Mission continues making partial progress
+  - When approver returns: process queue
+
+CHECKPOINT_AND_WAIT:
+  - Full checkpoint
+  - All active tasks pause
+  - Mission enters WAITING_HUMAN phase
+  - Resumes on any approver decision
+
+ABORT_MISSION:
+  - Full checkpoint
+  - Publish partial deliverables
+  - Emit `mission.aborted_no_human`
+  - Mission enters TERMINAL state
+
+ROLLBACK_TO_CHECKPOINT:
+  - Restore last non-pending checkpoint
+  - Then apply CHECKPOINT_AND_WAIT
+```
+
+---
+
+## 9. DRIFT AWARENESS
+
+Long missions can drift. The runtime detects and pauses.
+
+### 9.1 The Four Kinds of Ranger Drift
+
+```text
+1. OBJECTIVE DRIFT
+   - Current work no longer serves original success_criteria
+   - Detected by: A3 Universal Critic periodically re-evaluating alignment
+   - Signal: alignment_score < 0.7
+
+2. WORLD-FACT DRIFT
+   - Facts assumed at mission start have changed (news, market, regulation)
+   - Detected by: relevant source monitors (news, regulatory, market)
+   - Signal: any watched entity or fact updated significantly
+
+3. TENANT-INTENT DRIFT
+   - Operator has expressed something that changes intent (comments, questions)
+   - Detected by: comment analysis on running mission
+   - Signal: sentiment or semantic content diverges from charter
+
+4. INTERNAL DRIFT
+   - Cumulative errors, cascading assumptions, feedback loops
+   - Detected by: assumption engine + contradiction engine over time
+   - Signal: accumulated unverified assumptions above threshold
+```
+
+### 9.2 Drift Check Cadence
+
+```text
+DRIFT CHECK             FREQUENCY
+──────────────────     ───────────────────────────────
+Objective drift         Every phase transition + every 30 min
+World-fact drift        Every 60 min (for topics on watchlist)
+Tenant-intent drift     Real-time on any user input to mission
+Internal drift          Every 15 min
+```
+
+### 9.3 Drift Response
+
+```text
+On drift detection:
+  1. CHECKPOINT (DRIFT_DETECTED trigger)
+  2. Emit `mission.drift_detected` event with:
+     - kind, evidence, confidence, severity
+  3. Apply charter's on_drift_detected DegradedModePolicy
+  4. Default: CONTINUE_LOW_RISK_ONLY + notify primary approver
+  5. Approver reviews:
+     - Confirm current course (dismiss drift)
+     - Amend charter (adapt to drift)
+     - Stop mission (drift invalidates objective)
+```
+
+### 9.4 Drift Debouncing
+
+```text
+- Drift signals debounced within 15-min windows (same kind, same subject)
+- Approver acknowledgment silences drift alerts for that specific finding
+  for 4 hours
+- Recurring drift after acknowledgment escalates severity
+```
+
+---
+
+## 10. FAILURE RESILIENCE
+
+Ranger runs long enough to hit everything. The runtime handles every failure class explicitly.
+
+### 10.1 The Failure Handbook
+
+```text
+FAILURE CLASS                    RUNTIME RESPONSE
+──────────────────────────────  ─────────────────────────────────────────────
+Model provider outage            Model router fallback chain kicks in (Deep 4 §5.5)
+                                 If entire tier unavailable: retry with backoff
+                                 Prolonged outage → degrade quality floor
+                                 Extended outage → checkpoint + wait
+
+Model rate limiting              Router shifts to alternate endpoint/provider
+                                 If all rate-limited: brief backoff, then continue
+                                 Persistent: reduce parallelism
+
+Sandbox allocation failure       Retry with backoff; try alternate tier
+                                 If pool exhausted: queue; timeout → task blocked
+                                 Persistent: pause mission, alert
+
+Tool execution timeout           Failure classifier → repair loop (Deep 6 §7)
+                                 If tool consistently failing: mark unavailable
+                                 Continue with alternative tools
+
+Verification failure             Repair loop (Deep 6 §7.1)
+                                 If max_repair_attempts exhausted: escalate
+                                 If repeated across tasks: pause + investigate
+
+Network partition                Retry with backoff
+                                 Persistent: enter offline mode (local models only)
+                                 Recovery: reconcile state, continue
+
+Checkpoint write failure         Retry with backoff; try alternate S3 region
+                                 If persistent: pause mission, alert P1
+                                 Never continue without durable checkpoint
+
+Supervisor pod crash             K8s restarts pod
+                                 Resume from latest checkpoint + WAL replay
+                                 If replay inconsistent: pause, human review
+
+Database unavailable             Read-only mode possible for some operations
+                                 Writes blocked → pause mission
+                                 Continuous unavailability > 15 min → checkpoint,
+                                   wait for DB recovery
+
+Event bus unavailable            Buffer events locally; publish on recovery
+                                 If buffer exhausts: pause mission
+
+Human approver system down       Notification retries with backoff
+                                 If persistent: escalation chain applied
+                                 If all channels down: degraded mode triggered
+
+Cost/budget system unavailable   Conservative: pause new expensive operations
+                                 Complete in-flight only
+
+Detected security incident       Emit P0 event; pause mission immediately;
+                                 involve A6 Risk Officer + Security team
+```
+
+### 10.2 Failure Classification & Learning
+
+Every failure emits a structured `MissionFailureEvent` consumed by the Evolution Fabric:
+
+```protobuf
+message MissionFailureEvent {
+  string mission_id            = 1;
+  string task_id               = 2;
+  FailureClass class           = 3;
+  FailureCategory category     = 4;
+  string root_cause_hypothesis = 5;
+  string resolution_strategy   = 6;
+  bool   resolved              = 7;
+  int32  attempts              = 8;
+  int64  duration_ms           = 9;
+  google.protobuf.Struct evidence = 10;
+}
+```
+
+Evolution Fabric aggregates these to:
+- Update failure playbooks
+- Tune repair strategy catalog
+- Detect systematic failure patterns
+- Propose model/tool preference updates
+
+### 10.3 The Cascading Failure Circuit Breaker
+
+If a mission accumulates failures faster than resolution:
+
+```text
+CIRCUIT BREAKER STATES:
+
+  CLOSED:      Normal operation
+  HALF-OPEN:   Failure rate elevated; parallelism reduced 50%
+  OPEN:        Failure rate critical; mission paused
+
+TRANSITIONS:
+
+  CLOSED → HALF-OPEN:  failure_rate_last_15_min > 25% AND
+                       min 10 tasks completed in window
+  HALF-OPEN → OPEN:    failure_rate_last_15_min > 40%
+  OPEN → HALF-OPEN:    30 min timeout + human unpause
+  HALF-OPEN → CLOSED:  failure_rate_last_15_min < 10% for 30 min
+
+OPEN state actions:
+  - Full checkpoint
+  - Notify all approvers (HIGH severity)
+  - Continue only autonomy-safe monitoring
+  - Await human diagnosis
+```
+
+---
+
+## 11. THE OPERATOR CONSOLE
+
+Humans supervise without micromanaging.
+
+### 11.1 The Mission Overview
+
+```text
+┌───────────────────────────────────────────────────────────────────────────┐
+│ ← Missions   ⧉                                                            │
+│                                                                           │
+│ RANGER MISSION  ·  mis_01J8XZ9QK...  ·  Building v2 platform             │
+│                                                                           │
+│ Started        2025-11-04 09:12 UTC  (running 14h 22m)                    │
+│ Charter        ranger_charter_2025_11_04_09_12  · signed by Alice         │
+│ Autonomy       L4 CHECKPOINTED         Tier: RANGER                       │
+│                                                                           │
+│ ┌─── PROGRESS ────────────────────────────────────────────────────────┐  │
+│ │ Phase:   EXECUTING              Progress: 62%                        │  │
+│ │ Current: c1_python_architect building auth service (task 47 of 76)   │  │
+│ │ Next:    integration testing → security audit → deployment prep      │  │
+│ │ ETA:     completes ~11h from now (2025-11-05 10:30 UTC)              │  │
+│ └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+│ ┌─── HEALTH ─────────────────────────────────────────────────────────┐   │
+│ │ Circuit:      CLOSED · nominal        Failure rate 15min: 3.2%      │   │
+│ │ Parallel:     18 of 64 active         Sandboxes: 12 of 32           │   │
+│ │ Drift:        no alerts                                              │   │
+│ │ Provider:     all endpoints healthy                                  │   │
+│ └────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ ┌─── BUDGET ─────────────────────────────────────────────────────────┐   │
+│ │ Wall time:    14h 22m / 72h (20%)    ▁▁▁▂▂▂ ▃                       │   │
+│ │ Compute:      $47 / $500 (9%)         ▁▁▂                          │   │
+│ │ Tokens:       6.2M / 60M (10%)        ▁▁▁▂                          │   │
+│ │ Approvals:    3 / 50 sent                                            │   │
+│ └────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ ┌─── VERIFICATION POSTURE ───────────────────────────────────────────┐   │
+│ │ L0-L6 passing in production stream                                   │   │
+│ │ L7 security: 2 issues auto-repaired, 1 pending critic review         │   │
+│ │ L9 critic:   14 of 14 completed                                      │   │
+│ │ L10:         1 approval pending (deploy to staging)                  │   │
+│ └────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ ┌─── APPROVAL QUEUE (1) ─────────────────────────────────────────────┐   │
+│ │ ⚠ Deploy auth-service v2.4.0 to staging                              │   │
+│ │   Verification: 1,482 checks passed · Critic ACCEPT                  │   │
+│ │   Requested 04 min ago  ·  TTL 1h 56m remaining                      │   │
+│ │                                    [ APPROVE ]  [ DENY ]  [ NOTES ]  │   │
+│ └────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ [ PAUSE ] [ STOP ] [ AMEND CHARTER ] [ HAND OFF ] [ ✓ APPROVAL QUEUE ]   │
+│                                                                           │
+│ [ LIVE TIMELINE ]  [ AGENT MAP ]  [ ARTIFACTS ]  [ AUDIT ]  [ REPLAY ]   │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.2 The Live Timeline
+
+A scrollable, filterable log of everything the mission has done:
+
+```text
+Every event visible:
+  - Task started/completed
+  - Agent spawned/retired
+  - Model calls (count + cost by capability)
+  - Tool invocations
+  - Verifications
+  - Approvals requested/granted
+  - Checkpoints
+  - Drift alerts
+  - Failures + repairs
+
+Filters:
+  - By phase, agent, task, event type
+  - By time window
+  - By severity
+  - "Show only what changed state"
+
+Search:
+  - Free-text over event data
+  - Structured query ("show me all repair loops that took > 3 attempts")
+```
+
+### 11.3 The Agent Map
+
+Live view of the organization:
+
+```text
+                 COCO DIRECTOR (A1)
+                        │
+        ┌───────────────┼───────────────┐
+        ▼               ▼               ▼
+   B1 ENG          B2 RESEARCH     B8 SECURITY
+        │               │               │
+   ┌────┼────┐          │               │
+   ▼    ▼    ▼          ▼               ▼
+  C1   C4   C5         C21             C94
+  Py   PG   K8s        Web             Sec
+Arch   DB   Dev        Res             Aud
+ ●●●   ●●   ●●          ●               ●
+
+Legend:
+  ● Active   ○ Idle   ⏸ Paused   ⚠ Alert   ✗ Failed
+```
+
+Click any agent → per-agent view: current task, recent runs, resource usage, output artifacts, critic feedback.
+
+### 11.4 Real-Time Cost & Burn Chart
+
+Line chart of budget consumption vs projection. Vertical bands mark checkpoints, approvals, drift alerts.
+
+### 11.5 The Notification Digest
+
+Rather than pinging operators for every event, Ranger emits **milestone digests**:
+
+```text
+DIGEST TRIGGERS:
+  - Phase transition
+  - Every 6 hours during nocturnal mode
+  - Budget threshold crossed
+  - Any approval pending > 1h
+  - Any P2+ alert
+  - Circuit breaker state change
+  - Mission-final digest on completion
+
+DIGEST CONTENT:
+  - Since-last summary (what's happened)
+  - Current state (phase, health, budget, pending)
+  - Coming up next
+  - Anything requiring attention
+```
+
+Digest delivery per approver preference: Slack, email, mobile push.
+
+---
+
+## 12. MISSION CONTROL SIGNALS
+
+Operators steer Ranger missions via control signals — first-class citizens of the runtime.
+
+### 12.1 The Signal Catalog
+
+```protobuf
+message MissionControlSignal {
+  string signal_id                 = 1;
+  string mission_id                = 2;
+  SignalKind kind                  = 3;
+  string issued_by_user_id         = 4;
+  string reason                    = 5;
+  google.protobuf.Struct params    = 6;
+  int64  issued_at_unix_ns         = 7;
+}
+
+enum SignalKind {
+  SIGNAL_UNSPECIFIED  = 0;
+  PAUSE               = 1;   // Graceful pause; checkpoint; wait
+  RESUME              = 2;
+  STOP_GRACEFUL       = 3;   // Complete in-flight; checkpoint; end
+  STOP_IMMEDIATE      = 4;   // Abort in-flight; checkpoint; end
+  ADJUST_PARALLELISM  = 5;
+  ADJUST_BUDGET       = 6;
+  ADJUST_AUTONOMY     = 7;
+  AMEND_CHARTER       = 8;
+  FORCE_CHECKPOINT    = 9;
+  DISMISS_DRIFT       = 10;
+  ACKNOWLEDGE_ALERT   = 11;
+  HAND_OFF            = 12;
+  REROUTE_APPROVAL    = 13;
+  ACCELERATE_APPROVAL = 14;   // Pull escalation forward
+  RECONSIDER_TASK     = 15;   // Re-plan a specific task
+  MARK_INCORRECT      = 16;   // Signal to Evolution Fabric
+}
+```
+
+### 12.2 Signal Authorization
+
+```text
+SIGNAL                   REQUIRED AUTHORITY
+────────────────────    ──────────────────────────────────────
+PAUSE / RESUME           Any approver, or mission creator
+STOP_GRACEFUL            Primary approver or CTO
+STOP_IMMEDIATE           Primary approver or CTO or Security
+                         (immediate stop always allowed for safety)
+ADJUST_PARALLELISM       Any approver
+ADJUST_BUDGET            Primary approver (increase requires signature)
+ADJUST_AUTONOMY          Original charter authorizer
+AMEND_CHARTER            Original charter authorizer + affected approvers
+HAND_OFF                 Primary approver
+REROUTE_APPROVAL         Any approver
+```
+
+Every signal is audit-logged with signer identity and reason.
+
+### 12.3 Signal Semantics
+
+```text
+PAUSE:
+  - Emit CHECKPOINT (MANUAL trigger)
+  - Freeze new task starts
+  - Complete in-flight tasks (idempotent) or checkpoint them
+  - State: PAUSED
+  - Resume via RESUME signal restores execution
+
+STOP_GRACEFUL:
+  - Emit CHECKPOINT (PRE_STOP trigger)
+  - No new task starts
+  - Wait for in-flight tasks to complete or checkpoint safely
+  - Emit final deliverable event with partial results
+  - State: STOPPED
+
+STOP_IMMEDIATE:
+  - Cancel every in-flight operation (idempotent SIGTERM to sandboxes)
+  - Checkpoint current state
+  - Emit `mission.stopped_immediate` event
+  - State: STOPPED
+
+HAND_OFF:
+  - Emit CHECKPOINT (PRE_HANDOFF)
+  - Package handoff bundle (§13)
+  - Notify receiving operator/org
+  - Await receipt acknowledgment
+  - Transfer supervisor authority
+```
+
+---
+
+## 13. MISSION HANDOFF
+
+For Enterprise use cases — shifts, on-call rotations, cross-team transfers — missions can be handed off cleanly.
+
+### 13.1 Handoff Types
+
+```text
+1. INTRA-TENANT HANDOFF
+   - Approver A hands supervision to Approver B, same org
+   - Preserves charter; updates approver list
+   - Simple metadata change + notification
+
+2. CROSS-TENANT HANDOFF
+   - Rare; requires explicit contract terms
+   - Full data package transfers (with data-transfer agreement)
+   - New tenant assumes ownership
+
+3. TEMPORAL HANDOFF (Shift Change)
+   - End-of-shift notification with digest
+   - New shift receives briefing package
+   - Charter unchanged; approver list updated with active shift
+```
+
+### 13.2 Handoff Package Contents
+
+```protobuf
+message HandoffBundle {
+  string handoff_id                = 1;
+  string mission_id                = 2;
+
+  string handed_from_user_id       = 3;
+  string handed_to_user_id         = 4;
+  int64  handed_at_unix_ns         = 5;
+  string handoff_reason            = 6;
+
+  MissionCharter charter           = 7;    // Immutable
+  RangerCheckpoint latest_checkpoint = 8;
+  MissionOverview overview         = 9;
+
+  repeated PendingItem pending_items = 10;   // approvals, decisions
+  repeated Alert active_alerts     = 11;
+  BriefingNotes briefing_notes     = 12;   // Human-written or generated
+
+  string signature_from            = 13;
+  string signature_to              = 14;   // Populated on acceptance
+  bool   accepted                  = 15;
+}
+
+message BriefingNotes {
+  string context_summary           = 1;   // Written by outgoing approver
+  string known_risks               = 2;
+  string decisions_pending         = 3;
+  string suggested_next_actions    = 4;
+}
+```
+
+### 13.3 Handoff Flow
+
+```text
+1. Outgoing approver initiates HAND_OFF signal
+   │
+   ▼
+2. Supervisor CHECKPOINT (PRE_HANDOFF)
+   │
+   ▼
+3. Supervisor generates briefing summary via A7 Synthesis Agent
+   │
+   ▼
+4. Outgoing approver reviews/edits briefing notes
+   │
+   ▼
+5. HandoffBundle signed by outgoing approver
+   │
+   ▼
+6. Bundle delivered to incoming approver
+   - Incoming receives full context
+   - Reviews charter, current state, pending items
+   │
+   ▼
+7. Incoming approver ACCEPTS (or DECLINES)
+   │
+   ▼
+8. If accepted:
+   - Approver list updated
+   - Signal AUTHORIZED_HANDOFF_COMPLETED
+   - Mission continues under new supervision
+   If declined:
+   - Mission enters PAUSED with reason
+   - Outgoing approver notified
+```
+
+---
+
+## 14. COMPLETION & DELIVERY
+
+Ranger missions can succeed, fail, be aborted, or reach envelope exhaustion. Each has a formal completion path.
+
+### 14.1 Completion Types
+
+```text
+SUCCESS
+  - All success_criteria met
+  - Final verification passed at target level
+  - Deliverables produced
+  - Mission phase: COMPLETED
+  - Final digest issued
+
+PARTIAL SUCCESS
+  - Some success_criteria met; others not
+  - Deliverables produced but not all
+  - Mission phase: COMPLETED with partial=true
+  - Human notified of what was and wasn't achieved
+
+FAILED
+  - Success_criteria not achievable in scope
+  - Mission phase: FAILED
+  - Root cause analysis attached
+
+ABORTED (by user)
+  - STOP signal received
+  - Deliverables so far preserved
+  - Mission phase: CANCELLED
+
+EXHAUSTED (budget)
+  - Budget hit before completion
+  - Deliverables so far preserved
+  - Human may extend budget (charter amendment) or accept current
+
+DRIFT-ABORTED
+  - Drift confirmed by human; objective invalidated
+  - Deliverables preserved
+  - Mission phase: CANCELLED with reason
+```
+
+### 14.2 Final Deliverable Package
+
+Every completed Ranger mission produces a standard package:
+
+```text
+mission_deliverable_<mission_id>/
+├── deliverables/                 # Primary artifacts (per charter)
+├── verification_report.md         # Full L0-L10 report per Deep 6 §13
+├── decision_log.md                # All decisions recorded with reasoning
+├── audit_summary.md               # Compact audit trail
+├── budget_report.md               # What was spent where
+├── organization_report.md         # Which agents did what
+├── evidence_appendix.md           # All research citations with hashes
+├── mission_timeline.html          # Interactive timeline
+├── charter.json                   # Original charter (immutable)
+├── charter_amendments.json        # Any amendments applied
+├── final_state.json               # Final MissionState
+└── SIGNATURES.json                # Ed25519 signatures + provenance
+```
+
+Delivered via UI download + tenant object storage.
+
+### 14.3 Post-Completion Retention
+
+```text
+Mission data retained per Deep Spec 3 §22:
+  - Mission metadata: indefinite (institutional memory)
+  - Detailed logs: 24 months
+  - Checkpoints: 30 days rolling; last checkpoint indefinite
+  - Deliverables: indefinite (customer property)
+  - Audit trail: 7 years (per compliance)
+```
+
+---
+
+## 15. RANGER-SPECIFIC SAFETY
+
+Ranger's autonomy scale demands additional safety beyond the general Security Fabric.
+
+### 15.1 The Ranger Safety Kernel
+
+A dedicated subsystem inside the Supervisor:
+
+```text
+CONTINUOUSLY MONITORS:
+  - Deviation from charter scope
+  - Cumulative destructive-action count
+  - Cross-tool suspicious sequences (e.g., "read secrets" then "network egress")
+  - Agent behavioral anomalies (Deep 8 §9.3) at mission scale
+  - Attempted charter-boundary crossings
+  - Repeated approval-request patterns that look like probing
+  - Novel tool combinations not previously seen in this domain
+
+CAN INDEPENDENTLY:
+  - Emit PAUSE signal
+  - Escalate to Security Fabric
+  - Force checkpoint
+  - Notify all approvers + Security oncall
+
+CANNOT:
+  - Modify charter
+  - Grant additional autonomy
+  - Bypass any gate
+```
+
+### 15.2 The Two-Person Rule (Enterprise)
+
+For enterprise-tier deployments, certain actions require two distinct human approvers, both authenticated:
+
+```text
+TWO-PERSON RULE APPLIES TO:
+  - Deployment to production
+  - Cross-tenant operations (rare)
+  - External communications to third-party persons
+  - Modifications to billing/financial state
+  - Rotation of production credentials
+  - Any action classified as IRREVERSIBLE
+
+MECHANISM:
+  - Ticket requires 2 signatures
+  - Approvers must be distinct users
+  - Neither approver may be the mission's authorizer
+  - Both authentications must include MFA
+```
+
+### 15.3 The Kill Switch
+
+A globally-authorized kill switch:
+
+```text
+Any of:
+  - CTO
+  - Security oncall (during incident)
+  - A6 Risk Officer (automated on P0 detection)
+
+Can invoke:
+  ranger.kill_all_missions(
+    scope="organization" | "domain" | "global",
+    reason=<free_text>,
+  )
+
+Effect:
+  - Every affected mission receives STOP_IMMEDIATE
+  - Checkpoints written
+  - Approvers notified with reason
+  - Incident opened
+  - Post-mortem required within 72h
+```
+
+---
+
+## 16. RANGER OBSERVABILITY
+
+### 16.1 Prometheus Metrics
+
+```text
+coco_ranger_missions_active_count{tier, autonomy}
+coco_ranger_missions_by_phase{phase}
+coco_ranger_mission_wall_time_seconds{quantile}
+coco_ranger_mission_budget_utilization{dimension, quantile}
+coco_ranger_checkpoints_created_total{trigger}
+coco_ranger_checkpoint_write_duration_ms{quantile}
+coco_ranger_checkpoint_size_bytes{quantile}
+coco_ranger_resumption_events_total{cause}
+coco_ranger_parallelism_current{mission_id}
+coco_ranger_parallelism_capped_total{reason}
+coco_ranger_approval_requests_total{risk_level, outcome}
+coco_ranger_approval_ttl_expired_total{risk_level}
+coco_ranger_drift_detected_total{kind}
+coco_ranger_degraded_mode_active_count{reason}
+coco_ranger_circuit_breaker_open_total{mission_id}
+coco_ranger_control_signals_total{kind, outcome}
+coco_ranger_handoffs_total{kind, outcome}
+coco_ranger_safety_kernel_pauses_total{reason}
+coco_ranger_missions_completed_total{outcome}
+```
+
+### 16.2 Grafana Dashboards
+
+```text
+RANGER FLEET OVERVIEW
+  - All active Ranger missions
+  - Phase distribution
+  - Aggregate budget consumption
+  - Aggregate approval queue depth
+
+PER-MISSION HEALTH
+  - Selectable mission
+  - Full state, budget, parallelism, verification posture
+  - Timeline of last N hours
+
+SAFETY POSTURE
+  - Safety kernel activations
+  - Circuit breaker events
+  - Charter boundary crossings prevented
+  - Kill-switch history
+
+APPROVAL EFFICIENCY
+  - TTL expiry rate by approver
+  - Time-to-decision distribution
+  - Escalation chain depth reached
+  - Batching effectiveness
+```
+
+### 16.3 Alerts
+
+```yaml
+- alert: RangerMissionStuck
+  expr: |
+    time() - coco_ranger_mission_last_progress_seconds > 3600
+    AND coco_ranger_missions_by_phase{phase="executing"} > 0
+  for: 15m
+  labels: {severity: P2}
+
+- alert: RangerBudgetImminentExhaustion
+  expr: coco_ranger_mission_budget_utilization > 0.95
+  for: 5m
+  labels: {severity: P1}
+
+- alert: RangerSafetyKernelPause
+  expr: increase(coco_ranger_safety_kernel_pauses_total[5m]) > 0
+  for: 0m
+  labels: {severity: P1}
+
+- alert: RangerCircuitBreakerOpen
+  expr: coco_ranger_circuit_breaker_open_total > 0
+  for: 0m
+  labels: {severity: P1}
+
+- alert: RangerApprovalTTLExpiring
+  expr: coco_ranger_approval_pending_ttl_remaining_seconds < 900
+  for: 0m
+  labels: {severity: P2}
+
+- alert: RangerCheckpointWriteFailures
+  expr: rate(coco_ranger_checkpoint_write_failures_total[5m]) > 0
+  for: 5m
+  labels: {severity: P1}
+```
+
+---
+
+## 17. RANGER-SPECIFIC EVOLUTION
+
+The Evolution Fabric (Deep Spec 9) learns Ranger-specific patterns:
+
+### 17.1 Learned Ranger Policies
+
+```text
+- Optimal checkpoint interval per objective type
+- Parallelism sweet spots per objective type
+- Budget projection accuracy per objective type
+- Approval TTL calibration per risk level
+- Drift-check cadence per domain
+- Degraded-mode effectiveness per trigger
+- Circuit breaker thresholds per failure category
+- Repair strategy effectiveness at mission scale
+```
+
+### 17.2 The Ranger Postmortem
+
+Every Ranger mission (regardless of outcome) generates a postmortem record fed to Evolution:
+
+```protobuf
+message RangerPostmortem {
+  string mission_id                = 1;
+  OutcomeLabel outcome             = 2;
+  int64  wall_time_seconds         = 3;
+  ResourceUsage total_usage        = 4;
+
+  int32  checkpoints_created       = 5;
+  int32  resumptions_needed        = 6;
+  int32  approvals_requested       = 7;
+  int32  approvals_ttl_expired     = 8;
+  int32  drift_alerts              = 9;
+  int32  degraded_mode_activations = 10;
+  int32  circuit_breaker_opens     = 11;
+  int32  safety_kernel_pauses      = 12;
+
+  repeated string top_failure_categories = 13;
+  repeated string most_expensive_agents  = 14;
+  repeated string longest_pauses         = 15;
+
+  double planning_accuracy         = 16;   // planned vs actual duration
+  double budget_estimation_accuracy = 17;
+  double parallelism_utilization   = 18;
+  double idle_time_ratio           = 19;
+}
+```
+
+These records feed Ranger-specific learners (§9 Deep 9) that propose:
+- Better default parallelism per objective type
+- Better default budgets per objective type
+- Better default checkpoint intervals
+- Better default approval TTLs per risk
+
+---
+
+## 18. RANGER PRICING & ECONOMIC MODEL
+
+Ranger's economic model rewards outcomes, not usage.
+
+### 18.1 Pricing Structure
+
+```text
+RANGER TIER (per Deep Spec 4 §10.2, refined):
+
+BASE SUBSCRIPTION:
+  - Monthly minimum for Ranger tier access
+  - Includes headroom of compute credits per month
+  - Includes unlimited mission count within budgets
+
+METERED USAGE (above headroom):
+  - Compute credits (CPU-hours, GPU-hours)
+  - Model tokens (per capability tier)
+  - Storage (checkpoint retention beyond default)
+  - Human-review services (Enterprise premium)
+
+CONTRACT-DEFINED FOR ENTERPRISE:
+  - Custom parallelism envelopes
+  - Custom retention
+  - Dedicated compute
+  - Committed spend discounts
+  - SLA credits
+```
+
+### 18.2 Charter Cost Estimation
+
+Before charter signing, the UI presents a cost estimate:
+
+```text
+ESTIMATED COST FOR THIS MISSION:
+
+  Model inference:         $ 40 - $ 80    (based on similar past missions)
+  Compute (sandboxes):     $  5 - $ 15
+  Storage (checkpoints):   $  1 - $  3
+  ─────────────────────────────────────
+  TOTAL:                   $ 46 - $ 98
+
+  Wall time expected:      12 - 20 hours
+
+  Confidence:              MEDIUM  (based on 47 similar missions)
+```
+
+### 18.3 Cost Attribution
+
+Every dollar spent is attributed to:
+- Mission
+- Agent that consumed it
+- Task within the mission
+- Model / tool consumed
+- Purpose (research | build | verify | repair | drift)
+
+Tenants receive itemized reports post-mission.
+
+---
+
+## 19. RANGER IN CONTEXT — THE FULL LOOP
+
+Bringing it all together, a canonical Ranger mission lifecycle:
+
+```text
+1. USER writes objective in Ranger UI
+   ↓
+2. COCO drafts charter; user reviews & signs
+   ↓
+3. Supervisor pod spawned
+   ↓
+4. Mission state machine: UNDERSTANDING → CHALLENGING → RESEARCHING
+   (Standard COCO Method, Article XIII)
+   ↓
+5. PLANNING: task graph built; organization assembled
+   ↓
+6. EXECUTING (main autonomous loop):
+   - Parallel workers pull tasks
+   - Every action passes autonomy gate
+   - Every artifact enters verification ladder
+   - Failures enter repair loop
+   - Checkpoints every 15 min + at phase transitions
+   - Drift checks every 30 min
+   - Budget reservations for every consuming operation
+   - Approvals queued asynchronously; escalation chains active
+   - Operator can inspect / adjust at any time
+   ↓
+7. Any of these can interrupt:
+   - Human control signal (pause/stop/adjust)
+   - Budget threshold (degrade or exhaust)
+   - Drift detection (pause or continue-safe)
+   - Circuit breaker (pause on failure cascade)
+   - Safety kernel (pause on suspicious behavior)
+   - Provider outage (fallback or checkpoint)
+   ↓
+8. Any interruption produces a checkpoint + operator notification
+   ↓
+9. Completion path:
+   - VERIFYING: full L0-L10 on final deliverable
+   - REPAIRING: fix remaining issues
+   - DELIVERING: package deliverable bundle
+   - REMEMBERING: write to Project Brain
+   - COMPLETED: final digest, retention, evolution feedback
+   ↓
+10. Postmortem → Evolution Fabric → future Ranger missions improve
+```
+
+---
+
+## 20. SUMMARY OF SPECIFICATION 10 LOCKS
+
+The **Ranger Runtime** is now fully specified:
+
+1. **Twelve Governing Laws Locked** — explicit scoped authority, time as adversary, checkpoints as unit of progress, resumable-or-not-done, asynchronous human authority, hard budget boundaries, autonomy gates every action, drift awareness, earned parallelism, operator's right to observability, first-class handoff, stop-means-stop.
+
+2. **Ranger Topology Locked** — Charter → Supervisor → Organization Builder → Execution Loop → Checkpoint Manager → Budget Enforcer → Autonomy Gate → Operator Console; supervisor-per-mission K8s StatefulSet.
+
+3. **Mission Charter Locked** — Full schema including authorization, objective, scope, execution envelope, human interface, observability, stop conditions; Ed25519 signature; immutable with amendment mechanism.
+
+4. **Mission Supervisor Locked** — Singleton per mission, WAL for durability between checkpoints, pod-level restart resumption, full state-machine ownership.
+
+5. **Checkpoint Mechanics Locked** — Extended `RangerCheckpoint` schema, ten trigger types, default 15-minute cadence with additional triggers, hash-chained storage, retention policy, resume semantics, cross-day continuity.
+
+6. **Autonomy Level Enforcement Locked** — Per-action classification table, autonomy gate function, "Never Auto" constitutional class that cannot be granted regardless of charter.
+
+7. **Parallelism Envelope Locked** — Per-tier hard caps, dynamic Parallelism Governor with reduction/restoration conditions, per-objective-type authorization defaults, cross-worker coordination primitives.
+
+8. **Budget Management Locked** — Multi-dimensional budget schema, atomic Redis-based reservations with RAII reconciliation, five-stage degradation ladder (50/75/90/95/98/100%), mid-mission amendment flow.
+
+9. **Asynchronous Human Approval Locked** — Non-blocking approval flow, TTL by risk level, batching rules, four degraded-mode policies for approver unavailability.
+
+10. **Drift Awareness Locked** — Four drift kinds (objective, world-fact, tenant-intent, internal), detection cadence, response with checkpoint + degraded mode, debouncing.
+
+11. **Failure Resilience Locked** — Failure handbook covering 12+ failure classes with explicit runtime responses, structured `MissionFailureEvent` feeding Evolution, cascading failure circuit breaker with CLOSED/HALF-OPEN/OPEN states.
+
+12. **Operator Console Locked** — Mission overview UI, live timeline, agent map, real-time cost chart, milestone digest notifications instead of per-event pings.
+
+13. **Mission Control Signals Locked** — Sixteen-signal catalog, per-signal authorization requirements, precise semantics for pause/stop/handoff.
+
+14. **Mission Handoff Locked** — Three handoff types (intra-tenant, cross-tenant, temporal shift-change), `HandoffBundle` package with briefing notes, signed acceptance flow.
+
+15. **Completion & Delivery Locked** — Six completion types, standard final deliverable package structure, post-completion retention.
+
+16. **Ranger-Specific Safety Locked** — Safety Kernel subsystem inside supervisor, enterprise two-person rule, globally-authorized kill switch with post-incident postmortem requirement.
+
+17. **Ranger Observability Locked** — Full Prometheus metric catalog, four Grafana dashboards, P1/P2 alert set for stuck missions, budget exhaustion, safety pauses, circuit breakers.
+
+18. **Ranger-Specific Evolution Locked** — Learned policies feed back to defaults (checkpoint interval, parallelism, budgets, TTLs, drift cadence); `RangerPostmortem` record for every mission.
+
+19. **Ranger Economic Model Locked** — Base subscription + metered usage + Enterprise contracts; charter cost estimation before signing; itemized cost attribution.
+
+20. **Full Ranger Loop Documented** — End-to-end mission lifecycle from user objective through charter → supervisor spawn → autonomous execution → completion → evolution feedback.
+
+Ranger is now a real, buildable runtime. It survives the multi-hour, multi-day reality of autonomous operation without abandoning human authority, safety, observability, or resumability. **A user can hand COCO an objective, walk away for two days, and return to a completed mission with a full accounting of every decision.** That is Ranger.
+
+---
+
+## THE TEN DEEP SPECS ARE COMPLETE
+
+We have shipped:
+
+```text
+✓ Deep Spec 1  — Agent Roster Blueprint
+✓ Deep Spec 2  — Fabric Protocols
+✓ Deep Spec 3  — Database Schema
+✓ Deep Spec 4  — Model Fabric
+✓ Deep Spec 5  — Expert-Beating Playbook
+✓ Deep Spec 6  — Verification Cookbook
+✓ Deep Spec 7  — Monorepo Blueprint
+✓ Deep Spec 8  — Security & Isolation
+✓ Deep Spec 9  — Evolution Loop
+✓ Deep Spec 10 — Ranger Runtime
+```
+
+Together with the Constitution (Article XIII + Dimensions 1-10 + Cognitive Runtime), these ten specs constitute the complete architectural definition of DSRT COCO before we finalize the C1–C134 capability catalog (deferred per your directive) and before we write executable Phase 0 code.
+
+---
+
+## NEXT
+
+Per your standing instruction, the remaining specification work is:
+
+**FINAL LOCK — Complete C1–C134 Capability Catalog**
+
+Full concrete definitions for every one of the 134 Tier-3 Specialists across all 10 branches, following the Expert-Beating Playbook (Deep Spec 5 §1) template:
+- Expert-Beating Thesis
+- Human Baseline
+- Domain Corpus
+- Tool Suite
+- Cognitive Method
+- Paired Critic
+- Verification Battery mapping
+- Evaluation Rubric
+- Beat-Human Benchmark Suite
+- Continuous Elevation Plan
+
+Grouped by branch:
+```text
+Branch 1: Software & Systems Engineering (C1-C20)
+Branch 2: Research & Information Intelligence (C21-C35)
+Branch 3: Legal, Policy & Governance (C36-C47)
+Branch 4: Financial, Economic & Valuation (C48-C59)
+Branch 5: Medicine, Life Sciences & Healthcare (C60-C71)
+Branch 6: Business, Product & Growth (C72-C83)
+Branch 7: Hardware, Robotics & Physical Systems (C84-C93)
+Branch 8: Creative, Media & Communications (C94-C103)
+Branch 9: Applied Sciences & Mathematics (C104-C118)
+Branch 10: Operational & Domain-Specific (C119-C134)
+```
+
+**Confirm: proceed to Final Lock — C1-C134 Capability Catalog?**
+
+If yes, given the scale (134 specialists at production depth), I recommend we ship it in **branch batches** (10 batches, one per branch) to preserve full fidelity for each specialist. Say the word and I'll begin with Branch 1.

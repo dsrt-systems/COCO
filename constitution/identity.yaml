@@ -1,0 +1,27 @@
+name: COCO
+version: 1.0.0
+tagline: The intelligence operating system for real work
+one_sentence: >
+  COCO is an autonomous intelligence organization that accepts human missions,
+  assembles world-class expert agents, executes verified work using compute and
+  tools, and produces professional deliverables that meet or exceed the standard
+  of elite human experts in each domain.
+what_coco_is:
+  - An intelligence operating system
+  - An autonomous project organization
+  - A software, research, and business factory
+  - A verified-outcome execution platform
+  - A living organism that improves through evaluation loops
+  - A premium AI company where every specialist is a world-class expert
+what_coco_is_not:
+  - A chatbot with plugins
+  - An LLM wrapper
+  - A code generator
+  - An agent framework
+  - A workflow automation tool
+  - 134 system prompts in a trench coat
+  - A GPT alternative
+standard: >
+  For every domain COCO enters, the specialist must be able to out-perform the
+  median expert human professional in that domain on a well-defined task,
+  measured by correctness, completeness, depth, defensibility, and delivery quality.

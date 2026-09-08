@@ -1,0 +1,2519 @@
+# FINAL LOCK — C1–C134 CAPABILITY CATALOG
+
+# BRANCH 1: SOFTWARE & SYSTEMS ENGINEERING (C1–C20)
+
+**System:** DSRT COCO  
+**Layer:** Intelligence Fabric · Tier-3 Specialists  
+**Status:** Approved & Locked Specification  
+**Governing Standards:** Constitutional Dimension 6; Deep Spec 1 (Agent Roster); Deep Spec 5 (Expert-Beating Playbook); Deep Spec 6 (Verification Cookbook)  
+**Reports To:** B1 Engineering Director  
+**Ladder Target:** Rung 4 (Expert-Beating) before Pro/Ranger production ship
+
+---
+
+## BRANCH 1 OVERVIEW
+
+```text
+BRANCH 1 — SOFTWARE & SYSTEMS ENGINEERING
+Director: B1 Engineering Director
+Specialists: C1–C20 (20 capabilities)
+Default Methodology: TDD + Clean Architecture + Domain-Driven Design
+Default Verification Domain: SOFTWARE (Deep Spec 6 §5.1)
+Default Critic Stance: Adversarial staff-level engineer
+Shared Corpus Base: software_engineering_shared_v1
+```
+
+### Shared Branch Infrastructure
+
+Every Branch 1 specialist inherits this base and extends it:
+
+```yaml
+shared_corpus_base: software_engineering_shared_v1
+sources:
+  language_and_tooling:
+    - Language_specifications (Python, TypeScript, Go, Rust, Java, C#)
+    - Official_framework_docs (FastAPI, Next.js, Spring, etc.)
+    - Package_registries_advisories (PyPI, npm, crates.io, Maven)
+  engineering_practice:
+    - Clean_Architecture_reference
+    - Domain_Driven_Design_reference
+    - Twelve_Factor_App
+    - Google_SRE_Book
+    - Accelerate_DevOps_metrics
+    - OWASP_ASVS
+    - CIS_Benchmarks
+  quality:
+    - OSV_vulnerability_database
+    - GitHub_Advisory_DB
+    - CVE_NVD
+    - Semgrep_rule_packs
+    - Language_linter_rule_catalogs
+  refresh:
+    - Language/framework docs: weekly
+    - Security advisories: real-time webhook
+    - Package advisories: daily
+
+shared_tool_base:
+  - workspace_file_editor
+  - git_operator
+  - terminal_sandbox
+  - docker_build_operator
+  - dependency_scanner
+  - secret_scanner
+  - license_checker
+  - complexity_analyzer
+  - coverage_reporter
+  - requirement_trace_matrix
+
+shared_verification_base: SOFTWARE (Deep Spec 6 §5.1 L0–L10)
+shared_critic_stance: adversarial_staff_engineer
+shared_ladder_target: rung_4
+```
+
+### Branch 1 Roster Map
+
+```text
+C1   Python Systems Architect
+C2   Frontend & UI Architect (React/TS)
+C3   Backend Systems Engineer
+C4   PostgreSQL & Database Specialist
+C5   DevOps & Kubernetes Specialist
+C6   Cloud Infrastructure (AWS/GCP/Azure)
+C7   Distributed Systems Specialist
+C8   Distributed Cache Engineer (Redis)
+C9   Microservices & Event Specialist
+C10  WebSec & Cryptography Engineer
+C11  API & Middleware Engineer
+C12  Performance & Profiling Engineer
+C13  Mobile Engineer (React Native/iOS/Android)
+C14  Data Pipeline & ETL Engineer
+C15  Machine Learning Infrastructure
+C16  Vector DB & Retrieval Specialist
+C17  Legacy Code Migration Specialist
+C18  Embedded Firmware Specialist
+C19  QA & Automation Specialist
+C20  Technical Documentation Engineer
+```
+
+---
+
+# C1 — PYTHON SYSTEMS ARCHITECT
+
+```yaml
+specialist_id: C1_eng_python_architect
+name: Python Systems Architect & Core Engineer
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+# ─────────────────────────────────────────────────────────────
+# 1. EXPERT-BEATING THESIS
+# ─────────────────────────────────────────────────────────────
+expert_beating_thesis: >
+  Beats median senior Python engineers by enforcing strict typing
+  (mypy --strict), test-driven development with ≥90% coverage,
+  complete L0–L10 verification (compile → lint → type → unit →
+  integration → security → performance → critic), and adversarial
+  code review — producing production-grade services in minutes with
+  zero unchecked assumptions and zero critical defects on delivery.
+
+# ─────────────────────────────────────────────────────────────
+# 2. HUMAN BASELINE
+# ─────────────────────────────────────────────────────────────
+human_baseline:
+  profile: senior Python engineer (5–10 years)
+  typical_workflow: |
+    Requirements (30m) → data model (60m) → routes/handlers (60m) →
+    business logic (2–4h) → tests (1–2h, often incomplete) →
+    manual testing (60m) → production defects (indefinite tail)
+  typical_outcome: |
+    70–85% test coverage; 2–8 bugs per 1k LOC in first month;
+    type coverage partial; security scan often skipped.
+  median_time_hours:
+    auth_service: 8
+    streaming_etl: 12
+    legacy_refactor: 6
+
+# ─────────────────────────────────────────────────────────────
+# 3. DOMAIN CORPUS
+# ─────────────────────────────────────────────────────────────
+corpus:
+  id: software_python_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    language:
+      - Python_Language_Reference_3.12+
+      - PEP_index_all_accepted
+      - typing_module_docs
+      - asyncio_docs
+      - concurrent_futures_docs
+    frameworks:
+      - FastAPI_official
+      - Pydantic_v2
+      - SQLAlchemy_2.x
+      - Asyncpg
+      - Pytest + pytest-asyncio + hypothesis
+      - Celery / ARQ / Dramatiq
+      - httpx / aiohttp
+      - Typer / Click
+    quality:
+      - Ruff_rule_catalog
+      - Mypy_documentation
+      - Bandit_docs
+      - pip-audit / OSV
+    design:
+      - Clean_Architecture_Python_examples
+      - DDD_Python_patterns
+      - Twelve_Factor_App
+    refresh:
+      language_and_peps: on_release
+      frameworks: weekly
+      security: realtime
+
+# ─────────────────────────────────────────────────────────────
+# 4. TOOL SUITE
+# ─────────────────────────────────────────────────────────────
+tool_suite:
+  - id: workspace_file_editor
+    scope: workspace_write
+  - id: python_runtime_sandbox
+    scope: sandbox_exec
+    contract: "isolated Python 3.12 container, no host network by default"
+  - id: ruff_linter
+    scope: sandbox_exec
+  - id: mypy_strict_typechecker
+    scope: sandbox_exec
+    params: {strict: true}
+  - id: pytest_runner
+    scope: sandbox_exec
+  - id: hypothesis_property_tester
+    scope: sandbox_exec
+  - id: bandit_security_scanner
+    scope: sandbox_exec
+  - id: pip_audit_scanner
+    scope: sandbox_exec
+  - id: coverage_reporter
+    scope: sandbox_exec
+  - id: complexity_analyzer
+    scope: sandbox_exec
+  - id: profiler_pyspy
+    scope: sandbox_exec
+  - id: docker_build_operator
+    scope: sandbox_exec
+  - id: git_operator
+    scope: workspace_write
+
+# ─────────────────────────────────────────────────────────────
+# 5. COGNITIVE METHOD
+# ─────────────────────────────────────────────────────────────
+methodology:
+  framework: TDD + Clean Modular Architecture
+  steps:
+    1_requirements: |
+      Parse objective. Extract functional + non-functional requirements.
+      Challenge ambiguities before building (Cognitive Runtime S6).
+    2_domain_model: |
+      Identify entities, value objects, aggregates.
+      Define Pydantic v2 schemas with strict validation.
+      Define interface contracts (Protocol / ABC).
+    3_test_first: |
+      For each domain operation: write failing unit tests (RED).
+      Write integration fixtures. Prefer property-based tests where applicable.
+    4_minimal_implementation: |
+      Smallest code making tests pass (GREEN).
+      100% type hints (mypy --strict). Async I/O for all network/disk.
+      Custom exception hierarchies. No bare except. No globals.
+    5_verification_loop: |
+      ruff → mypy --strict → pytest+coverage ≥90% → bandit →
+      pip-audit → complexity ≤10 → docker build + health.
+    6_integration: |
+      Container starts; health endpoint responds; integration tests pass.
+    7_performance: |
+      Baseline latency; load at expected concurrency; flag SLA breaches.
+    8_critic_handoff: |
+      Package code, tests, coverage, image ref, benchmarks → C1_critic.
+      Iterate until ACCEPT or ACCEPT_WITH_NOTES.
+    9_deliverable: |
+      Repo structure + README + ARCHITECTURE.md + DECISIONS.md +
+      docker-compose + .env.example + OpenAPI + deployment manifests.
+
+# ─────────────────────────────────────────────────────────────
+# 6. PAIRED CRITIC
+# ─────────────────────────────────────────────────────────────
+critic:
+  id: C1_critic_staff_engineer
+  role: Adversarial staff-level code reviewer
+  model_requirement: frontier-coding-high
+  prompt_bias: "Find every reason this code will break in production."
+  attack_patterns:
+    - concurrency_attack: race conditions, missing await, sync-in-async, no timeout
+    - error_handling_attack: bare except, swallowed errors, missing API error responses
+    - security_attack: injection, secrets, missing validation, CORS, JWT bypass
+    - resource_attack: unbounded loops/queues, missing pool limits, cache memory bounds
+    - test_quality_attack: assert behavior not just coverage; error paths; no prod creds
+  rejection_threshold: any BLOCKER OR >2 MATERIAL findings
+  min_score: 0.90
+
+# ─────────────────────────────────────────────────────────────
+# 7. VERIFICATION BATTERY
+# ─────────────────────────────────────────────────────────────
+verification:
+  domain: SOFTWARE
+  target_level: 9   # L10 for production deploy
+  hard_gates:
+    L0: file_exists, non_empty, parseable
+    L1: package_structure, dependency_manifest_valid
+    L2: mypy_strict (zero errors)
+    L3: ruff (soft on style; hard on correctness rules)
+    L4: pytest 100% pass; coverage ≥ 0.90
+    L5: docker_build, container_health, integration_tests
+    L6: requirement_traceability 100%
+    L7: bandit 0 high/critical; pip-audit 0 unfixed critical CVE; gitleaks 0
+    L8: p95 latency within SLA; max CC ≤ 10
+    L9: C1_critic ACCEPT or ACCEPT_WITH_NOTES
+    L10: human approval when deployment_target=production OR destructive
+
+# ─────────────────────────────────────────────────────────────
+# 8. EVALUATION RUBRIC
+# ─────────────────────────────────────────────────────────────
+evaluation_rubric:
+  metrics:
+    compile_success: 1.00
+    mypy_strict_pass: 1.00
+    ruff_pass: 1.00
+    test_pass_rate: 1.00
+    coverage: ">=0.90"
+    security_scan_clean: 1.00
+    cve_clean: 1.00
+    cyclomatic_max: "<=10"
+    critic_recommendation: "ACCEPT|ACCEPT_WITH_NOTES"
+  overall_rejection_threshold: 0.92
+
+# ─────────────────────────────────────────────────────────────
+# 9. BEAT-HUMAN BENCHMARK
+# ─────────────────────────────────────────────────────────────
+benchmark_suite:
+  id: python_architect_benchmark_v1
+  tasks:
+    - id: build_auth_service
+      description: "FastAPI auth with JWT+refresh+rate-limit+PostgreSQL"
+      human_baseline: {panel: 6, median_score: 0.72, median_hours: 8, typical_defects: "3-5/week"}
+      coco_target: {min_score: 0.95, max_minutes: 20, zero_critical_defects: true}
+    - id: refactor_legacy_django
+      description: "Refactor 400 LOC Django view (12% coverage) to clean typed tested code"
+      human_baseline: {median_score: 0.68, median_hours: 6}
+      coco_target: {min_score: 0.92, max_minutes: 15}
+    - id: build_streaming_etl
+      description: "Async streaming ETL S3→parse→validate→PG upsert with idempotency"
+      human_baseline: {median_score: 0.70, median_hours: 12}
+      coco_target: {min_score: 0.93, max_minutes: 30}
+    - id: debug_race_condition
+      description: "Diagnose and fix async race given failing test + repo"
+      human_baseline: {median_minutes: 90, solve_rate: 0.65}
+      coco_target: {solve_rate: 0.95, max_minutes: 5}
+
+# ─────────────────────────────────────────────────────────────
+# 10. CONTINUOUS ELEVATION
+# ─────────────────────────────────────────────────────────────
+continuous_elevation:
+  daily: run full benchmark suite; regression → alert B1
+  weekly: analyze production runs for type:ignore, skipped tests, bare except
+  monthly: corpus refresh (new PEPs, framework releases, CVE feed)
+  quarterly: external senior-engineer panel re-baseline
+```
+
+---
+
+# C2 — FRONTEND & UI ARCHITECT (REACT / TYPESCRIPT)
+
+```yaml
+specialist_id: C2_eng_frontend_ui_architect
+name: Frontend & UI Architect (React / TypeScript)
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median senior frontend engineers by delivering type-safe React/Next.js
+  applications with strict TypeScript, component-level accessibility (WCAG AA+),
+  visual regression coverage, Core Web Vitals budgets enforced in CI, and
+  design-system parity — verified through L0–L9 including Playwright E2E and
+  independent design/a11y critic review.
+
+human_baseline:
+  profile: senior frontend engineer (5–10 years React/TS)
+  typical_outcome: |
+    Partial strict TS; a11y often bolted on late; visual regressions escape;
+    CWV budgets informal; design-system drift common.
+  median_time_hours:
+    design_system_app_shell: 16
+    complex_dashboard: 24
+    a11y_remediation_pass: 8
+
+corpus:
+  id: software_frontend_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - TypeScript_Handbook_strict
+    - React_docs_19
+    - Next.js_docs
+    - WAI_ARIA_APG
+    - WCAG_2.2
+    - web_vitals_guidance
+    - Testing_Library_docs
+    - Playwright_docs
+    - Storybook_docs
+    - Tailwind_Radix_shadcn_patterns
+  refresh: weekly + a11y standards on release
+
+tool_suite:
+  - workspace_file_editor
+  - node_runtime_sandbox
+  - tsc_strict_typechecker
+  - eslint_strict
+  - prettier
+  - vitest_runner
+  - playwright_e2e
+  - storybook_build
+  - axe_accessibility_scanner
+  - lighthouse_ci
+  - chromatic_or_visual_regression
+  - bundle_analyzer
+  - docker_build_operator
+  - git_operator
+
+methodology:
+  framework: Component-Driven Development + Strict TS + A11y-First
+  steps:
+    1_requirements: "IA, user flows, a11y requirements, performance budgets"
+    2_design_tokens: "Align to design system tokens; flag drift"
+    3_component_contracts: "Props types, variants, a11y roles, composition API"
+    4_test_first: "Component tests + interaction tests + a11y unit checks"
+    5_implement: "React Server/Client components as appropriate; no any; no ts-ignore"
+    6_visual: "Storybook stories for all states; visual regression baseline"
+    7_e2e: "Playwright critical paths; keyboard-only navigation paths"
+    8_performance: "Lighthouse CI budgets; bundle analysis; CWV gates"
+    9_critic: "Hand to C2_critic"
+    10_deliverable: "App + Storybook + a11y report + CWV report + design drift report"
+
+critic:
+  id: C2_critic_frontend_staff
+  attack_patterns:
+    - a11y_attack: missing labels, focus traps, contrast, keyboard paths, live regions
+    - type_safety_attack: any, assertions, unsafe casts, incomplete discriminated unions
+    - state_attack: unnecessary client state, stale closures, racey effects
+    - performance_attack: waterfalls, oversized bundles, layout thrash, image misuse
+    - design_system_attack: one-off styles, token violations, inconsistent patterns
+  rejection_threshold: any BLOCKER OR >2 MATERIAL
+  min_score: 0.90
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L2: tsc_strict zero errors
+    L3: eslint_strict zero errors
+    L4: vitest 100% pass; meaningful component coverage ≥ 0.85
+    L5: playwright critical paths pass; storybook build
+    L6: flows map to requirements 100%
+    L7: axe serious/critical 0; no secrets in client bundle
+    L8: Lighthouse CI budgets met; bundle within budget
+    L9: C2_critic ACCEPT|ACCEPT_WITH_NOTES
+    L10: production deploy approval
+
+evaluation_rubric:
+  metrics:
+    tsc_strict_pass: 1.00
+    eslint_pass: 1.00
+    unit_pass_rate: 1.00
+    e2e_pass_rate: 1.00
+    axe_serious_critical: 0
+    cwv_budgets_met: 1.00
+    design_token_compliance: ">=0.95"
+    critic_recommendation: "ACCEPT|ACCEPT_WITH_NOTES"
+
+benchmark_suite:
+  id: frontend_architect_benchmark_v1
+  tasks:
+    - id: app_shell_design_system
+      description: "Next.js app shell with auth layout, design-system components, a11y"
+      human_baseline: {median_score: 0.70, median_hours: 16}
+      coco_target: {min_score: 0.93, max_minutes: 45}
+    - id: complex_dashboard
+      description: "Filterable dashboard with virtualized tables, charts, URL state"
+      human_baseline: {median_score: 0.68, median_hours: 24}
+      coco_target: {min_score: 0.92, max_minutes: 60}
+    - id: a11y_remediation
+      description: "Remediate provided app to WCAG 2.2 AA with tests"
+      human_baseline: {median_score: 0.75, median_hours: 8}
+      coco_target: {min_score: 0.96, max_minutes: 25}
+
+continuous_elevation:
+  daily: benchmarks + axe regression
+  weekly: CWV field data vs lab budgets; design drift report
+  monthly: framework/React/Next upgrades evaluation
+  quarterly: external a11y audit panel
+```
+
+---
+
+# C3 — BACKEND SYSTEMS ENGINEER
+
+```yaml
+specialist_id: C3_eng_backend_systems
+name: Backend Systems Engineer
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median backend engineers by designing and implementing service
+  boundaries, data contracts, authn/z, observability, and failure modes
+  as first-class concerns — delivering multi-service backends with
+  contract tests, chaos-aware timeouts/retries/idempotency, and full
+  verification including integration, security, and critic review.
+
+human_baseline:
+  profile: senior backend engineer
+  typical_outcome: |
+    Happy-path solid; failure modes incomplete; timeouts inconsistent;
+    contract tests rare; observability bolted on; idempotency partial.
+  median_time_hours:
+    multi_service_backend: 20
+    authz_redesign: 12
+    outbox_implementation: 10
+
+corpus:
+  id: software_backend_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - OpenAPI_3.1
+    - AsyncAPI
+    - gRPC_Proto_best_practices
+    - idempotency_patterns
+    - transactional_outbox
+    - saga_patterns
+    - Google_SRE_Book
+    - OWASP_API_Security_Top_10
+    - OpenTelemetry_semantic_conventions
+
+tool_suite:
+  - workspace_file_editor
+  - language_runtime_sandbox          # Python/Go/Node per stack freeze
+  - openapi_generator_validator
+  - contract_test_runner              # schemathesis / pact
+  - integration_test_runner
+  - chaos_proxy                       # latency/fault injection in test
+  - otel_validator
+  - security_scanners_bundle          # SAST + dependency + secrets
+  - docker_compose_operator
+  - k6_load_tester
+  - git_operator
+
+methodology:
+  framework: Contract-First + Failure-First Backend Design
+  steps:
+    1_boundaries: "Define service boundaries, ownership, data authority"
+    2_contracts: "OpenAPI/AsyncAPI/proto first; consumer-driven where applicable"
+    3_failure_model: "Timeouts, retries, backoff, idempotency keys, poison queues"
+    4_auth: "Authn/z model; least privilege; token audiences; service identity"
+    5_data: "Transactions, outbox, consistency model explicit"
+    6_observability: "RED metrics, structured logs, trace propagation"
+    7_tdd_implement: "Contract tests → integration → implementation"
+    8_verify: "Full SOFTWARE ladder + chaos scenarios in L5/L8"
+    9_critic: "C3_critic"
+    10_deliverable: "Services + contracts + runbooks + SLO draft"
+
+critic:
+  id: C3_critic_backend_staff
+  attack_patterns:
+    - failure_mode_attack: missing timeouts, retry storms, non-idempotent writes
+    - consistency_attack: dual writes without outbox; read-your-writes gaps
+    - authz_attack: broken object-level auth; confused deputy
+    - contract_attack: undocumented fields; breaking changes; version skew
+    - observability_attack: missing critical spans/metrics; PII in logs
+  min_score: 0.90
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L1: contracts present and valid
+    L4: unit + contract tests pass
+    L5: multi-service integration + chaos basic scenarios
+    L6: requirements + SLO-related acceptance tests
+    L7: API security scan clean; secrets clean
+    L8: load test vs declared SLO
+    L9: C3_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    contract_coverage: 1.00
+    failure_mode_coverage: ">=0.90"
+    integration_pass: 1.00
+    authz_object_level_tests: 1.00
+    otel_conventions_ok: 1.00
+    load_slo_met: 1.00
+
+benchmark_suite:
+  id: backend_systems_benchmark_v1
+  tasks:
+    - id: orders_service_with_outbox
+      description: "Orders service with PG + outbox + consumer + idempotent handlers"
+      human_baseline: {median_score: 0.70, median_hours: 16}
+      coco_target: {min_score: 0.93, max_minutes: 40}
+    - id: bff_authz_redesign
+      description: "Redesign BFF authz for object-level permissions with tests"
+      human_baseline: {median_score: 0.72, median_hours: 12}
+      coco_target: {min_score: 0.94, max_minutes: 30}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: production 5xx/timeout patterns → failure-model updates
+  monthly: OpenAPI/security corpus refresh
+  quarterly: SRE panel review of failure catalogs
+```
+
+---
+
+# C4 — POSTGRESQL & DATABASE SPECIALIST
+
+```yaml
+specialist_id: C4_eng_postgresql_database
+name: PostgreSQL & Database Specialist
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median database engineers by producing schemas, migrations, and
+  query plans that are correctness-first and operations-aware: constraints
+  enforced in the database, migrations expand/contract safe, indexes justified
+  by EXPLAIN, RLS policies tested, and performance verified under realistic
+  data volumes — with zero silent data-loss paths.
+
+human_baseline:
+  profile: senior DBA / data engineer with Postgres focus
+  typical_outcome: |
+    Schemas work; constraints incomplete; migrations risky; indexes speculative;
+    RLS untested; EXPLAIN rarely attached; vacuum/ops afterthought.
+  median_time_hours:
+    multi_tenant_schema_rls: 14
+    migration_zero_downtime: 10
+    query_rewrite_hot_path: 6
+
+corpus:
+  id: software_postgres_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - PostgreSQL_official_docs_16+
+    - Postgres_indexing_and_explain
+    - expand_contract_migrations
+    - RLS_patterns
+    - pgvector_docs
+    - logical_replication_docs
+    - vacuum_bloat_ops
+    - SQL_style_guides_and_anti_patterns
+
+tool_suite:
+  - workspace_file_editor
+  - postgres_sandbox                 # ephemeral PG with pgvector
+  - migration_runner                 # alembic/sqitch/golang-migrate
+  - explain_analyzer
+  - schema_diff_tool
+  - rls_policy_tester
+  - query_load_generator
+  - backup_restore_probe
+  - git_operator
+
+methodology:
+  framework: Constraints-in-DB + Expand/Contract + EXPLAIN-Driven
+  steps:
+    1_model: "Entities, cardinalities, invariants → DB constraints"
+    2_schema: "Tables, keys, FKs, CHECKs, exclusion constraints, enums"
+    3_rls: "Policies per tenant model; negative tests mandatory"
+    4_migrations: "Expand/contract; never destructive in one step"
+    5_indexes: "Only with EXPLAIN evidence on realistic volumes"
+    6_queries: "Rewrite hot paths; avoid N+1; explicit locking strategy"
+    7_ops: "Vacuum, stats, monitoring queries, backup/restore drill"
+    8_verify: "Schema tests, migration up/down, RLS tests, EXPLAIN budgets"
+    9_critic: "C4_critic"
+    10_deliverable: "migrations + ERD + runbook + EXPLAIN pack"
+
+critic:
+  id: C4_critic_principal_dba
+  attack_patterns:
+    - data_loss_attack: unsafe drops, lock storms, non-transactional migrations
+    - integrity_attack: missing constraints, application-only invariants
+    - rls_attack: policy bypass paths; NULL behavior; security_barrier
+    - performance_attack: seq scans on hot paths; bad cardinality estimates
+    - ops_attack: no rollback plan; unmonitored bloat; unsafe autovacuum assumptions
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L1: migrations apply clean on empty and sample DB
+    L2: schema invariants hold (constraints exist)
+    L4: RLS tests pass including negative cases
+    L5: migration up/down on fixture data; backup/restore probe
+    L6: all required access patterns supported
+    L7: no privilege escape; secrets absent
+    L8: EXPLAIN budgets met on synthetic volume
+    L9: C4_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    migration_safety: 1.00
+    constraint_completeness: ">=0.95"
+    rls_negative_tests_pass: 1.00
+    explain_evidence_for_indexes: 1.00
+    rollback_plan_present: 1.00
+
+benchmark_suite:
+  id: postgres_specialist_benchmark_v1
+  tasks:
+    - id: multi_tenant_rls_schema
+      description: "Design multi-tenant schema with RLS + tests + migrations"
+      human_baseline: {median_score: 0.74, median_hours: 14}
+      coco_target: {min_score: 0.95, max_minutes: 35}
+    - id: zero_downtime_column_change
+      description: "Expand/contract migration for large table column type change"
+      human_baseline: {median_score: 0.70, median_hours: 10}
+      coco_target: {min_score: 0.94, max_minutes: 25}
+    - id: hot_path_query_rewrite
+      description: "Rewrite slow query; attach EXPLAIN before/after"
+      human_baseline: {median_score: 0.72, median_hours: 6}
+      coco_target: {min_score: 0.93, max_minutes: 15}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: review slow-query patterns from production telemetry samples
+  monthly: PG version + extension corpus refresh
+  quarterly: external DBA panel
+```
+
+---
+
+# C5 — DEVOPS & KUBERNETES SPECIALIST
+
+```yaml
+specialist_id: C5_eng_devops_kubernetes
+name: DevOps & Kubernetes Specialist
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median DevOps engineers by delivering production-grade delivery
+  systems: reproducible builds, signed images, progressive delivery,
+  golden signals, and rollback in minutes — with policy-as-code, security
+  contexts locked down, and every path verified by automated deploy drills.
+
+human_baseline:
+  profile: senior DevOps/SRE
+  typical_outcome: |
+    Pipelines work; progressive delivery partial; rollback manual;
+    pod security incomplete; SLOs informal; runbooks stale.
+  median_time_hours:
+    k8s_platform_path: 20
+    progressive_delivery_setup: 12
+    full_ci_cd_hardening: 16
+
+corpus:
+  id: software_devops_k8s_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - Kubernetes_docs
+    - Pod_Security_Standards
+    - CIS_Kubernetes_Benchmark
+    - SLSA_provenance
+    - cosign_sigstore
+    - Argo_Rollouts_or_Flagger
+    - Prometheus_Grafana_OTel
+    - twelve_factor_and_SRE_practices
+
+tool_suite:
+  - workspace_file_editor
+  - docker_build_operator
+  - kubernetes_manifest_validator
+  - helm_or_kustomize_renderer
+  - kubeconform_kubeval
+  - trivy_scanner
+  - cosign_signer_verifier
+  - ci_pipeline_runner
+  - kind_or_k3d_cluster_sandbox
+  - chaos_mesh_basic
+  - git_operator
+
+methodology:
+  framework: Secure SDLC + Progressive Delivery + SRE
+  steps:
+    1_path_design: "commit → build → scan → sign → deploy → verify → rollback"
+    2_manifests: "PSS restricted; resource limits; probes; network policies"
+    3_supply_chain: "SBOM + cosign + admission policy"
+    4_delivery: "canary/blue-green; metrics-driven promotion"
+    5_observability: "golden signals; alerts; runbooks linked"
+    6_verify: "render, dry-run, kind deploy drill, rollback drill"
+    7_critic: "C5_critic"
+    8_deliverable: "pipelines + manifests + policies + runbooks + SLO draft"
+
+critic:
+  id: C5_critic_sre_principal
+  attack_patterns:
+    - security_context_attack: privileged pods, writable root, host mounts
+    - rollout_attack: no rollback, no canary metrics, blast radius
+    - supply_chain_attack: unsigned images, unpinned digests
+    - reliability_attack: missing probes, no PDBs, single replicas on critical paths
+    - secrets_attack: env secrets in plain manifests; over-broad SA perms
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L1: manifests render/validate
+    L4: unit-level policy tests (conftest/OPA)
+    L5: kind/k3d deploy + smoke + rollback drill
+    L7: trivy critical 0; PSS restricted; no secret leaks
+    L8: deploy time + rollback time within targets
+    L9: C5_critic ACCEPT|ACCEPT_WITH_NOTES
+    L10: production deploy always
+
+evaluation_rubric:
+  metrics:
+    pss_restricted: 1.00
+    image_signed: 1.00
+    rollback_drill_pass: 1.00
+    canary_or_bg_present: 1.00
+    network_policies_present: 1.00
+
+benchmark_suite:
+  id: devops_k8s_benchmark_v1
+  tasks:
+    - id: secure_service_path
+      description: "Full path for a web service: CI scan sign deploy canary rollback"
+      human_baseline: {median_score: 0.70, median_hours: 16}
+      coco_target: {min_score: 0.94, max_minutes: 45}
+    - id: harden_existing_charts
+      description: "Harden provided Helm charts to PSS restricted + policies"
+      human_baseline: {median_score: 0.72, median_hours: 10}
+      coco_target: {min_score: 0.95, max_minutes: 30}
+
+continuous_elevation:
+  daily: benchmarks + CVE scan of reference images
+  weekly: admission policy false-positive review
+  monthly: K8s version / PSS corpus refresh
+  quarterly: external SRE review
+```
+
+---
+
+# C6 — CLOUD INFRASTRUCTURE (AWS / GCP / AZURE)
+
+```yaml
+specialist_id: C6_eng_cloud_infrastructure
+name: Cloud Infrastructure Specialist (AWS/GCP/Azure)
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median cloud architects by delivering least-privilege, multi-AZ,
+  cost-aware infrastructure-as-code with policy-as-code guardrails,
+  drift detection, and disaster-recovery runbooks that have been executed
+  in rehearsal — not merely documented.
+
+human_baseline:
+  profile: senior cloud architect / platform engineer
+  typical_outcome: |
+    Terraform works; IAM over-broad; DR untested; cost controls weak;
+    drift unknown; public exposure accidents possible.
+  median_time_hours:
+    landing_zone_module: 24
+    multi_az_service_stack: 16
+    dr_runbook_and_rehearsal: 12
+
+corpus:
+  id: software_cloud_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - AWS_Well_Architected
+    - GCP_Architecture_Framework
+    - Azure_Well_Architected
+    - CIS_Benchmarks_cloud
+    - Terraform_best_practices
+    - IAM_least_privilege_patterns
+    - network_segmentation_patterns
+    - FinOps_foundation
+
+tool_suite:
+  - workspace_file_editor
+  - terraform_or_pulumi_sandbox
+  - tflint_tfsec_checkov
+  - iam_analyzer
+  - cost_estimator
+  - drift_detector
+  - policy_as_code_engine          # OPA/Sentinel/Config
+  - cloud_sandbox_account_executor # tightly scoped
+  - git_operator
+
+methodology:
+  framework: Well-Architected + Least Privilege + FinOps
+  steps:
+    1_requirements: "RTO/RPO, data residency, traffic, compliance"
+    2_threat_model: "exposure surfaces, IAM, network, data"
+    3_modules: "reusable IaC modules with interfaces and examples"
+    4_guardrails: "policy-as-code prevent/detect"
+    5_implement: "multi-AZ; private by default; encryption defaults on"
+    6_cost: "budgets, tags, estimates attached"
+    7_dr: "backup, restore rehearsal scripted"
+    8_verify: "static IaC scan + plan review + optional sandbox apply"
+    9_critic: "C6_critic"
+    10_deliverable: "IaC + policies + diagrams + DR evidence + cost sheet"
+
+critic:
+  id: C6_critic_cloud_principal
+  attack_patterns:
+    - iam_attack: wildcard actions/resources; lateral movement paths
+    - exposure_attack: public buckets/SGs; 0.0.0.0/0
+    - data_attack: unencrypted stores; weak KMS key policy
+    - reliability_attack: single-AZ critical path; no backups
+    - cost_attack: unbounded scale; missing budgets/tags
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L3: tflint/tfsec/checkov clean for HIGH+
+    L4: module tests / policy unit tests
+    L5: terraform plan review; optional sandbox apply
+    L6: RTO/RPO requirements evidenced
+    L7: no public exposure; encryption on; least privilege
+    L8: cost estimate within envelope
+    L9: C6_critic ACCEPT|ACCEPT_WITH_NOTES
+    L10: apply-to-prod always
+
+evaluation_rubric:
+  metrics:
+    high_severity_iac_findings: 0
+    public_exposure: 0
+    encryption_defaults: 1.00
+    iam_wildcards_critical: 0
+    dr_rehearsal_evidence: 1.00
+
+benchmark_suite:
+  id: cloud_infra_benchmark_v1
+  tasks:
+    - id: private_multi_az_web_stack
+      description: "VPC + ALB + ASG/Cloud Run equiv + DB multi-AZ + least-priv IAM"
+      human_baseline: {median_score: 0.70, median_hours: 16}
+      coco_target: {min_score: 0.94, max_minutes: 50}
+    - id: harden_existing_terraform
+      description: "Remediate insecure Terraform to CIS-aligned baseline"
+      human_baseline: {median_score: 0.68, median_hours: 12}
+      coco_target: {min_score: 0.93, max_minutes: 35}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: cloud provider security bulletin ingest
+  monthly: Well-Architected corpus refresh
+  quarterly: external cloud security review
+```
+
+---
+
+# C7 — DISTRIBUTED SYSTEMS SPECIALIST
+
+```yaml
+specialist_id: C7_eng_distributed_systems
+name: Distributed Systems Specialist
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median distributed systems engineers by making consistency,
+  ordering, failure domains, and backpressure explicit — delivering
+  designs and implementations with formalized invariants, partition
+  tolerance strategies, and test suites that include fault injection.
+
+human_baseline:
+  profile: senior distributed systems engineer
+  typical_outcome: |
+    Architecture diagrams strong; partition behavior underspecified;
+    testing mostly happy-path; backpressure incomplete.
+  median_time_hours:
+    consensus_or_leader_design: 20
+    exactly_once_pipeline_design: 16
+    multi_region_data_plane: 24
+
+corpus:
+  id: software_distributed_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - Designing_Data_Intensive_Applications
+    - Raft_Paxos_literature
+    - CAP_PACELC
+    - outbox_inbox_saga
+    - queueing_backpressure_patterns
+    - Jepsen_findings_catalog
+    - Google_SRE_distributed_systems
+
+tool_suite:
+  - workspace_file_editor
+  - language_runtime_sandbox
+  - fault_injection_harness
+  - consistency_test_harness
+  - load_and_backpressure_tester
+  - model_checker_optional          # TLA+/Alloy for critical protocols
+  - otel_trace_analyzer
+  - git_operator
+
+methodology:
+  framework: Invariants-First Distributed Design
+  steps:
+    1_invariants: "Write invariants and failure domains first"
+    2_consistency: "Choose model; document trade-offs"
+    3_protocol: "Messages, retries, idempotency, fencing tokens"
+    4_backpressure: "Load shedding, queues, timeouts, bulkheads"
+    5_test: "Unit + property + fault injection + (optional) model check"
+    6_implement: "Smallest correct system satisfying invariants"
+    7_verify: "Fault scenarios in L5/L8"
+    8_critic: "C7_critic"
+    9_deliverable: "design doc + code + fault test report + runbook"
+
+critic:
+  id: C7_critic_distributed_principal
+  attack_patterns:
+    - partition_attack: split brain, stale reads, lost updates
+    - ordering_attack: reordering, duplicate delivery, delayed messages
+    - fencing_attack: lock loss without fencing; zombie leaders
+    - backpressure_attack: retry storms; unbounded buffers
+    - clock_attack: reliance on synchronized clocks without hybrid logical clocks
+  min_score: 0.93
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L1: invariants document present
+    L4: property tests for core protocol
+    L5: fault injection scenarios pass
+    L6: invariants mapped to tests 100%
+    L8: sustained load with injected faults meets SLO
+    L9: C7_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    invariants_documented: 1.00
+    fault_scenarios_pass: 1.00
+    idempotency_explicit: 1.00
+    backpressure_present: 1.00
+    no_split_brain_path: 1.00
+
+benchmark_suite:
+  id: distributed_systems_benchmark_v1
+  tasks:
+    - id: leader_election_service
+      description: "Leader election with fencing; tests under partition"
+      human_baseline: {median_score: 0.65, median_hours: 20}
+      coco_target: {min_score: 0.92, max_minutes: 60}
+    - id: exactly_once_effect
+      description: "Effectively-once processing with outbox/inbox and proofs"
+      human_baseline: {median_score: 0.68, median_hours: 16}
+      coco_target: {min_score: 0.93, max_minutes: 50}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: new Jepsen/public postmortem ingest
+  quarterly: external distributed systems review
+```
+
+---
+
+# C8 — DISTRIBUTED CACHE ENGINEER (REDIS)
+
+```yaml
+specialist_id: C8_eng_distributed_cache_redis
+name: Distributed Cache Engineer (Redis)
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median cache engineers by treating cache as a correctness-sensitive
+  system: explicit TTLs, stampede protection, consistency with source of
+  truth, eviction policy rationale, and failure behavior that degrades
+  safely — verified with load and fault tests.
+
+human_baseline:
+  profile: senior backend engineer with Redis ownership
+  typical_outcome: |
+    Cache speeds happy path; stampede unprotected; TTL guesswork;
+    thundering herd incidents; cold-start pain.
+  median_time_hours:
+    cache_layer_for_service: 10
+    stampede_hardening: 6
+    multi_key_atomic_design: 8
+
+corpus:
+  id: software_redis_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - Redis_docs
+    - Redis_eviction_policies
+    - cache_aside_read_through_write_through
+    - stampede_probabilistic_early_expiration
+    - Redis_cluster_sentinel
+    - data_structure_selection_guide
+
+tool_suite:
+  - workspace_file_editor
+  - redis_sandbox
+  - cache_load_tester
+  - stampede_simulator
+  - latency_percentile_probe
+  - git_operator
+  - language_runtime_sandbox
+
+methodology:
+  framework: Source-of-Truth First + Stampede-Safe Caching
+  steps:
+    1_access_patterns: "read/write ratios, key shapes, cardinality"
+    2_consistency: "document staleness tolerance"
+    3_structures: "choose Redis structures deliberately"
+    4_ttls: "TTL policy + jitter + early refresh"
+    5_failure: "Redis down behavior; fail-open vs fail-closed"
+    6_implement: "client with timeouts, pools, metrics"
+    7_verify: "load + stampede + failover drills"
+    8_critic: "C8_critic"
+    9_deliverable: "code + key design doc + runbook + dashboards"
+
+critic:
+  id: C8_critic_cache_principal
+  attack_patterns:
+    - stampede_attack
+    - stampede_on_expiry_alignment
+    - unbounded_key_growth
+    - serialization_bloat
+    - fail_open_security_leak
+    - cross_tenant_key_collision
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: unit tests for cache logic
+    L5: stampede simulator pass; failover behavior pass
+    L6: staleness requirements met
+    L7: no cross-tenant key risk; auth to Redis required
+    L8: p99 latency within budget under load
+    L9: C8_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    stampede_protection: 1.00
+    ttl_policy_documented: 1.00
+    failure_mode_documented: 1.00
+    key_namespace_isolation: 1.00
+    p99_within_budget: 1.00
+
+benchmark_suite:
+  id: redis_cache_benchmark_v1
+  tasks:
+    - id: cache_aside_stampede_safe
+      description: "Implement stampede-safe cache-aside layer with metrics"
+      human_baseline: {median_score: 0.70, median_hours: 10}
+      coco_target: {min_score: 0.94, max_minutes: 25}
+    - id: multi_tenant_key_design
+      description: "Key design + isolation for multi-tenant workload"
+      human_baseline: {median_score: 0.72, median_hours: 6}
+      coco_target: {min_score: 0.95, max_minutes: 15}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: production cache hit/miss/eviction pattern review samples
+  monthly: Redis version/features refresh
+```
+
+---
+
+# C9 — MICROSERVICES & EVENT SPECIALIST
+
+```yaml
+specialist_id: C9_eng_microservices_events
+name: Microservices & Event Specialist
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median microservices engineers by defaulting to modular monoliths
+  until boundaries earn extraction — and when events are used, delivering
+  schemas, compatibility, outbox/inbox, consumer lag SLOs, and poison-message
+  handling as non-negotiables.
+
+human_baseline:
+  profile: senior microservices engineer
+  typical_outcome: |
+    Too many services too early; events without schemas; poison messages
+    manual; dual writes; weak compatibility discipline.
+  median_time_hours:
+    event_backed_feature: 14
+    service_extraction: 20
+    poison_pipeline_hardening: 8
+
+corpus:
+  id: software_microservices_events_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - modular_monolith_patterns
+    - domain_driven_design_boundaries
+    - transactional_outbox
+    - AsyncAPI
+    - schema_registry_compatibility
+    - Kafka_NATS_Rabbit_patterns
+    - consumer_lag_SLO_practices
+
+tool_suite:
+  - workspace_file_editor
+  - language_runtime_sandbox
+  - schema_registry_tooling
+  - outbox_test_harness
+  - message_broker_sandbox
+  - contract_test_runner
+  - lag_and_reorder_simulator
+  - git_operator
+
+methodology:
+  framework: Boundary-Earned Extraction + Schema-First Events
+  steps:
+    1_boundary: "Prove boundary; prefer modular monolith if premature"
+    2_contracts: "Sync contracts + AsyncAPI/events schemas"
+    3_delivery: "outbox/inbox; idempotent consumers"
+    4_compatibility: "backward/forward compatibility rules"
+    5_poison: "DLQ, redrive, quarantine"
+    6_implement_test: "contract + integration + reorder/dupe tests"
+    7_critic: "C9_critic"
+    8_deliverable: "services/modules + schemas + ops runbooks"
+
+critic:
+  id: C9_critic_microservices_principal
+  attack_patterns:
+    - premature_extraction_attack
+    - dual_write_attack
+    - schema_break_attack
+    - poison_message_attack
+    - ordering_assumption_attack
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L1: AsyncAPI/OpenAPI present
+    L4: contract tests pass
+    L5: broker integration with dup/reorder scenarios
+    L6: compatibility rules enforced
+    L7: no sensitive payload leakage in events
+    L9: C9_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    schema_first: 1.00
+    outbox_or_equivalent: 1.00
+    poison_handling: 1.00
+    compatibility_policy: 1.00
+    extraction_justified: 1.00
+
+benchmark_suite:
+  id: microservices_events_benchmark_v1
+  tasks:
+    - id: outbox_order_flow
+      description: "Order flow with outbox events and idempotent consumers"
+      human_baseline: {median_score: 0.70, median_hours: 14}
+      coco_target: {min_score: 0.94, max_minutes: 40}
+    - id: modular_to_service_extraction
+      description: "Extract a module to a service only with earned boundary evidence"
+      human_baseline: {median_score: 0.68, median_hours: 20}
+      coco_target: {min_score: 0.92, max_minutes: 55}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: consumer lag incident pattern mining
+  monthly: broker ecosystem refresh
+```
+
+---
+
+# C10 — WEBSEC & CRYPTOGRAPHY ENGINEER
+
+```yaml
+specialist_id: C10_eng_websec_cryptography
+name: Web Security & Cryptography Engineer
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median AppSec engineers by producing cryptographically correct
+  implementations (AEAD, key management, constant-time where required),
+  threat models tied to code, and verified remediations with reproducible
+  proof — not scanner theater.
+
+human_baseline:
+  profile: senior AppSec / security engineer
+  typical_outcome: |
+    Scanner findings triaged; crypto misuse subtle; threat models stale;
+    remediations incomplete; proof-of-fix weak.
+  median_time_hours:
+    auth_crypto_review: 12
+    full_service_threat_model_and_fix: 20
+    secure_session_redesign: 10
+
+corpus:
+  id: software_websec_crypto_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - OWASP_ASVS
+    - OWASP_Top_10_API_Top_10
+    - NIST_SP_800_63
+    - RFC_AEAD_TLS_guidance
+    - secrets_management_patterns
+    - CWE_MITRE
+    - age_libsodium_tink_docs
+
+tool_suite:
+  - workspace_file_editor
+  - sast_semgrep_bandit
+  - secret_scanners
+  - dependency_scanners
+  - tls_test_suite
+  - threat_model_builder
+  - crypto_review_linters
+  - exploit_sandbox                 # isolated; no production
+  - git_operator
+
+methodology:
+  framework: Threat Model → Secure Design → Verify → Prove
+  steps:
+    1_threat_model: "STRIDE on boundaries; data flow diagrams"
+    2_crypto_inventory: "algorithms, keys, lifetimes, rotation"
+    3_secure_defaults: "AEAD only; no homemade crypto; secure random"
+    4_implement_or_fix: "code changes with tests"
+    5_verify: "SAST, dependency, secrets, TLS tests, unit crypto tests"
+    6_prove: "reproducible PoC for fixed issues where ethical"
+    7_critic: "C10_critic"
+    8_deliverable: "threat model + patches + verification + residual risk"
+
+critic:
+  id: C10_critic_appsec_principal
+  attack_patterns:
+    - crypto_misuse_attack: ECB, nonces reuse, non-AEAD, poor KDF
+    - authn_attack: session fixation, JWT alg confusion, refresh theft
+    - injection_attack: SQLi/XSS/SSRF/command
+    - secrets_attack: logged secrets, long-lived keys, broad IAM
+    - supply_chain_attack: vulnerable deps, unsigned artifacts
+  min_score: 0.94
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: crypto unit tests pass
+    L5: tls/integration security tests pass
+    L7: SAST high/crit 0; secrets 0; critical CVE 0
+    L9: C10_critic ACCEPT|ACCEPT_WITH_NOTES
+    L10: production security-sensitive deploy
+
+evaluation_rubric:
+  metrics:
+    aead_only: 1.00
+    threat_model_present: 1.00
+    critical_findings_open: 0
+    residual_risk_documented: 1.00
+    proof_of_fix_present: ">=0.90"
+
+benchmark_suite:
+  id: websec_crypto_benchmark_v1
+  tasks:
+    - id: repair_jwt_session
+      description: "Fix vulnerable JWT/session implementation to ASVS L2"
+      human_baseline: {median_score: 0.72, median_hours: 10}
+      coco_target: {min_score: 0.95, max_minutes: 25}
+    - id: threat_model_and_harden_service
+      description: "Threat model a service and remediate top risks with tests"
+      human_baseline: {median_score: 0.70, median_hours: 16}
+      coco_target: {min_score: 0.94, max_minutes: 45}
+
+continuous_elevation:
+  daily: benchmarks + CVE feed
+  weekly: new CWE/OWASP guidance ingest
+  quarterly: external AppSec panel / pen-test calibration
+```
+
+---
+
+# C11 — API & MIDDLEWARE ENGINEER
+
+```yaml
+specialist_id: C11_eng_api_middleware
+name: API & Middleware Engineer
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median API engineers by shipping contract-first APIs with
+  versioning, pagination, error taxonomies, idempotency, rate limits,
+  and gateway/middleware policies that are tested as code — including
+  consumer contract tests and compatibility gates.
+
+human_baseline:
+  profile: senior API engineer
+  typical_outcome: |
+    Endpoints work; error semantics inconsistent; versioning ad hoc;
+    rate limits incomplete; middleware order bugs.
+  median_time_hours:
+    public_api_v1: 14
+    gateway_policy_pack: 10
+    compatibility_hardening: 8
+
+corpus:
+  id: software_api_middleware_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - OpenAPI_3.1
+    - RFC_7807_problem_details
+    - idempotency_key_patterns
+    - API_versioning_strategies
+    - rate_limiting_algorithms
+    - gateway_patterns_envoy_kong_nginx
+    - OWASP_API_Security
+
+tool_suite:
+  - workspace_file_editor
+  - openapi_validator
+  - contract_test_runner
+  - rate_limit_simulator
+  - middleware_order_tester
+  - load_tester_k6
+  - language_runtime_sandbox
+  - git_operator
+
+methodology:
+  framework: Contract-First + Policy-as-Code Middleware
+  steps:
+    1_contract: "OpenAPI first; problem+json errors; pagination standard"
+    2_semantics: "idempotency, filtering, sorting, sparse fieldsets"
+    3_security: "authn/z, scopes, object-level auth tests"
+    4_middleware: "ordering explicit; timeouts; limits; CORS least privilege"
+    5_versioning: "compatibility policy + tests"
+    6_implement_test: "contract + integration + abuse cases"
+    7_critic: "C11_critic"
+    8_deliverable: "API + gateway config + developer docs + postman/insomnia"
+
+critic:
+  id: C11_critic_api_principal
+  attack_patterns:
+    - breaking_change_attack
+    - object_level_auth_attack
+    - pagination_abuse_attack
+    - rate_limit_bypass_attack
+    - error_leakage_attack
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L1: OpenAPI valid
+    L4: contract tests pass
+    L5: integration + middleware order tests
+    L6: documented behaviors match tests
+    L7: API security checks clean
+    L8: latency/rate-limit behavior under load
+    L9: C11_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    openapi_first: 1.00
+    problem_json_errors: 1.00
+    object_level_auth_tests: 1.00
+    idempotency_documented_tested: 1.00
+    compatibility_gates: 1.00
+
+benchmark_suite:
+  id: api_middleware_benchmark_v1
+  tasks:
+    - id: public_rest_api_v1
+      description: "Design+implement versioned public REST API with policies"
+      human_baseline: {median_score: 0.72, median_hours: 14}
+      coco_target: {min_score: 0.94, max_minutes: 40}
+    - id: rate_limit_and_authz_pack
+      description: "Gateway middleware pack with tests for bypass attempts"
+      human_baseline: {median_score: 0.70, median_hours: 10}
+      coco_target: {min_score: 0.95, max_minutes: 25}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: public API incident pattern review
+  monthly: OpenAPI/security corpus refresh
+```
+
+---
+
+# C12 — PERFORMANCE & PROFILING ENGINEER
+
+```yaml
+specialist_id: C12_eng_performance_profiling
+name: Performance & Profiling Engineer
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median performance engineers by insisting on measurement before
+  optimization: establish baselines, capture profiles, attribute time to
+  root causes, change one variable at a time, and prove wins with
+  before/after percentiles — never folklore.
+
+human_baseline:
+  profile: senior performance engineer
+  typical_outcome: |
+    Some profiling; premature optimization common; missing p99 focus;
+    no continuous regression gates.
+  median_time_hours:
+    service_p99_halving: 16
+    frontend_cwv_fix: 12
+    allocation_churn_fix: 10
+
+corpus:
+  id: software_performance_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - Systems_Performance_Gregg
+    - browser_cwv_docs
+    - continuous_profiling_practices
+    - load_testing_methodologies
+    - Postgres_and_app_level_perf_patterns
+
+tool_suite:
+  - workspace_file_editor
+  - language_profilers                # py-spy, pprof, clinic, etc.
+  - continuous_profiler_integration
+  - k6_or_gatling
+  - browser_lighthouse_devtools
+  - flamegraph_generator
+  - benchmark_harness
+  - git_operator
+
+methodology:
+  framework: Measure → Attribute → Change → Prove
+  steps:
+    1_slo: "define latency/throughput/error budgets"
+    2_baseline: "capture p50/p95/p99 under realistic load"
+    3_profile: "CPU, alloc, IO, DB, lock contention"
+    4_root_cause: "attribute with evidence"
+    5_optimize: "smallest change; one variable"
+    6_prove: "before/after percentiles + confidence"
+    7_guard: "add regression benchmark to CI"
+    8_critic: "C12_critic"
+    9_deliverable: "report + patches + flamegraphs + CI gate"
+
+critic:
+  id: C12_critic_performance_principal
+  attack_patterns:
+    - methodology_attack: no baseline, no controlled load
+    - vanity_metric_attack: averages hiding tail latency
+    - premature_optimization_attack
+    - noisy_benchmark_attack
+    - cost_of_complexity_attack
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: microbenchmarks stable
+    L5: load test reproducible
+    L6: SLO deltas evidenced
+    L8: p99/p95 targets met or improvement proven
+    L9: C12_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    baseline_present: 1.00
+    flamegraph_or_profile_present: 1.00
+    before_after_percentiles: 1.00
+    ci_regression_gate_added: 1.00
+    single_variable_changes: 1.00
+
+benchmark_suite:
+  id: performance_benchmark_v1
+  tasks:
+    - id: halve_p99_api
+      description: "Halve p99 of provided API hotspot with evidence pack"
+      human_baseline: {median_score: 0.68, median_hours: 16}
+      coco_target: {min_score: 0.92, max_minutes: 50}
+    - id: reduce_alloc_churn
+      description: "Reduce allocation churn by ≥40% with profiles"
+      human_baseline: {median_score: 0.70, median_hours: 10}
+      coco_target: {min_score: 0.93, max_minutes: 35}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: production continuous profiling samples (privacy-safe)
+  quarterly: external performance review
+```
+
+---
+
+# C13 — MOBILE ENGINEER (REACT NATIVE / iOS / ANDROID)
+
+```yaml
+specialist_id: C13_eng_mobile
+name: Mobile Engineer (React Native / iOS / Android)
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median mobile engineers by delivering offline-first, accessible,
+  store-compliant mobile apps with crash-free discipline, release trains,
+  and automated UI tests — verified on real device matrices where required.
+
+human_baseline:
+  profile: senior mobile engineer
+  typical_outcome: |
+    Features ship; offline flaky; store rejections occasional;
+    crash analytics afterthought; release process manual.
+  median_time_hours:
+    rn_feature_with_offline: 16
+    native_module_bridge: 12
+    store_release_hardening: 10
+
+corpus:
+  id: software_mobile_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - React_Native_docs
+    - Apple_HIG_App_Store_Review
+    - Android_Vitals_Play_policies
+    - mobile_a11y_guidelines
+    - offline_sync_patterns
+    - mobile_security_owasp_masvs
+
+tool_suite:
+  - workspace_file_editor
+  - mobile_build_sandbox
+  - detox_or_maestro_e2e
+  - jest_or_vitest
+  - crash_symbolication_tooling
+  - store_lint_checkers
+  - git_operator
+
+methodology:
+  framework: Offline-First + Store-Compliant Mobile Delivery
+  steps:
+    1_requirements: "platforms, offline, a11y, store constraints"
+    2_architecture: "navigation, state, sync, native boundaries"
+    3_security: "secure storage, ATS/network security, MASVS controls"
+    4_implement_test: "unit + component + E2E critical paths"
+    5_release: "versioning, changelog, crash gates"
+    6_critic: "C13_critic"
+    7_deliverable: "app + E2E suite + release checklist + store notes"
+
+critic:
+  id: C13_critic_mobile_principal
+  attack_patterns:
+    - offline_sync_conflict_attack
+    - store_rejection_attack
+    - a11y_mobile_attack
+    - secure_storage_attack
+    - performance_startup_jank_attack
+  min_score: 0.90
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: unit tests pass
+    L5: E2E critical paths pass
+    L6: store checklist requirements mapped
+    L7: MASVS-aligned checks; secrets absent
+    L8: startup time / jank budgets
+    L9: C13_critic ACCEPT|ACCEPT_WITH_NOTES
+    L10: store submission approval
+
+evaluation_rubric:
+  metrics:
+    e2e_critical_pass: 1.00
+    offline_scenarios_tested: 1.00
+    store_checklist_complete: 1.00
+    secure_storage_correct: 1.00
+
+benchmark_suite:
+  id: mobile_benchmark_v1
+  tasks:
+    - id: offline_notes_app
+      description: "RN offline notes with sync conflict resolution + E2E"
+      human_baseline: {median_score: 0.70, median_hours: 16}
+      coco_target: {min_score: 0.93, max_minutes: 50}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: OS beta / store policy watch
+  quarterly: device lab matrix review
+```
+
+---
+
+# C14 — DATA PIPELINE & ETL ENGINEER
+
+```yaml
+specialist_id: C14_eng_data_pipeline_etl
+name: Data Pipeline & ETL Engineer
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median data engineers by delivering idempotent, observable,
+  schema-evolving pipelines with data quality tests as first-class
+  citizens — freshness, volume, null, and referential checks enforced
+  before downstream consumers see data.
+
+human_baseline:
+  profile: senior data engineer
+  typical_outcome: |
+    Pipelines run; quality checks sparse; late-arriving data painful;
+    schema evolution breaks consumers; backfills risky.
+  median_time_hours:
+    batch_etl_with_quality: 14
+    streaming_pipeline: 20
+    backfill_framework: 12
+
+corpus:
+  id: software_data_etl_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - dimensional_modeling
+    - data_quality_great_expectations_dbt_tests
+    - schema_evolution_compatibility
+    - exactly_once_effectively_once_etl
+    - Airflow_Dagster_Temporal_patterns
+    - streaming_with_Kafka_Flink_patterns
+
+tool_suite:
+  - workspace_file_editor
+  - pipeline_runtime_sandbox
+  - dbt_or_sql_transform_runner
+  - great_expectations_or_sodacl
+  - schema_registry_tooling
+  - data_diff_tool
+  - git_operator
+
+methodology:
+  framework: Idempotent Pipelines + Data Contracts + Quality Gates
+  steps:
+    1_contracts: "producer/consumer data contracts"
+    2_model: "staging/intermediate/marts or stream stages"
+    3_quality: "freshness, volume, nulls, uniqueness, relationships"
+    4_idempotency: "partitioning, checkpoints, redrive"
+    5_observability: "run metrics, data SLAs, lineage"
+    6_implement_test: "unit transforms + integration + data tests"
+    7_critic: "C14_critic"
+    8_deliverable: "pipeline + tests + lineage + runbook + SLA"
+
+critic:
+  id: C14_critic_data_principal
+  attack_patterns:
+    - non_idempotent_run_attack
+    - silent_schema_break_attack
+    - late_data_attack
+    - quality_gap_attack
+    - backfill_corruption_attack
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: transform unit tests
+    L5: pipeline integration on fixtures
+    L6: data contract tests pass
+    L7: PII handling controls if applicable
+    L8: SLA freshness/volume under test load
+    L9: C14_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    idempotency: 1.00
+    data_tests_present: 1.00
+    lineage_documented: 1.00
+    schema_evolution_safe: 1.00
+
+benchmark_suite:
+  id: data_etl_benchmark_v1
+  tasks:
+    - id: orders_mart_dbt_style
+      description: "Build orders mart with quality tests and idempotent loads"
+      human_baseline: {median_score: 0.72, median_hours: 14}
+      coco_target: {min_score: 0.94, max_minutes: 40}
+    - id: streaming_enrichment
+      description: "Streaming enrichment with late data handling"
+      human_baseline: {median_score: 0.68, median_hours: 20}
+      coco_target: {min_score: 0.92, max_minutes: 55}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: data incident taxonomy mining
+  monthly: orchestrator/engine corpus refresh
+```
+
+---
+
+# C15 — MACHINE LEARNING INFRASTRUCTURE
+
+```yaml
+specialist_id: C15_eng_ml_infrastructure
+name: Machine Learning Infrastructure Engineer
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median MLOps engineers by delivering training→evaluation→registry→
+  deployment→monitoring paths with data/model versioning, drift detection,
+  rollback, and reproducibility — production ML as an engineered system,
+  not notebooks in production.
+
+human_baseline:
+  profile: senior MLOps / ML platform engineer
+  typical_outcome: |
+    Training works; provenance weak; shadow deploy rare; drift monitors
+    incomplete; rollback painful.
+  median_time_hours:
+    full_ml_path: 24
+    feature_store_slice: 16
+    drift_monitoring_pack: 10
+
+corpus:
+  id: software_ml_infra_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - MLOps_principles
+    - model_registry_patterns
+    - feature_store_patterns
+    - drift_detection_methods
+    - reproducibility_and_seed_control
+    - GPU_scheduling_basics
+    - responsible_AI_ops_checklists
+
+tool_suite:
+  - workspace_file_editor
+  - training_job_sandbox
+  - model_registry_tooling
+  - experiment_tracker
+  - drift_detector_tooling
+  - inference_server_operator
+  - git_operator
+  - docker_build_operator
+
+methodology:
+  framework: Reproducible ML Delivery Path
+  steps:
+    1_path: "data → train → eval → register → deploy → monitor → rollback"
+    2_versioning: "data, code, model, env digests"
+    3_eval: "offline metrics + slices; bias checks if applicable"
+    4_deploy: "shadow/canary; contract tests for inference API"
+    5_monitor: "drift, performance, data quality"
+    6_verify: "reproducible re-run; rollback drill"
+    7_critic: "C15_critic"
+    8_deliverable: "pipeline + registry entries + monitors + runbooks"
+
+critic:
+  id: C15_critic_mlops_principal
+  attack_patterns:
+    - reproducibility_attack
+    - silent_data_leak_attack
+    - train_serve_skew_attack
+    - missing_rollback_attack
+    - metric_myopia_attack
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: unit tests for feature transforms
+    L5: training job re-runnable; inference contract tests
+    L6: offline eval thresholds met
+    L7: data access controls; secret hygiene
+    L8: latency budgets for inference
+    L9: C15_critic ACCEPT|ACCEPT_WITH_NOTES
+    L10: production model promote approval
+
+evaluation_rubric:
+  metrics:
+    provenance_complete: 1.00
+    reproducible_train: 1.00
+    rollback_drill: 1.00
+    drift_monitors_present: 1.00
+    train_serve_skew_tests: 1.00
+
+benchmark_suite:
+  id: ml_infra_benchmark_v1
+  tasks:
+    - id: tabular_model_path
+      description: "End-to-end tabular model path with registry and canary"
+      human_baseline: {median_score: 0.68, median_hours: 24}
+      coco_target: {min_score: 0.92, max_minutes: 70}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: drift false-positive tuning samples
+  quarterly: external ML platform review
+```
+
+---
+
+# C16 — VECTOR DB & RETRIEVAL SPECIALIST
+
+```yaml
+specialist_id: C16_eng_vector_retrieval
+name: Vector DB & Retrieval Specialist
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median retrieval engineers by treating RAG as an evaluation problem:
+  chunking strategy justified, embedding model chosen with MTEB-style evidence,
+  hybrid retrieval + rerank, and continuous retrieval quality metrics
+  (recall@k, nDCG) — not vibes.
+
+human_baseline:
+  profile: senior search/ML engineer
+  typical_outcome: |
+    Vectors stored; chunking arbitrary; no gold set; rerank optional;
+    regressions unnoticed.
+  median_time_hours:
+    hybrid_retrieval_stack: 16
+    eval_harness_and_goldset: 12
+    chunk_strategy_overhaul: 10
+
+corpus:
+  id: software_vector_retrieval_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - pgvector_docs
+    - FAISS_HNSW_IVF_guidance
+    - hybrid_search_bm25_vector
+    - reranker_practices
+    - chunking_strategies_research
+    - MTEB_and_retrieval_eval_methods
+
+tool_suite:
+  - workspace_file_editor
+  - vector_db_sandbox                 # pgvector / qdrant / etc.
+  - embedding_batch_runner
+  - reranker_runner
+  - retrieval_eval_harness
+  - corpus_ingest_pipeline
+  - git_operator
+
+methodology:
+  framework: Eval-First Retrieval Engineering
+  steps:
+    1_goldset: "build or load evaluation queries with relevance labels"
+    2_chunk: "strategy experiments with measured impact"
+    3_index: "vector + lexical hybrid"
+    4_rerank: "cross-encoder rerank where latency allows"
+    5_filters: "metadata filters; tenant isolation"
+    6_eval: "recall@k, nDCG, latency budgets"
+    7_critic: "C16_critic"
+    8_deliverable: "ingest+query path + eval report + dashboards"
+
+critic:
+  id: C16_critic_retrieval_principal
+  attack_patterns:
+    - no_goldset_attack
+    - chunk_boundary_attack
+    - tenant_leak_attack
+    - metric_hacking_attack
+    - latency_budget_attack
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: unit tests for chunk/embed pipelines
+    L5: integration retrieval path
+    L6: eval metrics meet declared targets
+    L7: tenant isolation tests
+    L8: query p95 within budget
+    L9: C16_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    goldset_present: 1.00
+    recall_at_k_target: ">= target"
+    ndcg_target: ">= target"
+    tenant_isolation: 1.00
+    hybrid_or_justified: 1.00
+
+benchmark_suite:
+  id: vector_retrieval_benchmark_v1
+  tasks:
+    - id: hybrid_rag_stack
+      description: "Build hybrid retrieval with eval harness and targets"
+      human_baseline: {median_score: 0.70, median_hours: 16}
+      coco_target: {min_score: 0.93, max_minutes: 50}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: query log hard-negatives mining (privacy-safe)
+  monthly: embedding model re-benchmark
+```
+
+---
+
+# C17 — LEGACY CODE MIGRATION SPECIALIST
+
+```yaml
+specialist_id: C17_eng_legacy_migration
+name: Legacy Code Migration Specialist
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median modernization engineers by refusing big-bang rewrites:
+  characterization tests first, strangler patterns, incremental cutovers,
+  dual-run parity checks, and rollback plans — migrations that survive contact
+  with production reality.
+
+human_baseline:
+  profile: senior modernization engineer
+  typical_outcome: |
+    Rewrite enthusiasm; weak characterization tests; parity gaps;
+    cutovers risky; rollback theoretical.
+  median_time_hours:
+    module_strangle: 20
+    parity_harness: 12
+    data_migration_expand_contract: 16
+
+corpus:
+  id: software_legacy_migration_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - Working_Effectively_with_Legacy_Code
+    - strangler_fig_pattern
+    - expand_contract_migrations
+    - branch_by_abstraction
+    - parity_testing_practices
+
+tool_suite:
+  - workspace_file_editor
+  - characterization_test_generator
+  - parity_comparator
+  - coverage_on_legacy
+  - feature_flag_operator
+  - git_operator
+  - runtime_sandboxes_legacy_and_new
+
+methodology:
+  framework: Characterize → Strangle → Parity → Cutover → Retire
+  steps:
+    1_map: "dependency map; risk hotspots"
+    2_characterize: "tests locking current behavior"
+    3_branch: "branch by abstraction / interfaces"
+    4_implement: "new path behind flags"
+    5_parity: "dual-run compare on shadow traffic/fixtures"
+    6_cutover: "incremental; rollback ready"
+    7_retire: "remove dead paths after soak"
+    8_critic: "C17_critic"
+    9_deliverable: "migration plan + tests + parity report + rollback"
+
+critic:
+  id: C17_critic_migration_principal
+  attack_patterns:
+    - big_bang_attack
+    - missing_characterization_attack
+    - parity_gap_attack
+    - irreversible_cutover_attack
+    - hidden_coupling_attack
+  min_score: 0.93
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: characterization tests pass
+    L5: parity harness pass on fixtures
+    L6: migration plan requirements complete
+    L7: no privilege expansion during migration
+    L9: C17_critic ACCEPT|ACCEPT_WITH_NOTES
+    L10: production cutover approval
+
+evaluation_rubric:
+  metrics:
+    characterization_coverage_hotspots: ">=0.90"
+    parity_pass: 1.00
+    rollback_plan: 1.00
+    incremental_cutover: 1.00
+
+benchmark_suite:
+  id: legacy_migration_benchmark_v1
+  tasks:
+    - id: strangle_billing_module
+      description: "Strangle legacy billing module with parity and flag cutover"
+      human_baseline: {median_score: 0.66, median_hours: 20}
+      coco_target: {min_score: 0.92, max_minutes: 60}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: post-migration defect taxonomy
+  quarterly: external modernization review
+```
+
+---
+
+# C18 — EMBEDDED FIRMWARE SPECIALIST
+
+```yaml
+specialist_id: C18_eng_embedded_firmware
+name: Embedded Firmware Specialist
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median embedded engineers by delivering MISRA-aware, timing-analyzed,
+  memory-bounded firmware with hardware-in-the-loop tests and secure boot
+  considerations — deterministic behavior under constraint, not desktop code
+  flashed to a board.
+
+human_baseline:
+  profile: senior embedded engineer
+  typical_outcome: |
+    Features work on bench; timing margins unclear; heap use risky;
+    HIL sparse; secure boot incomplete.
+  median_time_hours:
+    driver_and_task_set: 20
+    timing_hardening: 12
+    OTA_safe_update_path: 16
+
+corpus:
+  id: software_embedded_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - MISRA_C_guidance
+    - FreeRTOS_Zephyr_docs
+    - real_time_scheduling_basics
+    - embedded_secure_boot_patterns
+    - HW_watchdog_brownout_practices
+    - embedded_testing_HIL
+
+tool_suite:
+  - workspace_file_editor
+  - embedded_toolchain_sandbox
+  - static_analyzers_misra
+  - unit_test_on_host
+  - hil_test_harness
+  - timing_analyzer
+  - git_operator
+
+methodology:
+  framework: Constraints-First Embedded Engineering
+  steps:
+    1_constraints: "CPU, RAM, flash, latency, power, safety class"
+    2_architecture: "tasks/ISRs, priorities, memory map"
+    3_timing: "WCET estimates; deadlines; watchdog strategy"
+    4_implement: "no hidden allocations in hot paths; deterministic I/O"
+    5_test: "host unit + HIL; fault injection (brownout, bus errors)"
+    6_security: "secure boot chain if in scope; signed updates"
+    7_critic: "C18_critic"
+    8_deliverable: "firmware + timing report + HIL logs + update plan"
+
+critic:
+  id: C18_critic_embedded_principal
+  attack_patterns:
+    - timing_priority_inversion_attack
+    - heap_in_isr_attack
+    - watchdog_misconfig_attack
+    - memory_safety_attack
+    - unsafe_update_attack
+  min_score: 0.93
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L2: static analysis clean for required ruleset
+    L4: host unit tests
+    L5: HIL critical scenarios
+    L6: timing deadlines evidenced
+    L7: secure update/boot checks if in scope
+    L9: C18_critic ACCEPT|ACCEPT_WITH_NOTES
+    L10: field release approval
+
+evaluation_rubric:
+  metrics:
+    timing_evidence: 1.00
+    hil_critical_pass: 1.00
+    no_heap_in_isr: 1.00
+    update_safety: 1.00
+
+benchmark_suite:
+  id: embedded_benchmark_v1
+  tasks:
+    - id: sensor_task_set
+      description: "RTOS task set for sensors with deadlines + HIL tests"
+      human_baseline: {median_score: 0.68, median_hours: 20}
+      coco_target: {min_score: 0.92, max_minutes: 70}
+
+continuous_elevation:
+  daily: benchmarks where hardware farm available
+  monthly: RTOS/security bulletin refresh
+  quarterly: external embedded safety review
+```
+
+---
+
+# C19 — QA & AUTOMATION SPECIALIST
+
+```yaml
+specialist_id: C19_eng_qa_automation
+name: QA & Automation Specialist
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median QA engineers by building risk-based test strategy as code:
+  pyramid balance, deterministic E2E, contract tests, flake budgets near zero,
+  and quality gates wired into delivery — QA that prevents defects rather than
+  merely detecting them late.
+
+human_baseline:
+  profile: senior QA automation engineer
+  typical_outcome: |
+    Large E2E suites; flaky tests tolerated; coverage vanity;
+    risk mapping weak; gates bypassable.
+  median_time_hours:
+    automation_strategy_and_suite: 16
+    flake_hunt: 10
+    contract_test_intro: 8
+
+corpus:
+  id: software_qa_automation_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - test_pyramid_practices
+    - risk_based_testing
+    - playwright_cypress_docs
+    - contract_testing_pact
+    - flake_quarantine_patterns
+    - exploratory_testing_charters
+
+tool_suite:
+  - workspace_file_editor
+  - unit_test_runners
+  - playwright_e2e
+  - contract_test_runner
+  - flake_detector
+  - coverage_and_mutation_optional
+  - git_operator
+
+methodology:
+  framework: Risk-Based Test Strategy as Code
+  steps:
+    1_risk_map: "critical user journeys + failure costs"
+    2_pyramid: "unit/contract/integration/E2E balance"
+    3_determinism: "isolate time, network, randomness"
+    4_gates: "required checks in CI; no silent skips"
+    5_flake_budget: "quarantine + SLAs to fix"
+    6_implement: "automate highest risk first"
+    7_critic: "C19_critic"
+    8_deliverable: "strategy + suites + dashboards + gate config"
+
+critic:
+  id: C19_critic_qa_principal
+  attack_patterns:
+    - pyramid_inversion_attack
+    - flake_tolerance_attack
+    - assertion_weakness_attack
+    - untested_critical_path_attack
+    - bypassable_gate_attack
+  min_score: 0.92
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L4: new tests pass locally in sandbox
+    L5: CI-reproducible
+    L6: critical risks mapped to tests 100%
+    L8: flake rate ≤ budget
+    L9: C19_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    critical_path_coverage: 1.00
+    flake_rate: "<= budget"
+    gates_enforced: 1.00
+    contract_tests_for_boundaries: 1.00
+
+benchmark_suite:
+  id: qa_automation_benchmark_v1
+  tasks:
+    - id: risk_suite_for_service
+      description: "Build risk-based automation suite for provided service"
+      human_baseline: {median_score: 0.70, median_hours: 16}
+      coco_target: {min_score: 0.93, max_minutes: 45}
+    - id: eliminate_flakes
+      description: "Reduce flake rate of provided suite below 1%"
+      human_baseline: {median_score: 0.68, median_hours: 10}
+      coco_target: {min_score: 0.94, max_minutes: 30}
+
+continuous_elevation:
+  daily: benchmarks
+  weekly: flake leaderboard review
+  monthly: tooling corpus refresh
+```
+
+---
+
+# C20 — TECHNICAL DOCUMENTATION ENGINEER
+
+```yaml
+specialist_id: C20_eng_technical_documentation
+name: Technical Documentation Engineer
+version: 1.0.0
+tier: tier_3_specialist
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+ladder_rung_target: 4
+
+expert_beating_thesis: >
+  Beats median technical writers/engineers by producing docs that are
+  verified against the system: every command runs, every API example
+  executes, every architecture claim links to code/decision records —
+  documentation as a tested artifact, not prose drift.
+
+human_baseline:
+  profile: senior technical writer or engineer-who-writes
+  typical_outcome: |
+    Docs readable; examples rot; architecture diagrams stale;
+    onboarding fails silently; no doc tests.
+  median_time_hours:
+    service_doc_set: 12
+    onboarding_runbook: 8
+    api_reference_refresh: 10
+
+corpus:
+  id: software_techdocs_v1
+  inherits: software_engineering_shared_v1
+  primary_sources:
+    - docs_as_code_practices
+    - Diataxis_framework
+    - OpenAPI_documentation_patterns
+    - architecture_decision_records
+    - onboarding_runbook_patterns
+    - style_guides_google_microsoft_write_the_docs
+
+tool_suite:
+  - workspace_file_editor
+  - doc_site_builder                 # Docusaurus/MkDocs
+  - command_example_executor         # runs shell/API examples
+  - openapi_doc_generator
+  - link_checker
+  - screenshot_or_diagram_tool
+  - git_operator
+
+methodology:
+  framework: Diátaxis + Docs-as-Code + Executable Examples
+  steps:
+    1_audience: "tutorials, how-to, reference, explanation split"
+    2_inventory: "what exists; what is stale; source of truth links"
+    3_write: "precise, minimal, task-oriented; COCO voice"
+    4_executable: "examples run in CI"
+    5_link: "ADRs, code anchors, OpenAPI"
+    6_verify: "link check, example execution, style"
+    7_critic: "C20_critic"
+    8_deliverable: "doc site + ADR updates + onboarding path tested"
+
+critic:
+  id: C20_critic_docs_principal
+  attack_patterns:
+    - rotting_example_attack
+    - audience_mismatch_attack
+    - missing_failure_mode_docs_attack
+    - diagram_code_drift_attack
+    - ambiguous_procedure_attack
+  min_score: 0.90
+
+verification:
+  domain: SOFTWARE
+  target_level: 9
+  hard_gates:
+    L0: docs build
+    L1: Diátaxis structure present where claimed
+    L4: executable examples pass
+    L5: onboarding path dry-run pass
+    L6: claims linked to sources/ADRs
+    L9: C20_critic ACCEPT|ACCEPT_WITH_NOTES
+
+evaluation_rubric:
+  metrics:
+    examples_executable: 1.00
+    broken_links: 0
+    onboarding_dry_run_pass: 1.00
+    adr_links_for_architecture_claims: 1.00
+
+benchmark_suite:
+  id: techdocs_benchmark_v1
+  tasks:
+    - id: service_doc_set
+      description: "Produce full Diátaxis doc set for a service with executable examples"
+      human_baseline: {median_score: 0.72, median_hours: 12}
+      coco_target: {min_score: 0.94, max_minutes: 35}
+    - id: onboarding_in_30
+      description: "Onboarding guide that a new engineer completes in ≤30 minutes dry-run"
+      human_baseline: {median_score: 0.70, median_hours: 8}
+      coco_target: {min_score: 0.93, max_minutes: 25}
+
+continuous_elevation:
+  daily: example execution CI
+  weekly: doc issue taxonomy from user feedback
+  monthly: style guide + tooling refresh
+```
+
+---
+
+## BRANCH 1 CROSS-CUTTING RULES
+
+```yaml
+branch_1_cross_cutting:
+
+  composition_rules:
+    - C1–C20 may be composed freely under B1
+    - API boundaries: C11 leads contracts; C3/C1 implement
+    - Data plane: C4 owns schema invariants; C14 owns pipelines; C16 owns retrieval indexes
+    - Security: C10 has veto on crypto/authn designs; A6 still global veto
+    - Delivery: C5 owns path to runtime; L10 mandatory for prod
+    - Docs: C20 must be invoked for user-facing engineering deliverables on Ranger
+
+  default_stack_freeze_v1:
+    languages: [Python_3.12, TypeScript_5.x, Go_1.23]
+    web: [Next.js, React]
+    api: [FastAPI, gRPC optional]
+    data: [PostgreSQL_16, Redis_7, pgvector]
+    delivery: [Docker, Kubernetes, GitHub_Actions]
+    obs: [OpenTelemetry, Prometheus, Grafana]
+
+  shared_benchmark_governance:
+    owner: B1_engineering_director
+    nightly: true
+    regression_policy: Deep Spec 5 continuous elevation + Deep Spec 9
+
+  shared_safety:
+    - no production credentials in sandboxes
+    - no unsigned deploy artifacts
+    - no privilege escalation without A6
+    - RESTRICTED data only in Tier-2+ sandboxes (Deep Spec 8)
+
+  promotion_gate_to_rung_4:
+    - all specialist benchmarks ≥ targets
+    - paired critic calibration within tolerance
+    - 30-day shadow without safety regressions
+    - B1 sign-off
+```
+
+---
+
+## BRANCH 1 SUMMARY LOCK
+
+```text
+✓ C1  Python Systems Architect
+✓ C2  Frontend & UI Architect (React/TS)
+✓ C3  Backend Systems Engineer
+✓ C4  PostgreSQL & Database Specialist
+✓ C5  DevOps & Kubernetes Specialist
+✓ C6  Cloud Infrastructure (AWS/GCP/Azure)
+✓ C7  Distributed Systems Specialist
+✓ C8  Distributed Cache Engineer (Redis)
+✓ C9  Microservices & Event Specialist
+✓ C10 WebSec & Cryptography Engineer
+✓ C11 API & Middleware Engineer
+✓ C12 Performance & Profiling Engineer
+✓ C13 Mobile Engineer (RN/iOS/Android)
+✓ C14 Data Pipeline & ETL Engineer
+✓ C15 Machine Learning Infrastructure
+✓ C16 Vector DB & Retrieval Specialist
+✓ C17 Legacy Code Migration Specialist
+✓ C18 Embedded Firmware Specialist
+✓ C19 QA & Automation Specialist
+✓ C20 Technical Documentation Engineer
+
+Each locked with:
+  Thesis · Human Baseline · Corpus · Tools · Method · Critic ·
+  Verification · Rubric · Benchmarks · Elevation
+
+Shared branch infrastructure, composition rules, stack freeze, and
+Rung-4 promotion gates locked.
+```
+
+---
+
+## NEXT
+
+**Branch 2: Research & Information Intelligence (C21–C35)**
+
+Confirm to proceed with Branch 2, or request adjustments to any Branch 1 specialist first.

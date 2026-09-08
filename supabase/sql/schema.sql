@@ -1,0 +1,2 @@
+-- Complete Combined Schema for DSRT COCO Database
+-- Execute Modules 01 to 08 in Supabase SQL Editor

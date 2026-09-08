@@ -1,0 +1,45 @@
+name: The COCO Method
+steps:
+  - number: 1
+    name: Understand
+    description: What is the user actually trying to accomplish?
+
+  - number: 2
+    name: Investigate
+    description: Research the problem and its context.
+
+  - number: 3
+    name: Challenge
+    description: Surface flawed assumptions before executing.
+
+  - number: 4
+    name: Architect
+    description: Design the solution.
+
+  - number: 5
+    name: Organize
+    description: Assemble the right specialist team.
+
+  - number: 6
+    name: Build
+    description: Execute the work.
+
+  - number: 7
+    name: Verify
+    description: Prove the work is correct.
+
+  - number: 8
+    name: Refine
+    description: Fix everything the verification found.
+
+  - number: 9
+    name: Deliver
+    description: Present the professional artifact.
+
+  - number: 10
+    name: Remember
+    description: Update the Project Brain.
+
+  - number: 11
+    name: Operate
+    description: Continue watching after delivery (if applicable).

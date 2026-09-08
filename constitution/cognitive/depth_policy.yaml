@@ -1,0 +1,49 @@
+levels:
+  - level: 0
+    name: Reflex
+    description: Sub-second cache hit or trivially deterministic response.
+    typical_latency_ms: 200
+    typical_use: Greeting, identity question, cached factual query.
+
+  - level: 1
+    name: Direct
+    description: Single-model turn with modest context. No tool calls.
+    typical_latency_ms: 2000
+    typical_use: Simple question, quick summary, direct answer.
+
+  - level: 2
+    name: Reasoned
+    description: Multi-turn reasoning with light tool augmentation.
+    typical_latency_ms: 8000
+    typical_use: Analysis, comparison, structured explanation.
+
+  - level: 3
+    name: Investigative
+    description: Multi-source research with citation gathering.
+    typical_latency_ms: 30000
+    typical_use: Research memo, competitive analysis, literature review.
+
+  - level: 4
+    name: Constructive
+    description: Multi-agent build with verification loop.
+    typical_latency_ms: 300000
+    typical_use: Code generation, financial model, legal memo with critic.
+
+  - level: 5
+    name: Organizational
+    description: Full org assembled; hours-long autonomous execution.
+    typical_latency_ms: 3600000
+    typical_use: Complete product build, complex due diligence.
+
+  - level: 6
+    name: Ranger
+    description: Multi-day autonomous mission with checkpoints and drift monitoring.
+    typical_latency_ms: 86400000
+    typical_use: Long-running platform build, continuous monitoring, sustained research.
+
+selection_rules:
+  - Depth is chosen by the Director based on intent, complexity, and tier.
+  - Users may explicitly request a depth; Director honors when reasonable.
+  - Default tier caps at D3; Pro allows D4; Ranger unlocks D5-D6.
+  - Higher depth costs more; users are warned when jumping tiers.
+  - Verification level scales with depth (L4 → L6 → L9 → L10).

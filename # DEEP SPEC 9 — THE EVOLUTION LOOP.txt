@@ -1,0 +1,1844 @@
+# DEEP SPEC 9 — THE EVOLUTION LOOP
+
+**System:** DSRT COCO
+**Layer:** Evolution Fabric (Fabric 10) + cross-cutting improvement architecture
+**Status:** Approved & Locked Specification
+**Governing Standards:** Constitutional Law 12 (Evolution By Measurement); Article XIII Law 6 (Capabilities Not Models); Deep Specs 1-8
+**Purpose:** Build the closed-loop learning system that measures every mission outcome and continuously improves routing, prompts, agents, and specialists — **without unsupervised self-modification**. COCO gets better every night. Never on its own recognizance.
+
+---
+
+## 0. EVOLUTION PHILOSOPHY
+
+Most AI systems degrade silently. Models drift. Corpora go stale. Adversaries adapt. User expectations rise. Without a disciplined loop that measures outcomes and closes back into the system, quality decays.
+
+COCO refuses that fate.
+
+### The Ten Governing Laws of Evolution
+
+```text
+LAW 1  — MEASURE EVERYTHING, IMPROVE THE MEASURABLE
+         Every mission emits structured outcome telemetry.
+         Only measurable dimensions are targets for automated improvement.
+
+LAW 2  — HUMAN JUDGMENT IS THE GROUND TRUTH
+         Automated evaluators approximate; humans calibrate.
+         Every automated evaluator is anchored to periodic human review.
+
+LAW 3  — NO UNSUPERVISED SELF-MODIFICATION
+         COCO does not rewrite its own code, prompts, or policies without
+         a human in the approval loop. Automation proposes; humans dispose.
+
+LAW 4  — SHADOW BEFORE PRODUCTION
+         Every proposed change runs in shadow mode against real traffic
+         before affecting a single user-facing decision.
+
+LAW 5  — REGRESSION IS A P0 EVENT
+         A change that reduces a tracked quality metric is halted and rolled back.
+         Not "reviewed later." Halted.
+
+LAW 6  — EXPLORATION IS BUDGETED
+         The router explores new options within a defined ε.
+         Exploration ε shrinks as observations accumulate.
+         No experiment can consume more than its declared budget.
+
+LAW 7  — LEARNING PRESERVES PROVENANCE
+         Every policy update carries: the data window it was learned from,
+         the metric it optimized, the shadow evidence that justified it,
+         the human who approved it.
+
+LAW 8  — DRIFT IS DETECTED, NOT SUFFERED
+         Distribution shift in inputs, model outputs, tenant patterns,
+         and world facts is monitored explicitly. Drift triggers investigation.
+
+LAW 9  — EVOLUTION HAS ITS OWN ETHICS
+         No evolution optimizes for engagement, retention, or manipulation.
+         Only for verified outcome quality, cost efficiency, latency,
+         and safety.
+
+LAW 10 — THE LOOP IS AUDITABLE FOREVER
+         Every metric, every decision, every rollout, every rollback is
+         recorded, chain-hashed, and reproducible from raw data.
+```
+
+---
+
+## 1. THE EVOLUTION FABRIC — INTERNAL ARCHITECTURE
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                            EVOLUTION FABRIC (F10)                              │
+│                                                                                │
+│                    ┌────────────────────────────────┐                          │
+│                    │  1. TELEMETRY INGESTION        │                          │
+│                    │  · consumes ALL fabric events  │                          │
+│                    │  · builds outcome records      │                          │
+│                    └────────────────┬───────────────┘                          │
+│                                     ▼                                          │
+│                    ┌────────────────────────────────┐                          │
+│                    │  2. OUTCOME EVALUATION         │                          │
+│                    │  · automated graders            │                          │
+│                    │  · benchmark runners            │                          │
+│                    │  · critic score aggregation     │                          │
+│                    │  · human-in-loop calibration    │                          │
+│                    └────────────────┬───────────────┘                          │
+│                                     ▼                                          │
+│                    ┌────────────────────────────────┐                          │
+│                    │  3. AGGREGATION                │                          │
+│                    │  · rolling metrics per subject  │                          │
+│                    │  · nightly materialized views   │                          │
+│                    │  · drift detectors              │                          │
+│                    └────────────────┬───────────────┘                          │
+│                                     ▼                                          │
+│      ┌──────────────────────────────┼──────────────────────────────┐           │
+│      ▼                              ▼                              ▼           │
+│  ┌────────────┐              ┌────────────┐                 ┌────────────┐     │
+│  │ 4a. ROUTER │              │ 4b. PROMPT │                 │ 4c. AGENT  │     │
+│  │  LEARNER   │              │  LEARNER   │                 │  LEARNER   │     │
+│  │  (Thompson │              │  (A/B)     │                 │  (rubric-  │     │
+│  │  sampling) │              │            │                 │   graded)  │     │
+│  └─────┬──────┘              └─────┬──────┘                 └─────┬──────┘     │
+│        │                           │                              │            │
+│        └──────────────┬────────────┴──────────────┬───────────────┘            │
+│                       ▼                           ▼                            │
+│              ┌────────────────┐          ┌────────────────┐                    │
+│              │ 5. PROPOSAL    │          │ 6. SHADOW      │                    │
+│              │  ENGINE        │          │  DEPLOYMENT    │                    │
+│              │  (produces     │          │  (runs safely  │                    │
+│              │  change        │          │  in parallel)  │                    │
+│              │  proposals)    │          │                │                    │
+│              └────────┬───────┘          └────────┬───────┘                    │
+│                       │                           │                            │
+│                       └───────────┬───────────────┘                            │
+│                                   ▼                                            │
+│                       ┌────────────────────────┐                               │
+│                       │ 7. GOVERNANCE          │                               │
+│                       │  · CODEOWNERS review    │                               │
+│                       │  · Director approval    │                               │
+│                       │  · risk assessment      │                               │
+│                       └────────────┬───────────┘                               │
+│                                    ▼                                           │
+│                       ┌────────────────────────┐                               │
+│                       │ 8. ROLLOUT             │                               │
+│                       │  · staged (1% → 100%)   │                               │
+│                       │  · auto-rollback on     │                               │
+│                       │    regression           │                               │
+│                       └────────────┬───────────┘                               │
+│                                    ▼                                           │
+│                       ┌────────────────────────┐                               │
+│                       │ 9. AUDIT & REPLAY      │                               │
+│                       │  · every change signed  │                               │
+│                       │  · full replay possible │                               │
+│                       └────────────────────────┘                               │
+└────────────────────────────────────────────────────────────────────────────────┘
+```
+
+The Evolution Fabric is **strictly separated** from the runtime fabrics:
+- Runtime fabrics **emit** telemetry
+- Evolution Fabric **consumes** telemetry and **proposes** policy updates
+- Runtime fabrics **load** approved policies from a signed policy bundle
+
+This separation prevents runtime code from ever "learning during inference." Learning happens in the loop. Inference uses locked, versioned policies.
+
+---
+
+## 2. THE OUTCOME MODEL
+
+Everything the loop learns from is anchored in a formal **Outcome Record**. Every mission produces one; every task, run, and model/tool call contributes to it.
+
+### 2.1 Outcome Record Schema
+
+```protobuf
+message OutcomeRecord {
+  // ─── IDENTITY ─────────────────────────────────────────
+  string outcome_id                = 1;   // ULID
+  string mission_id                = 2;
+  string organization_id           = 3;
+  string project_id                = 4;
+
+  // ─── MISSION SNAPSHOT ─────────────────────────────────
+  MissionSnapshot mission          = 5;   // objective, tier, depth, domain
+
+  // ─── EXECUTION SUMMARY ────────────────────────────────
+  ExecutionSummary execution       = 6;
+    // - task counts by status
+    // - agent instances by tier
+    // - model calls by capability
+    // - tool calls by category
+    // - sandbox allocations by tier
+
+  // ─── QUALITY SIGNALS ──────────────────────────────────
+  QualitySignals quality           = 7;
+    // - verification pass/fail per level
+    // - critic scores (all critics that reviewed)
+    // - repair loop attempts + outcomes
+    // - human approval outcomes
+    // - post-delivery human ratings (if provided)
+    // - benchmark score (if benchmark task)
+    // - user acceptance (if applicable)
+
+  // ─── RESOURCE FOOTPRINT ───────────────────────────────
+  ResourceFootprint resources      = 8;
+    // - wall time, compute seconds
+    // - model tokens (in/out/cached/reasoning) per model
+    // - model cost USD per model
+    // - tool calls count + time
+    // - sandbox seconds per tier
+
+  // ─── DECISIONS MADE ───────────────────────────────────
+  repeated RoutingDecisionRef routing_decisions = 9;
+  repeated PromptVersionRef prompt_versions     = 10;
+  repeated AgentSelectionRef agent_selections   = 11;
+
+  // ─── OUTCOME LABELS ───────────────────────────────────
+  OutcomeLabel outcome_label       = 12;
+    // SUCCESS | PARTIAL | FAILED | ABORTED | ESCALATED
+    // (derived from mission phase + verification verdicts)
+  double outcome_confidence        = 13;   // 0..1
+  repeated string failure_categories = 14;
+
+  // ─── TIMESTAMPS ───────────────────────────────────────
+  int64 mission_started_at_unix_ns = 15;
+  int64 mission_completed_at_unix_ns = 16;
+  int64 outcome_finalized_at_unix_ns = 17;
+}
+
+message QualitySignals {
+  // Automated
+  map<int32, LevelSummary> verification_levels = 1;   // L0..L10
+  repeated CriticScoreRef critic_scores        = 2;
+  int32 repair_attempts                         = 3;
+  bool  ended_in_repair_exhaustion              = 4;
+  double automated_quality_score                = 5;  // 0..1 aggregate
+
+  // Human signals
+  bool  human_approval_requested                = 6;
+  bool  human_approval_granted                  = 7;
+  int32 human_rating                            = 8;  // 1..5, if given
+  string human_feedback                         = 9;  // free-text, optional
+  bool  user_marked_incorrect                   = 10;
+  bool  user_marked_excellent                   = 11;
+  bool  user_regenerated                        = 12; // signal of dissatisfaction
+  bool  user_abandoned                          = 13;
+
+  // Benchmark
+  string benchmark_id                           = 14; // If part of a benchmark run
+  double benchmark_score                        = 15;
+  double benchmark_target                       = 16;
+}
+
+message LevelSummary {
+  int32  level                     = 1;
+  string status                    = 2;   // passed | failed | partial | skipped | errored
+  int32  checks_total              = 3;
+  int32  checks_passed             = 4;
+  int64  duration_ms               = 5;
+  repeated string top_failure_check_ids = 6;
+}
+
+enum OutcomeLabel {
+  OUTCOME_UNSPECIFIED = 0;
+  SUCCESS             = 1;
+  PARTIAL             = 2;
+  FAILED              = 3;
+  ABORTED             = 4;
+  ESCALATED           = 5;
+}
+```
+
+### 2.2 Outcome Record Storage
+
+```sql
+-- Persistent record. Not partitioned; low volume (one per mission).
+CREATE TABLE evolution.outcome_records (
+  outcome_id              ulid PRIMARY KEY,
+  organization_id         ulid NOT NULL,
+  mission_id              ulid NOT NULL UNIQUE
+                          REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  project_id              ulid REFERENCES projects.projects(project_id),
+
+  mission_tier            mission_tier NOT NULL,
+  cognitive_depth         SMALLINT NOT NULL,
+  domain                  TEXT,
+
+  outcome_label           TEXT NOT NULL,
+  outcome_confidence      confidence_score NOT NULL,
+  automated_quality_score confidence_score,
+  human_rating            SMALLINT,
+  benchmark_score         DOUBLE PRECISION,
+
+  execution_summary       JSONB NOT NULL,
+  quality_signals         JSONB NOT NULL,
+  resources               JSONB NOT NULL,
+  routing_decisions       JSONB NOT NULL DEFAULT '[]'::jsonb,
+  prompt_versions         JSONB NOT NULL DEFAULT '[]'::jsonb,
+  agent_selections        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  failure_categories      TEXT[] NOT NULL DEFAULT '{}',
+
+  mission_started_at      TIMESTAMPTZ NOT NULL,
+  mission_completed_at    TIMESTAMPTZ,
+  finalized_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX or_org_time_idx       ON evolution.outcome_records (organization_id, finalized_at DESC);
+CREATE INDEX or_label_idx          ON evolution.outcome_records (outcome_label, finalized_at DESC);
+CREATE INDEX or_domain_idx         ON evolution.outcome_records (domain, finalized_at DESC);
+CREATE INDEX or_benchmark_idx      ON evolution.outcome_records (benchmark_score) WHERE benchmark_score IS NOT NULL;
+CREATE INDEX or_quality_gin_idx    ON evolution.outcome_records USING gin (quality_signals);
+```
+
+### 2.3 Finalization Timing
+
+An OutcomeRecord is **not** written when a mission completes. It is finalized after a **quiet window** (default 24h) to capture late signals:
+- User regenerations
+- Human ratings
+- Delayed benchmark judging
+- Post-delivery critic passes (if scheduled)
+
+Runtime writes a preliminary record; a nightly finalization job seals it.
+
+---
+
+## 3. TELEMETRY INGESTION (STAGE 1)
+
+Every event on the Event Bus that carries evolution-relevant signal is consumed by the ingestion pipeline.
+
+### 3.1 Subject Aggregators
+
+The Evolution Fabric maintains one aggregator per "learnable subject":
+
+```text
+SUBJECT                      AGGREGATED FROM                             TARGET METRICS
+──────────────────────────  ─────────────────────────────────────────  ──────────────────────
+Model × Capability           model_calls + verification results          quality, latency, cost, availability
+Agent (definition)           agent_runs + critic + human signals         success rate, avg confidence, calibration
+Router policy version        routing_decisions + downstream outcomes     policy uplift vs baseline
+Prompt template version      model_calls tagged with template + outcome  win rate vs baseline
+Tool                         tool_calls + downstream success             success rate, latency, cost, safety
+Verification check           check_results + critic overrides            FP rate, FN rate, latency
+Critic agent                 critic_reports vs human ratings             calibration to human panel
+Specialist × task type       benchmark + production outcomes             ladder rung compliance
+Sandbox tier                 sandbox_lifecycle + incidents               stability, escape attempts
+Domain corpus source         retrieval outcomes + citation quality       usage, freshness contribution
+```
+
+### 3.2 Ingestion Contract
+
+```python
+class OutcomeAggregator(ABC):
+    """
+    One aggregator per subject class. Consumes relevant events, maintains
+    rolling state, materializes windowed metrics nightly.
+    """
+    subject_kind: str        # e.g. "model_capability", "agent_definition"
+
+    @abstractmethod
+    async def consume(self, event: CocoEvent) -> None:
+        """Update in-memory + persistent aggregation state."""
+
+    @abstractmethod
+    async def materialize(self, window: TimeWindow) -> list[MetricRow]:
+        """Emit rolling windowed metrics for the given window."""
+```
+
+### 3.3 Windowing Strategy
+
+```text
+Every metric is computed at three time scales:
+
+  SHORT WINDOW    1 hour     Used for real-time alerts (regression, incident)
+  MEDIUM WINDOW   24 hours   Used for nightly policy learning
+  LONG WINDOW     30 days    Used for baseline calibration, drift detection
+
+All three retained. Longer windows provide stability; shorter windows provide freshness.
+```
+
+---
+
+## 4. OUTCOME EVALUATION (STAGE 2)
+
+Not every outcome comes with a clean label. Evaluation converts messy signals into structured quality scores.
+
+### 4.1 The Three Evaluators
+
+```text
+EVALUATOR              WHEN USED                                 CONFIDENCE
+──────────────────    ───────────────────────────────────────  ─────────────
+Automated grader       Every mission (cheap, fast)              medium
+Benchmark scorer       Benchmark-tagged missions only           high
+Human evaluator        Sampled + calibration + escalations      ground truth
+```
+
+### 4.2 Automated Graders
+
+Every domain has a grader that scores an outcome from structured evidence:
+
+```python
+class OutcomeGrader(ABC):
+    domain: str
+
+    @abstractmethod
+    async def grade(
+        self,
+        outcome: OutcomeRecord,
+        artifacts: list[ArtifactRef],
+    ) -> GradedOutcome:
+        """
+        Score the outcome across domain-specific dimensions.
+        MUST attach evidence for every dimension score.
+        """
+
+
+class GradedOutcome(BaseModel):
+    outcome_id: str
+    grader_id: str            # e.g. "software_grader_v3"
+    grader_version: str
+
+    dimension_scores: dict[str, float]   # per rubric dimension
+    overall_score: float                  # aggregated
+    confidence: float                     # grader's confidence
+
+    strengths: list[str]
+    weaknesses: list[str]
+    evidence_refs: list[ArtifactRef]
+```
+
+Reference software grader dimensions:
+```yaml
+software_grader_v3:
+  dimensions:
+    correctness:         weight 0.35    # verification L4-L6 pass rate
+    security:            weight 0.15    # L7 security scan cleanliness
+    reliability:         weight 0.10    # repair loop count (inverted)
+    maintainability:     weight 0.10    # complexity, coverage
+    performance:         weight 0.10    # L8 perf compliance
+    completeness:        weight 0.20    # L6 requirement satisfaction
+```
+
+### 4.3 Benchmark Scorers
+
+Deep Spec 5 §1.4 defined the beat-human benchmark suite. Benchmark scorers grade specialist outputs against ground-truth answers:
+
+```python
+class BenchmarkScorer(ABC):
+    benchmark_id: str
+
+    @abstractmethod
+    async def score(
+        self,
+        task_output: BenchmarkTaskOutput,
+        gold_answer: BenchmarkGoldAnswer,
+    ) -> BenchmarkScore:
+        """
+        Compare specialist output to gold answer.
+        Returns 0..1 score and per-criterion breakdown.
+        """
+```
+
+Benchmark runs are triggered:
+- **Nightly** — full suite against production specialist versions
+- **Pre-shadow** — full suite against candidate policy/prompt/agent
+- **Post-rollout** — full suite in first 24h after rollout
+- **On demand** — when Domain Director investigates a concern
+
+### 4.4 Human Evaluation
+
+Human evaluators are the **anchor** for every automated evaluator.
+
+```text
+SAMPLING RATE PER DOMAIN:
+  Legal      3% of production missions + 100% of benchmark
+  Medical    5% of production missions + 100% of benchmark
+  Software   1% of production missions + 100% of benchmark
+  Research   2% of production + 100% of benchmark
+  Financial  2% of production + 100% of benchmark
+  Other      1% + benchmark
+
+ESCALATION CRITERIA:
+  - user_marked_incorrect        → mandatory human review
+  - critic disagrees with grader → mandatory human review
+  - benchmark regression         → mandatory human review
+  - novel failure category       → mandatory human review
+
+HUMAN EVALUATOR POOL:
+  - Domain experts (contracted)
+  - Rotating panels per domain
+  - Every evaluation double-scored (inter-rater agreement tracked)
+  - Kappa < 0.7 triggers rubric review
+
+STORAGE:
+  evolution.human_evaluations table
+  Same shape as GradedOutcome but with evaluator_id = human panel ID
+```
+
+### 4.5 Grader Calibration
+
+Every domain grader is calibrated against its human panel:
+
+```text
+Nightly calibration job:
+  1. Pull last 30 days of human-evaluated outcomes
+  2. Score same outcomes with current automated grader
+  3. Compute:
+     - mean absolute error (grader vs human)
+     - Spearman correlation
+     - dimension-level drift
+  4. If MAE > tolerance → open GRADER_CALIBRATION_DRIFT incident
+  5. Publish calibration report to internal dashboard
+
+TOLERANCES:
+  Legal:     MAE ≤ 0.08, ρ ≥ 0.85
+  Medical:   MAE ≤ 0.06, ρ ≥ 0.90
+  Software:  MAE ≤ 0.10, ρ ≥ 0.80
+  Others:    MAE ≤ 0.10, ρ ≥ 0.80
+```
+
+Grader drift blocks automated policy updates that rely on that grader until recalibrated.
+
+---
+
+## 5. AGGREGATION (STAGE 3)
+
+Rolling metrics tables built nightly from raw outcomes and evaluations.
+
+### 5.1 Materialized Metric Tables
+
+Recap and extend Deep Spec 3 §15:
+
+```sql
+-- Per model × capability rolling performance (windowed)
+CREATE TABLE evolution.model_performance (
+  model_id            TEXT NOT NULL,
+  capability          TEXT NOT NULL,
+  window_start        TIMESTAMPTZ NOT NULL,
+  window_end          TIMESTAMPTZ NOT NULL,
+  window_kind         TEXT NOT NULL CHECK (window_kind IN ('1h','24h','30d')),
+  calls_count         BIGINT NOT NULL DEFAULT 0,
+  success_rate        confidence_score,
+  median_latency_ms   INT,
+  p95_latency_ms      INT,
+  median_ttft_ms      INT,
+  avg_cost_usd        money_usd,
+  quality_score       confidence_score,           -- weighted by outcome
+  cost_per_quality    DOUBLE PRECISION,           -- $/quality point
+  fallback_used_rate  confidence_score,
+  PRIMARY KEY (model_id, capability, window_kind, window_end)
+);
+
+-- Per agent (definition) rolling performance
+CREATE TABLE evolution.agent_performance (
+  agent_definition_id TEXT NOT NULL,
+  window_start        TIMESTAMPTZ NOT NULL,
+  window_end          TIMESTAMPTZ NOT NULL,
+  window_kind         TEXT NOT NULL,
+  runs_count          INT NOT NULL DEFAULT 0,
+  success_rate        confidence_score,
+  avg_confidence      confidence_score,
+  avg_latency_ms      INT,
+  avg_cost_usd        money_usd,
+  avg_repair_attempts DOUBLE PRECISION,
+  critic_avg_score    confidence_score,
+  human_ack_rate      confidence_score,
+  benchmark_score     confidence_score,
+  ladder_rung         SMALLINT,                    -- 1..4 per Deep Spec 5 §3
+  PRIMARY KEY (agent_definition_id, window_kind, window_end)
+);
+
+-- Per prompt template version
+CREATE TABLE evolution.prompt_template_performance (
+  template_id         TEXT NOT NULL,
+  template_version    TEXT NOT NULL,
+  window_start        TIMESTAMPTZ NOT NULL,
+  window_end          TIMESTAMPTZ NOT NULL,
+  window_kind         TEXT NOT NULL,
+  uses_count          INT NOT NULL DEFAULT 0,
+  win_rate_vs_baseline confidence_score,           -- shadow comparisons
+  quality_score       confidence_score,
+  avg_output_tokens   INT,
+  avg_cost_usd        money_usd,
+  PRIMARY KEY (template_id, template_version, window_kind, window_end)
+);
+
+-- Per tool
+CREATE TABLE evolution.tool_performance (
+  tool_id             TEXT NOT NULL,
+  tool_version        TEXT NOT NULL,
+  window_start        TIMESTAMPTZ NOT NULL,
+  window_end          TIMESTAMPTZ NOT NULL,
+  window_kind         TEXT NOT NULL,
+  invocations         BIGINT NOT NULL DEFAULT 0,
+  success_rate        confidence_score,
+  median_latency_ms   INT,
+  failure_categories  JSONB NOT NULL DEFAULT '{}'::jsonb,
+  PRIMARY KEY (tool_id, tool_version, window_kind, window_end)
+);
+
+-- Per check descriptor
+CREATE TABLE evolution.check_performance (
+  check_id            TEXT NOT NULL,
+  window_start        TIMESTAMPTZ NOT NULL,
+  window_end          TIMESTAMPTZ NOT NULL,
+  window_kind         TEXT NOT NULL,
+  runs_count          BIGINT NOT NULL DEFAULT 0,
+  pass_rate           confidence_score,
+  false_positive_rate confidence_score,
+  false_negative_rate confidence_score,
+  median_latency_ms   INT,
+  PRIMARY KEY (check_id, window_kind, window_end)
+);
+
+-- Per critic (against human panel)
+CREATE TABLE evolution.critic_calibration (
+  critic_id           TEXT NOT NULL,
+  window_start        TIMESTAMPTZ NOT NULL,
+  window_end          TIMESTAMPTZ NOT NULL,
+  window_kind         TEXT NOT NULL,
+  reviews_count       INT NOT NULL DEFAULT 0,
+  mae_vs_human        DOUBLE PRECISION,
+  spearman_rho        DOUBLE PRECISION,
+  agreement_kappa     DOUBLE PRECISION,
+  needs_recalibration BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (critic_id, window_kind, window_end)
+);
+```
+
+### 5.2 Nightly Materialization Job
+
+```text
+02:00 UTC every night:
+  1. Pull last 24h + last 7d + last 30d of outcomes + graded outcomes + human evals
+  2. For each subject aggregator: emit MetricRows into the tables above
+  3. Refresh the mission-summary + daily-spend materialized views (Deep Spec 3 §18)
+  4. Run drift detectors (§7)
+  5. Run calibration audits (§4.5)
+  6. Emit `evolution.metrics_refresh_completed` event
+  7. Notify learners (§6) that new metrics are ready
+```
+
+---
+
+## 6. THE LEARNERS (STAGE 4)
+
+Learners consume aggregated metrics and **propose** policy changes. They never apply changes directly.
+
+### 6.1 The Router Learner (Model Routing)
+
+Reference Deep Spec 4 §5.4 — Thompson sampling for exploration. The Router Learner **updates the posteriors** nightly.
+
+```text
+INPUT:
+  - evolution.model_performance (last 30d, all windows)
+  - evolution.outcome_records tagged with routing decisions
+  - benchmark results (per model × capability)
+
+ALGORITHM:
+  For each (capability, model):
+    S = successful outcomes attributed to this route
+    F = failed outcomes attributed to this route
+    Prior: Beta(2, 2)
+    Posterior: Beta(2 + S, 2 + F)
+  For each capability:
+    Compute Pareto frontier over (quality, latency, cost, availability)
+    Adjust utility_weights per QualityFloor tier if warranted
+  Update exploration ε based on total observations
+
+OUTPUT: RouterPolicyProposal
+  - updated posteriors per (capability, model)
+  - updated utility weights (only if statistically significant)
+  - updated exploration ε
+  - fallback chain reorderings
+  - expected uplift vs current policy (measured via holdout simulation)
+```
+
+Router policy proposals must show:
+- **Quality parity or improvement** on the primary axis
+- **No regression** on any safety metric
+- **Cost-neutral or better** unless quality gain justifies
+
+### 6.2 The Prompt Learner
+
+Prompt templates are versioned artifacts. The Prompt Learner detects when a candidate version wins consistently over the baseline.
+
+```text
+INPUT:
+  - evolution.prompt_template_performance (windowed)
+  - shadow deployment win rates
+  - per-outcome grader scores tagged with template version
+
+METHOD:
+  1. For each template with an active candidate version:
+     - Compute win rate on paired samples (same input, baseline vs candidate)
+     - Compute confidence interval via bootstrap
+  2. If candidate wins with 95% CI lower bound > 0 → PROMOTION_ELIGIBLE
+  3. If candidate loses with 95% CI upper bound < 0 → REJECT
+  4. Otherwise → CONTINUE_SHADOW
+
+OUTPUT: PromptPromotionProposal
+  - template_id, from_version, to_version
+  - win rate + CI
+  - dimension-level score changes
+  - sample size
+  - shadow duration
+```
+
+### 6.3 The Agent Learner
+
+Agent definitions (system prompt, methodology, tool bindings, critic pairing) are versioned. The Agent Learner detects when a candidate agent version outperforms the current on the benchmark suite AND in production shadow traffic.
+
+```text
+INPUT:
+  - evolution.agent_performance (windowed)
+  - benchmark results per version (§4.3)
+  - production shadow results
+  - human evaluator sampling
+
+CRITERIA FOR PROMOTION:
+  1. Benchmark score ≥ current version (99% CI)
+  2. Production quality score ≥ current version (95% CI)
+  3. No safety regression
+  4. Rung 4 gate maintained (Deep Spec 5 §3)
+  5. Domain Director explicit approval
+
+OUTPUT: AgentPromotionProposal
+  - agent_definition_id, from_version, to_version
+  - benchmark deltas
+  - production deltas
+  - risk assessment
+  - rollout plan
+```
+
+### 6.4 The Model Registry Learner
+
+Detects when a **new model** in the registry has enough observations to be promoted from shadow to production for a given capability, or when a **retired model** should be deprecated.
+
+```text
+INPUT:
+  - evolution.model_performance (windowed)
+  - shadow traffic for new models
+  - provider announcements (deprecation dates)
+  - cost changes (provider pricing updates)
+
+PROMOTION CANDIDATES:
+  - New model shows quality ≥ current preferred (95% CI)
+  - Cost within tier budget
+  - Availability ≥ current preferred
+  - Passes safety benchmarks
+  - Minimum sample size threshold met
+
+DEPRECATION CANDIDATES:
+  - Model quality slipped > 10% for 14 days
+  - Provider announced end-of-life within 90 days
+  - Model consistently loses to newer alternatives on all capabilities
+  - Cost/quality ratio significantly worse than alternatives
+
+OUTPUT:
+  - ModelPromotionProposal or ModelDeprecationProposal
+```
+
+### 6.5 The Corpus Learner (Domain Knowledge Freshness)
+
+Detects when a domain corpus has stale or unused sources.
+
+```text
+INPUT:
+  - retrieval logs (which sources returned; which were cited)
+  - source freshness metrics (last refresh timestamp)
+  - failure categories mentioning "outdated information"
+  - user corrections mentioning stale facts
+
+OUTPUT: CorpusUpdateProposal
+  - sources to refresh (stale)
+  - sources to add (gap discovered)
+  - sources to retire (never cited in 90d)
+  - new source candidates (from user corrections, from domain director)
+```
+
+### 6.6 The Verification Learner
+
+Detects when verification checks are too loose (FN rate high) or too strict (FP rate high).
+
+```text
+INPUT:
+  - evolution.check_performance
+  - human overrides of check verdicts
+  - repair loop patterns (which check failures led to how many repair cycles)
+
+OUTPUT: VerificationTuningProposal
+  - checks whose thresholds should tighten
+  - checks whose thresholds should loosen
+  - checks to add (new failure mode not caught)
+  - checks to retire (never fires; or always fires spuriously)
+```
+
+### 6.7 The Learner Contract
+
+Every learner conforms to:
+
+```python
+class Learner(ABC):
+    subject_kind: str
+
+    @abstractmethod
+    async def analyze(self, window: TimeWindow) -> list[ChangeProposal]:
+        """
+        Analyze aggregated metrics; return zero or more proposals.
+        Each proposal is a candidate change with:
+          - subject (what would change)
+          - from_state, to_state
+          - evidence (statistics, benchmark deltas, sample size)
+          - expected uplift (quality, cost, latency)
+          - risk assessment
+          - required approvers (per governance)
+        """
+```
+
+Learners **never mutate production state**. They write proposals to `evolution.change_proposals`.
+
+---
+
+## 7. DRIFT DETECTION (STAGE 3 SUBSYSTEM)
+
+Explicit detectors for four kinds of drift:
+
+### 7.1 Input Distribution Drift
+
+Detects when the distribution of user inputs shifts.
+
+```text
+TRACKED:
+  - Mission length distribution (tokens)
+  - Domain distribution
+  - Language distribution
+  - Complexity distribution (D0-D6)
+  - Attachment presence rate
+  - Novel entity mention rate (via NER)
+
+METHOD: population stability index (PSI) vs 30-day baseline
+ALERT: PSI > 0.25 → INPUT_DRIFT_DETECTED incident
+```
+
+### 7.2 Model Output Drift
+
+Detects when a given model's outputs change character (indicates provider silent update).
+
+```text
+TRACKED per model:
+  - Output length distribution
+  - Response mode distribution (JSON, text, tool calls)
+  - Refusal rate
+  - Repetition scores
+  - Novel vocabulary rate
+
+METHOD: PSI vs previous 30-day window
+ALERT: PSI > 0.25 → MODEL_OUTPUT_DRIFT_DETECTED
+ACTION: Rerun benchmark suite for that model immediately; freeze model
+        promotions until benchmark reconfirmed
+```
+
+### 7.3 Tenant Behavior Drift
+
+Detects when a specific tenant's usage pattern shifts.
+
+```text
+TRACKED per tenant:
+  - Mission tier mix
+  - Domain mix
+  - Budget consumption rate
+  - Failure rate
+  - Human approval frequency
+
+METHOD: PSI vs tenant's 30-day baseline
+USE: informs tenant-specific policy tuning (Enterprise)
+     informs proactive support outreach
+```
+
+### 7.4 World Fact Drift (Corpus Staleness)
+
+Detects when the world has moved on from what the corpus knows.
+
+```text
+TRACKED per domain:
+  - Rate of user corrections citing outdated facts
+  - Rate of citations to sources > N months old
+  - Coverage gap on newly-emergent topics (via topic modeling)
+
+ALERT: statistically significant increase → CORPUS_STALENESS_DETECTED
+ACTION: Domain Director notified; corpus refresh prioritized
+```
+
+### 7.5 Drift Alert Handling
+
+```text
+Every drift alert is a first-class incident (Deep Spec 8 §12):
+  - SEV assigned by drift magnitude + affected surface
+  - Runbook per drift type
+  - Automated response for known-safe cases (e.g., trigger corpus refresh)
+  - Human-loop for policy implications
+```
+
+---
+
+## 8. THE PROPOSAL ENGINE (STAGE 5)
+
+Learners write proposals; the Proposal Engine normalizes, ranks, and routes them.
+
+### 8.1 Proposal Schema
+
+```protobuf
+message ChangeProposal {
+  string proposal_id               = 1;
+  string proposal_kind             = 2;   // "router_policy", "prompt_promotion",
+                                          //  "agent_promotion", "model_promotion",
+                                          //  "model_deprecation", "corpus_update",
+                                          //  "verification_tuning"
+  string proposer                  = 3;   // Learner ID
+  string subject_kind              = 4;
+  string subject_id                = 5;
+  ProposalSeverity severity        = 6;   // MINOR | MODERATE | MAJOR
+
+  google.protobuf.Struct current_state = 7;
+  google.protobuf.Struct proposed_state = 8;
+
+  Evidence evidence                = 9;
+  ExpectedImpact expected_impact   = 10;
+  RiskAssessment risk              = 11;
+
+  repeated string required_approvers = 12;
+  int64 shadow_duration_hours      = 13;
+  RolloutPlan rollout_plan         = 14;
+
+  ProposalStatus status            = 15;
+  int64 created_at_unix_ns         = 16;
+  int64 decided_at_unix_ns         = 17;
+  string decided_by                = 18;
+  string decision_reason           = 19;
+}
+
+message Evidence {
+  int32 sample_size                = 1;
+  google.protobuf.Struct statistics = 2;    // means, CIs, p-values
+  repeated string benchmark_deltas = 3;
+  repeated ArtifactRef reports     = 4;
+  int64 data_window_start_unix_ns  = 5;
+  int64 data_window_end_unix_ns    = 6;
+}
+
+message ExpectedImpact {
+  double quality_delta             = 1;
+  double cost_delta_usd_per_call   = 2;
+  double latency_delta_ms          = 3;
+  double safety_delta              = 4;   // 0 unless proposal touches safety
+  int32  affected_tenants_count    = 5;
+  int32  affected_missions_per_day = 6;
+}
+
+message RolloutPlan {
+  repeated RolloutStage stages     = 1;
+  string rollback_criteria         = 2;   // Auto-rollback conditions
+}
+
+message RolloutStage {
+  int32 stage_number               = 1;
+  double traffic_percent           = 2;   // 1, 5, 25, 50, 100
+  int64 minimum_duration_hours     = 3;
+  string exit_gate                 = 4;   // "quality ≥ baseline for N hours"
+}
+
+enum ProposalSeverity {
+  SEVERITY_UNSPECIFIED = 0;
+  MINOR                = 1;   // prompt tweak, tool config
+  MODERATE             = 2;   // method refinement, corpus addition
+  MAJOR                = 3;   // methodology change, model swap
+}
+
+enum ProposalStatus {
+  STATUS_UNSPECIFIED   = 0;
+  PENDING_REVIEW       = 1;
+  IN_SHADOW            = 2;
+  APPROVED             = 3;
+  ROLLING_OUT          = 4;
+  ACTIVE               = 5;
+  REJECTED             = 6;
+  WITHDRAWN            = 7;
+  ROLLED_BACK          = 8;
+}
+```
+
+### 8.2 Storage
+
+```sql
+CREATE TABLE evolution.change_proposals (
+  proposal_id             ulid PRIMARY KEY,
+  proposal_kind           TEXT NOT NULL,
+  proposer                TEXT NOT NULL,
+  subject_kind            TEXT NOT NULL,
+  subject_id              TEXT NOT NULL,
+  severity                TEXT NOT NULL CHECK (severity IN ('minor','moderate','major')),
+
+  current_state           JSONB NOT NULL,
+  proposed_state          JSONB NOT NULL,
+  evidence                JSONB NOT NULL,
+  expected_impact         JSONB NOT NULL,
+  risk                    JSONB NOT NULL,
+
+  required_approvers      TEXT[] NOT NULL DEFAULT '{}',
+  shadow_duration_hours   INT NOT NULL DEFAULT 24,
+  rollout_plan            JSONB NOT NULL,
+
+  status                  TEXT NOT NULL DEFAULT 'pending_review',
+  shadow_started_at       TIMESTAMPTZ,
+  shadow_completed_at     TIMESTAMPTZ,
+  approved_at             TIMESTAMPTZ,
+  approved_by             TEXT,
+  rollout_started_at      TIMESTAMPTZ,
+  activated_at            TIMESTAMPTZ,
+  rolled_back_at          TIMESTAMPTZ,
+  rollback_reason         TEXT,
+
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX cp_status_created_idx ON evolution.change_proposals (status, created_at DESC);
+CREATE INDEX cp_subject_idx        ON evolution.change_proposals (subject_kind, subject_id);
+```
+
+### 8.3 Automatic Rejection Rules
+
+Before a proposal reaches humans, the engine auto-rejects on structural failures:
+
+```text
+AUTO-REJECT IF:
+  - Sample size below minimum (per kind)
+  - Statistical power < 0.8
+  - Any safety metric shows regression
+  - Grader used is currently flagged for calibration drift
+  - Subject is under an active P0/P1 incident
+  - Proposal would touch >20% of production without staged rollout
+  - Proposal contradicts a still-active human-approved rollback
+```
+
+Rejected proposals include the reason and go back to the learner as feedback.
+
+### 8.4 Ranking
+
+Approved-for-review proposals are ranked for human attention by:
+```text
+rank_score = expected_uplift * confidence * priority_weight / risk_score
+```
+
+Domain Directors see a ranked queue in the admin console.
+
+---
+
+## 9. SHADOW DEPLOYMENT (STAGE 6)
+
+Every non-trivial proposal enters shadow mode before affecting user-facing decisions.
+
+### 9.1 Shadow Modes by Proposal Kind
+
+```text
+PROPOSAL KIND              SHADOW MODE
+─────────────────────    ───────────────────────────────────────────────────
+Router policy              Split-traffic (control vs candidate on same tenants)
+Prompt promotion           Paired-request (candidate runs alongside baseline;
+                            outputs compared; user sees baseline)
+Agent promotion            Parallel-execution (candidate agent runs same task
+                            in isolation; user sees current version)
+Model promotion            Split-traffic on eligible capability requests
+Model deprecation          Progressive traffic reduction; monitor for issues
+Corpus update              Retrieval-diff (both corpora searched; results
+                            compared)
+Verification tuning        Dual-check (both thresholds evaluated; only current
+                            enforces)
+```
+
+### 9.2 Shadow Traffic Selection
+
+```text
+NEVER SHADOW ON:
+  - RESTRICTED sensitivity data
+  - Ranger-tier missions with autonomy L4+
+  - Missions with explicit "no_experiments" tenant flag
+  - Enterprise tenants without opted-in experiments
+  - Missions in incident-affected time windows
+
+DEFAULT SHADOW RATE:
+  - MINOR proposals: 25% of eligible traffic
+  - MODERATE proposals: 10% of eligible traffic
+  - MAJOR proposals: 5% of eligible traffic
+
+DURATION:
+  - MINOR: 24 hours minimum
+  - MODERATE: 7 days minimum
+  - MAJOR: 30 days minimum
+
+STOP CONDITIONS (shadow halted, proposal returned):
+  - Candidate underperforms baseline with 99% CI
+  - Any safety event triggered by candidate
+  - Cost overrun on candidate > 50% baseline
+  - Domain Director requests halt
+```
+
+### 9.3 Shadow Result Aggregation
+
+```sql
+CREATE TABLE evolution.shadow_results (
+  shadow_id               ulid PRIMARY KEY,
+  proposal_id             ulid NOT NULL REFERENCES evolution.change_proposals(proposal_id),
+  window_start            TIMESTAMPTZ NOT NULL,
+  window_end              TIMESTAMPTZ NOT NULL,
+
+  baseline_sample_size    INT NOT NULL,
+  candidate_sample_size   INT NOT NULL,
+
+  baseline_quality        confidence_score,
+  candidate_quality       confidence_score,
+  quality_delta_mean      DOUBLE PRECISION,
+  quality_delta_ci_low    DOUBLE PRECISION,
+  quality_delta_ci_high   DOUBLE PRECISION,
+
+  baseline_cost_usd       money_usd,
+  candidate_cost_usd      money_usd,
+
+  baseline_latency_p95    INT,
+  candidate_latency_p95   INT,
+
+  safety_events_baseline  INT NOT NULL DEFAULT 0,
+  safety_events_candidate INT NOT NULL DEFAULT 0,
+
+  verdict                 TEXT CHECK (verdict IN ('candidate_wins','baseline_wins',
+                                                   'inconclusive','safety_regression')),
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### 9.4 Shadow Cost Attribution
+
+Shadow traffic costs are tracked separately and charged to the **evolution research budget**, not tenant budgets. Enterprise tenants may see aggregate shadow contribution in their reports (transparency).
+
+---
+
+## 10. GOVERNANCE (STAGE 7)
+
+Human approval gates every non-trivial change.
+
+### 10.1 Approver Matrix
+
+```text
+PROPOSAL KIND × SEVERITY    APPROVERS REQUIRED
+──────────────────────────  ──────────────────────────────────────────────
+Router policy · MINOR       Automated after shadow if CI clean
+Router policy · MODERATE    Platform Engineering Lead
+Router policy · MAJOR       Platform Engineering Lead + CTO
+Prompt · MINOR              Domain Director (auto if within existing method)
+Prompt · MODERATE           Domain Director + Method Engineer
+Prompt · MAJOR              Domain Director + A3 Universal Critic sign-off
+Agent · MINOR               Domain Director
+Agent · MODERATE            Domain Director + independent human panel review
+Agent · MAJOR               Domain Director + external expert panel + CTO
+Model promotion             Domain Director + Security review (data flows)
+Model deprecation           Domain Director + Support Lead (customer comms)
+Corpus update · MINOR       Corpus Engineer
+Corpus update · MODERATE    Corpus Engineer + Domain Director
+Corpus update · MAJOR       Domain Director + Legal (license compliance)
+Verification tuning         Verification Director (Deep Spec 6)
+```
+
+### 10.2 Approval Workflow
+
+Approvals reuse the Human Approval Engine from Deep Spec 8 §15:
+
+```text
+1. Proposal reaches PENDING_REVIEW status
+2. Proposal Engine creates ApprovalTicket per required approver
+3. Approvers notified via configured channels
+4. Approver reviews:
+   - Full evidence
+   - Shadow results (if applicable)
+   - Expected impact
+   - Risk assessment
+   - Related open incidents
+5. Approver decision:
+   - APPROVE → status = APPROVED
+   - REQUEST_CHANGES → status returns to learner with notes
+   - DENY → status = REJECTED with reason
+6. All decisions audit-logged (§13)
+```
+
+### 10.3 Standing Delegations
+
+Domain Directors can create **standing delegations** for pre-approved change patterns:
+
+```yaml
+# Example: legal director's delegation
+delegated_pattern:
+  proposal_kind: prompt_promotion
+  severity: MINOR
+  subject_kind: agent_definition
+  subject_scope: "C36_*"
+  conditions:
+    - shadow_ci_lower_bound > 0
+    - safety_delta == 0
+    - cost_delta_usd < 0.02
+  max_per_week: 3
+  auto_approve: true
+  audit_notification: [b3_legal_director]
+```
+
+Delegations reduce human friction on safe, common changes. Anything outside the delegation requires explicit approval.
+
+### 10.4 Emergency Halt Authority
+
+At any time, any Domain Director OR the CTO OR A6 Risk Officer can:
+- Halt any proposal
+- Roll back any active change
+- Freeze all evolution changes in a domain for N hours
+
+Emergency halts require post-hoc justification but are effective immediately.
+
+---
+
+## 11. ROLLOUT (STAGE 8)
+
+Approved proposals move through staged rollout with automated rollback.
+
+### 11.1 Rollout Stages
+
+```text
+DEFAULT STAGES (customizable per proposal):
+
+Stage 1:   1%  traffic for 4 hours    →  gate: no safety events
+Stage 2:   5%  traffic for 8 hours    →  gate: quality ≥ baseline (95% CI)
+Stage 3:   25% traffic for 24 hours   →  gate: quality ≥ baseline + cost within budget
+Stage 4:   50% traffic for 48 hours   →  gate: no P2+ incidents in window
+Stage 5:   100% traffic                →  activation complete
+```
+
+Each stage runs autonomously if its exit gate passes. Any gate failure → automatic hold + notification. Human decides: continue, extend, or roll back.
+
+### 11.2 Automated Rollback Triggers
+
+```text
+IMMEDIATE ROLLBACK IF:
+  - Safety event attributed to change
+  - Quality metric drops > 10% in 15-min window
+  - Cost overrun > 50% projected in any tenant
+  - P0/P1 incident opens in affected subsystem
+  - Human emergency halt invoked
+
+DELAYED ROLLBACK CANDIDATES:
+  - Quality regression detected in nightly aggregate → open incident,
+    Domain Director decides
+  - Drift detector alerts within 7 days of activation → investigation,
+    possible rollback
+```
+
+Rollback is a **one-command operation** for every rollout target. Every change type has a paired rollback procedure:
+
+```text
+Router policy: revert to prior policy_version in policy bundle
+Prompt: revert template_version pin in agent definition
+Agent: revert agent_definition_id to prior version
+Model: revert routing preferences in registry
+Corpus: revert source_registry snapshot
+Verification: revert check thresholds
+```
+
+Rollback SLO: **≤ 60 seconds** from decision to full production revert for infrastructure changes; **≤ 5 minutes** for agent/corpus changes.
+
+### 11.3 Rollout Observability
+
+Grafana "Evolution Rollouts" dashboard shows for every active rollout:
+- Current stage + traffic %
+- Quality delta (rolling)
+- Cost delta (rolling)
+- Safety event count
+- Time in stage
+- Next gate ETA
+- Rollback button (with confirmation)
+
+---
+
+## 12. THE POLICY BUNDLE
+
+Runtime services never read the evolution database directly. They load a **signed policy bundle**.
+
+### 12.1 Bundle Contents
+
+```text
+policy_bundle_v2025_11_04_02_15_00.tar.gz
+├── manifest.json                        # Bundle metadata + signatures
+├── router/
+│   ├── model_registry_snapshot.json     # Current registry + posteriors
+│   └── routing_weights.yaml
+├── prompts/
+│   ├── template_index.yaml              # Which version is active per template
+│   └── templates/
+│       ├── coco_voice_v3.md
+│       ├── c36_system_prompt_v7.md
+│       └── ...
+├── agents/
+│   └── active_versions.yaml             # agent_definition_id → version
+├── corpora/
+│   └── source_index.yaml                # Active sources per domain
+├── verification/
+│   ├── check_thresholds.yaml
+│   └── domain_batteries.yaml            # Active levels per domain
+├── model_provider/
+│   └── endpoint_health_snapshot.json    # Latest known endpoint health
+└── SIGNATURES.json                       # cosign signatures + provenance
+```
+
+### 12.2 Bundle Lifecycle
+
+```text
+1. Nightly at 03:00 UTC:
+   - Assemble bundle from currently ACTIVE proposals + baseline configs
+   - Sign with evolution service signing key (rotated monthly)
+   - Attach SLSA provenance
+   - Upload to object storage with versioned key
+   - Publish `evolution.policy_bundle_published` event
+
+2. Runtime services poll for new bundles (every 60s):
+   - Verify signature
+   - Verify provenance chain
+   - Verify version > current
+   - Load atomically (double-buffer swap)
+   - Emit `service.policy_bundle_loaded` event
+
+3. If bundle load fails:
+   - Continue with prior bundle
+   - Alert P1
+   - Do not attempt again until fresh bundle available
+
+4. Rollback:
+   - Cut a new bundle pinning prior versions of rolled-back components
+   - Publish urgently (out-of-band from nightly cycle)
+   - Services swap within 60s
+```
+
+### 12.3 Emergency Bundle
+
+For P0/P1 incidents, an **emergency bundle** can be published within minutes:
+- Bypasses nightly schedule
+- Requires two-person signing (CTO + Security Lead)
+- Contains only the specific rollback deltas
+- Fully audited
+
+---
+
+## 13. AUDIT & REPLAY (STAGE 9)
+
+Every evolution decision is auditable and reproducible.
+
+### 13.1 Audit Chain for Evolution
+
+Extends the Security Fabric's chain (Deep Spec 8 §11.1) with evolution-specific events:
+
+```text
+EVOLUTION AUDIT EVENTS:
+
+evolution.metrics_refresh_completed
+evolution.grader_calibration_completed
+evolution.grader_drift_detected
+evolution.proposal_created
+evolution.proposal_auto_rejected
+evolution.proposal_shadow_started
+evolution.proposal_shadow_completed
+evolution.proposal_approved
+evolution.proposal_denied
+evolution.rollout_started
+evolution.rollout_stage_advanced
+evolution.rollout_stage_gate_failed
+evolution.rollout_completed
+evolution.rollout_paused
+evolution.rollback_triggered
+evolution.rollback_completed
+evolution.emergency_halt_invoked
+evolution.policy_bundle_published
+evolution.policy_bundle_loaded
+evolution.drift_alert_fired
+evolution.human_evaluation_recorded
+```
+
+All chain-hashed and retained per compliance policy.
+
+### 13.2 Replay
+
+Given a `mission_id`, the Evolution Fabric can reconstruct exactly:
+- Which policy bundle was active
+- Which routing decisions were made and why
+- Which prompt template versions were used
+- Which agent version served
+- Which corpus sources were retrieved
+- Which verification thresholds were applied
+
+This enables:
+- **Debugging** — reproduce production behavior offline
+- **Regression testing** — replay historical missions against candidate changes
+- **Regulatory review** — prove exactly what happened
+- **Counterfactual analysis** — "what if we had used candidate policy?"
+
+Replay is a first-class function of the fabric, exposed via CLI:
+```bash
+coco evolution replay --mission mis_01J8... --policy-bundle v2025_11_04_02_15_00
+coco evolution counterfactual --mission mis_01J8... --candidate-proposal prop_01J8...
+```
+
+---
+
+## 14. HISTORICAL COUNTERFACTUAL EVALUATION
+
+Beyond live shadow, the loop uses historical replay to evaluate proposals cheaply.
+
+### 14.1 The Counterfactual Simulator
+
+```text
+For a proposal (e.g., router policy change):
+  1. Sample N past missions (respecting sensitivity/consent rules)
+  2. For each: reconstruct the input + context
+  3. Replay under candidate policy in a sandboxed environment
+  4. Compare candidate outcome to actual outcome
+  5. Aggregate: quality delta, cost delta, safety events
+
+CAVEATS:
+  - Prompt/agent changes require re-inference (expensive)
+  - Model changes require live shadow (provider behavior changes)
+  - Corpus changes can be simulated cheaply
+  - Verification changes can be simulated cheaply
+
+USE:
+  - Fast preliminary evidence before spinning up live shadow
+  - Sanity-check that a proposal doesn't obviously regress
+  - Reduce live shadow duration for well-simulated changes
+```
+
+### 14.2 Consent & Sensitivity
+
+Counterfactual replay:
+- Skips RESTRICTED sensitivity missions
+- Skips tenants without opted-in experimentation
+- Uses hashed-input variants where PII is present
+- Full audit trail of what was replayed
+
+---
+
+## 15. CROSS-FABRIC FEEDBACK INTEGRATION
+
+The Evolution Fabric doesn't just feed model routing. Every fabric benefits.
+
+### 15.1 What Each Fabric Learns
+
+```text
+FABRIC                    LEARNS FROM EVOLUTION
+──────────────────       ───────────────────────────────────────────────
+Kernel                    - Task decomposition patterns that lead to success
+                          - Cognitive depth calibration
+                          - Task graph topology preferences
+
+Intelligence              - Agent selection preferences per task type
+                          - Model routing preferences per capability + tenant
+
+Context                   - Which memory retrieval strategies win
+                          - Context packet size vs quality trade-offs
+                          - Reranker preferences
+
+Execution                 - Which sandbox tier to prefer per tool + risk
+                          - Sandbox warm-pool sizing
+
+Forge                     - Repository template preferences
+                          - Framework selections that ship successfully
+
+Verification              - Check threshold tuning
+                          - Repair strategy selection
+                          - Critic assignment preferences
+
+Brain                     - Knowledge graph edge weight tuning
+                          - Decision precedent surface preferences
+
+Security                  - Anomaly detection thresholds
+                          - Risk scoring calibration
+
+Observability             - Alert threshold tuning
+                          - Metric aggregation preferences
+```
+
+### 15.2 Learning Boundaries
+
+Not everything is learned automatically:
+
+```text
+LEARNED AUTOMATICALLY (with governance):
+  - Numerical thresholds and weights
+  - Preference orderings among interchangeable options
+  - Rollout ratios
+  - Cache TTLs
+
+NEVER LEARNED AUTOMATICALLY:
+  - Constitutional laws (require formal amendment)
+  - Voice guidelines (require content review)
+  - Safety rules (require Security + CTO)
+  - Sensitivity classifications (require Legal + Security)
+  - Approval requirements (require governance change)
+  - Verification levels required per domain (require Verification Director)
+```
+
+---
+
+## 16. EVOLUTION OBSERVABILITY
+
+### 16.1 Metrics (Prometheus)
+
+```text
+coco_evolution_proposals_created_total{kind, severity}
+coco_evolution_proposals_auto_rejected_total{reason}
+coco_evolution_proposals_approved_total{kind, severity}
+coco_evolution_proposals_pending_count{kind, severity}
+coco_evolution_shadow_active_count{kind}
+coco_evolution_rollouts_active_count{stage}
+coco_evolution_rollouts_completed_total{kind, outcome}
+coco_evolution_rollback_triggered_total{reason}
+coco_evolution_policy_bundle_published_total
+coco_evolution_policy_bundle_load_failures_total{service}
+coco_evolution_drift_alerts_total{kind}
+coco_evolution_grader_mae{grader_id}
+coco_evolution_grader_correlation{grader_id}
+coco_evolution_human_evaluations_completed_total{domain}
+coco_evolution_benchmark_score{specialist_id, benchmark_id}
+coco_evolution_regression_incidents_open_count
+```
+
+### 16.2 Dashboards (Grafana)
+
+```text
+EVOLUTION OVERVIEW
+  - Proposals by status
+  - Rollouts in progress
+  - Recent rollbacks
+  - Drift alerts
+
+MODEL PERFORMANCE
+  - Per-capability quality trends (30d)
+  - Cost/quality Pareto frontier
+  - Fallback usage rate
+  - New model shadow progress
+
+AGENT PERFORMANCE
+  - Per-specialist success rate (30d)
+  - Ladder rung compliance
+  - Benchmark scores per specialist
+  - Critic calibration per critic
+
+PROMPT EVOLUTION
+  - Active shadow experiments
+  - Win rates
+  - Promotion queue
+
+CORPUS FRESHNESS
+  - Sources by refresh recency
+  - Retrieval-to-citation ratio
+  - Coverage gaps
+  - License compliance status
+
+REGRESSION WATCH
+  - Any subject with declining metrics
+  - Open regression incidents
+  - MTTR by incident type
+```
+
+### 16.3 Alerts
+
+```yaml
+- alert: EvolutionRegressionDetected
+  expr: |
+    (coco_evolution_benchmark_score{} - coco_evolution_benchmark_score{} offset 7d) / 
+     coco_evolution_benchmark_score{} offset 7d < -0.10
+  for: 1h
+  labels: {severity: P1}
+
+- alert: GraderCalibrationDrift
+  expr: coco_evolution_grader_mae > 0.15
+  for: 24h
+  labels: {severity: P2}
+
+- alert: PolicyBundleLoadFailure
+  expr: increase(coco_evolution_policy_bundle_load_failures_total[10m]) > 0
+  for: 0m
+  labels: {severity: P1}
+
+- alert: ShadowExperimentStuck
+  expr: coco_evolution_shadow_active_count > 20
+  for: 2h
+  labels: {severity: P3}
+
+- alert: DriftAlertFlood
+  expr: rate(coco_evolution_drift_alerts_total[10m]) > 5
+  for: 15m
+  labels: {severity: P2}
+```
+
+---
+
+## 17. EVOLUTION DEVELOPMENT WORKFLOW
+
+For platform engineers building new learners, graders, or drift detectors:
+
+### 17.1 Adding a New Learner
+
+```python
+# packages/python/coco-evolution-sdk/examples/new_learner.py
+
+from coco_evolution_sdk import (
+    Learner, ChangeProposal, Evidence, ExpectedImpact,
+    RiskAssessment, RolloutPlan, ProposalSeverity,
+    register_learner,
+)
+
+@register_learner(subject_kind="tool_selection_policy")
+class ToolSelectionLearner(Learner):
+
+    async def analyze(self, window):
+        # Pull aggregated metrics
+        tool_perf = await self.metrics.tool_performance(window=window)
+        outcomes = await self.metrics.outcome_records(window=window)
+
+        proposals = []
+        for tool_id, current_policy in await self.current_policies():
+            candidate = self._propose_new_policy(tool_id, tool_perf, outcomes)
+            if candidate:
+                proposals.append(ChangeProposal(
+                    proposal_kind="tool_selection_policy",
+                    subject_kind="tool_selection_policy",
+                    subject_id=tool_id,
+                    severity=ProposalSeverity.MINOR,
+                    current_state=current_policy,
+                    proposed_state=candidate,
+                    evidence=self._build_evidence(candidate, window),
+                    expected_impact=self._estimate_impact(candidate),
+                    risk=self._assess_risk(candidate),
+                    required_approvers=["b1_engineering_director"],
+                    shadow_duration_hours=48,
+                    rollout_plan=self._default_rollout_plan(),
+                ))
+        return proposals
+```
+
+CI validates:
+- Learner has tests against fixture metrics
+- Proposals produced conform to schema
+- Approval requirements match governance matrix
+
+### 17.2 Adding a New Grader
+
+```python
+from coco_evolution_sdk import (
+    OutcomeGrader, GradedOutcome, register_grader,
+)
+
+@register_grader(domain="operational")
+class OperationalOutcomeGrader(OutcomeGrader):
+    grader_id = "operational_grader_v1"
+    grader_version = "1.0.0"
+
+    async def grade(self, outcome, artifacts):
+        # Domain-specific scoring
+        ...
+        return GradedOutcome(...)
+```
+
+Every new grader ships with:
+- A calibration harness against a human panel
+- Nightly calibration job configured
+- Documented rubric in `docs/evolution/graders/`
+
+### 17.3 Testing Evolution Changes
+
+```bash
+# Local run of evolution loop against synthetic outcomes
+just evolution-simulate --scenario tests/fixtures/synthetic_missions.yaml
+
+# Counterfactual replay
+just evolution-replay --mission-set tests/fixtures/mission_ids.txt \
+                      --policy-bundle candidate
+
+# Grader calibration check
+just evolution-calibrate --grader operational_grader_v1
+```
+
+---
+
+## 18. TENANT-VISIBLE EVOLUTION
+
+Tenants can see and control aspects of the loop:
+
+### 18.1 Tenant Controls
+
+```text
+ADMIN CONSOLE → EVOLUTION
+├── Experimentation
+│   ├── Allow shadow experiments (default: on for Default/Pro; opt-in Enterprise)
+│   ├── Allow counterfactual replay (default: on for Default/Pro; opt-in Enterprise)
+│   └── Exclude specific missions/projects (tags)
+├── Model Preferences
+│   ├── Blocked models (per tenant)
+│   ├── Preferred models
+│   └── Tier restrictions
+├── Corpus Preferences
+│   ├── Tenant-provided corpora (uploaded)
+│   └── Excluded public corpora
+└── Evolution Notifications
+    ├── Notify on model deprecations (default: on)
+    ├── Notify on major policy changes (default: on)
+    └── Weekly evolution digest (default: off)
+```
+
+### 18.2 Enterprise Evolution Isolation
+
+Enterprise tenants can opt into **fully isolated evolution**:
+- Their outcomes never contribute to global policy learning
+- They receive quarterly bespoke reports on their own tenant's evolution
+- Custom learners can be deployed against their private corpora
+- All bundle updates gated by their own governance
+
+---
+
+## 19. LONG-TERM: SELF-IMPROVING AGENTS (SAFELY)
+
+The most sensitive form of learning is when a specialist's own agent definition improves. This section documents the strict, governed path.
+
+### 19.1 What Improvements Are Allowed
+
+```text
+ALLOWED (through Agent Learner, governed):
+  - System prompt refinements (measured on benchmark suite)
+  - Methodology step reordering (measured on benchmark suite)
+  - Tool binding additions (with security review)
+  - Critic pattern additions (based on observed failure modes)
+  - Knowledge source additions (with license + quality review)
+
+NOT ALLOWED (require constitutional-level change):
+  - Constitutional voice/persona changes
+  - Safety constraint relaxations
+  - Sensitivity classification downgrades
+  - Approval requirement removals
+  - Verification level requirement changes
+  - Cross-tier privilege elevation
+```
+
+### 19.2 The Agent Self-Improvement Pipeline
+
+```text
+1. Agent Learner analyzes:
+   - Per-specialist production outcomes
+   - Failure category patterns
+   - Critic reports (what critics repeatedly flag)
+   - Human evaluator feedback
+   - Benchmark performance trends
+
+2. Learner proposes candidate agent version:
+   - Isolated prompt/method refinement
+   - Small, single-dimension change
+
+3. Benchmark suite runs against candidate:
+   - MUST match or beat current on every benchmark task
+   - Weighted by task frequency in production
+
+4. Shadow deployment in parallel-execution mode:
+   - Candidate runs same tasks as production
+   - Outputs graded automatically + human-sampled
+   - Minimum 30 days, minimum sample size per domain
+
+5. Independent human panel review:
+   - External domain experts (contracted)
+   - Blind comparison (which output is better)
+   - Formal sign-off required
+
+6. Domain Director approval (per §10.1 major-severity)
+
+7. Staged rollout (§11) with heightened rollback sensitivity:
+   - Auto-rollback on any quality regression
+   - Auto-rollback on ANY human user "marked incorrect" spike
+
+8. Post-promotion monitoring for 90 days at elevated scrutiny
+```
+
+### 19.3 The Ceiling
+
+Even in this pipeline, the improvement ceiling is set by:
+- **Human evaluators** — grader alone never approves promotion
+- **Domain Director + external panel** — no promotion without them
+- **Benchmark ground truth** — degradation blocks always
+- **Constitutional laws** — untouchable
+
+**COCO becomes better by measurement, not by fiat.** No agent rewrites its own soul.
+
+---
+
+## 20. SUMMARY OF SPECIFICATION 9 LOCKS
+
+The **Evolution Loop** is now fully specified:
+
+1. **Ten Governing Laws Locked** — measure everything, human ground truth, no unsupervised self-modification, shadow before production, regression is P0, budgeted exploration, provenance-preserving, drift detected explicitly, ethical constraints on evolution targets, permanently auditable.
+
+2. **Evolution Fabric Architecture Locked** — 9-stage pipeline (Ingestion → Evaluation → Aggregation → Learners → Proposals → Shadow → Governance → Rollout → Audit); strict runtime/evolution separation.
+
+3. **Outcome Model Locked** — full `OutcomeRecord` schema with quality signals, resource footprint, decision references, outcome labels; storage with proper indexing; 24-hour finalization window.
+
+4. **Telemetry Ingestion Locked** — subject aggregators per learnable subject (model×capability, agent, prompt, tool, check, critic, specialist, sandbox, corpus); three-window strategy (1h/24h/30d).
+
+5. **Outcome Evaluation Locked** — three evaluators (automated grader, benchmark scorer, human panel); domain-specific graders with rubrics; benchmark run cadence; human sampling rates per domain; grader calibration with drift blocking.
+
+6. **Aggregation Tables Locked** — extended metric tables (model_performance, agent_performance, prompt_template_performance, tool_performance, check_performance, critic_calibration) with proper windowing; nightly materialization job.
+
+7. **Six Learners Locked** — Router (Thompson posterior updates), Prompt (A/B win-rate), Agent (benchmark+shadow), Model Registry (promotion/deprecation), Corpus (freshness), Verification (threshold tuning); each with strict input/output contract.
+
+8. **Four Drift Detectors Locked** — Input distribution (PSI), Model output (PSI + benchmark rerun), Tenant behavior, World-fact staleness; drift alerts as first-class incidents.
+
+9. **Proposal Engine Locked** — `ChangeProposal` schema with evidence, expected impact, risk, rollout plan; automatic rejection rules; ranking; storage; proposer feedback loop.
+
+10. **Shadow Deployment Locked** — per-kind shadow modes (split-traffic, paired-request, parallel-execution); traffic selection rules; duration policy; stop conditions; result aggregation; cost attribution.
+
+11. **Governance Locked** — full approver matrix per proposal kind × severity; approval workflow via Human Approval Engine; standing delegations for safe patterns; emergency halt authority.
+
+12. **Rollout Locked** — five-stage default rollout with gates; automated rollback triggers (immediate + delayed); one-command rollback procedures per change type; 60-second infrastructure rollback SLO.
+
+13. **Policy Bundle Locked** — signed bundle format containing router, prompts, agents, corpora, verification, health; nightly publication; runtime polling; emergency bundle two-person signing.
+
+14. **Audit & Replay Locked** — evolution-specific audit event catalog chain-hashed with security fabric; full mission replay capability; counterfactual replay via CLI.
+
+15. **Historical Counterfactual Evaluation Locked** — cheap policy assessment via replay against sampled historical missions; consent + sensitivity guardrails.
+
+16. **Cross-Fabric Feedback Integration Locked** — what each fabric learns; explicit boundaries between learned-with-governance vs never-learned-automatically.
+
+17. **Evolution Observability Locked** — comprehensive Prometheus metrics; six Grafana dashboards; automated alerts for regression, calibration drift, bundle failures, drift floods.
+
+18. **Evolution Development Workflow Locked** — SDK for new learners and graders; CI validation; local simulation and calibration tooling.
+
+19. **Tenant-Visible Evolution Locked** — admin controls for experimentation, model/corpus preferences, notifications; Enterprise fully-isolated evolution option.
+
+20. **Self-Improving Agents (Safely) Locked** — strict allow-list of learnable dimensions; hard prohibitions on constitutional/safety changes; 8-step self-improvement pipeline with mandatory external human panel; ceiling set by measurement not fiat.
+
+The loop is closed. Every mission produces measurable outcomes. Every outcome feeds evaluation. Every evaluation feeds proposals. Every proposal is shadowed, governed, and rolled out with automated regression protection. **COCO gets better every night — safely, transparently, and under human authority.**
+
+---
+
+## NEXT DEEP SPECIFICATION
+
+The improvement engine is locked. We proceed to **DEEP SPEC 10 — The Ranger Runtime Spec**:
+
+- The autonomous long-running mission runtime
+- Checkpoint & resume mechanics for missions spanning hours or days
+- Budget management for extended missions (compute, cost, time envelopes)
+- Autonomy level enforcement (L0-L5) with per-action gates
+- Multi-agent organization scaling (16 to 64+ parallel specialists)
+- Handling model provider outages mid-mission
+- Handling human unavailability during long missions (approval TTL policies, degraded operation)
+- Mission observability for operators overseeing long missions
+- Resumption from failed checkpoints
+- Cross-day mission continuity
+- Mission handoff between organizations (Enterprise use case)
+- The Ranger UX: how humans supervise without micromanaging
+- Ranger-specific safety: additional gates for autonomy that spans days
+
+**Confirm: proceed to Deep Spec 10 — Ranger Runtime?**

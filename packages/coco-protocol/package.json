@@ -1,0 +1,31 @@
+{
+  "name": "@coco/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./envelope": "./src/envelope.ts",
+    "./mission": "./src/mission.ts",
+    "./agent": "./src/agent.ts",
+    "./tool": "./src/tool.ts",
+    "./model": "./src/model.ts",
+    "./event": "./src/event.ts",
+    "./verification": "./src/verification.ts",
+    "./shared": "./src/shared.ts",
+    "./enums": "./src/enums.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf node_modules"
+  },
+  "dependencies": {
+    "@coco/common": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

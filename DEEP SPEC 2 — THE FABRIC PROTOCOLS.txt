@@ -1,0 +1,1568 @@
+DEEP SPEC 2 — THE FABRIC PROTOCOLS
+System: DSRT COCO
+Layer: Inter-Fabric Communication Standard
+Status: Approved & Locked Specification
+Governing Standards: Constitutional Dimensions 3 (Object Model), 4 (13 Fabrics), 7 (Mission Model), 9 (Verification Model); Article XIII (Cognitive Runtime)
+
+0. PROTOCOL PHILOSOPHY
+Fabrics do not know each other's internals. They exchange immutable, versioned, cryptographically-referenced messages through six protocols. Any fabric can be swapped, re-implemented, or scaled independently without touching another.
+
+The Seven Governing Laws of the Protocols
+text
+
+LAW 1  — TYPED OR REJECTED
+         Every message conforms to a schema. Untyped payloads are dropped at the boundary.
+
+LAW 2  — VERSIONED OR REJECTED
+         Every message carries a protocol version. Version drift triggers negotiation, never guessing.
+
+LAW 3  — IMMUTABLE ONCE EMITTED
+         Messages are append-only facts. Corrections come as new messages, never mutations.
+
+LAW 4  — REFERENTIALLY TRACEABLE
+         Every message carries mission_id, run_id, and causation_id. Full replay must be possible.
+
+LAW 5  — PROVENANCE ATTACHED
+         Every message carries emitter identity, timestamp, and correlation chain.
+
+LAW 6  — IDEMPOTENT BY IDENTITY
+         Every message has a unique idempotency_key. Duplicate delivery is a no-op.
+
+LAW 7  — SIZE-BOUNDED
+         Payloads above threshold are stored as artifacts; messages carry references, not blobs.
+Transport Matrix
+text
+
+FABRIC-TO-FABRIC          TRANSPORT          SERIALIZATION       AUTH
+─────────────────────    ──────────────    ─────────────────    ──────────────
+Gateway ↔ Kernel          gRPC (bidi)       Protobuf             mTLS + JWT
+Kernel ↔ Any Fabric       gRPC (bidi)       Protobuf             mTLS (internal)
+Fabric ↔ Event Bus        NATS JetStream    JSON + CloudEvents   mTLS + NKey
+Fabric ↔ Model            gRPC + SSE        Protobuf/SSE         mTLS + Provider Key
+Agent ↔ Tool              gRPC (unary)      Protobuf             mTLS + Capability Token
+External API              HTTPS + JSON      JSON Schema          OAuth 2.1 + mTLS
+Protobuf is the source of truth. JSON representations shown below are canonical serializations for the wire, event bus, and human debugging.
+
+1. THE ENVELOPE PROTOCOL (UNIVERSAL WRAPPER)
+Every message across every protocol is wrapped in a CocoEnvelope. Bare payloads are never emitted.
+
+protobuf
+
+syntax = "proto3";
+package coco.protocol.v1;
+
+message CocoEnvelope {
+  // ─── IDENTITY ────────────────────────────────────────────
+  string envelope_id       = 1;   // ULID; globally unique
+  string schema_uri        = 2;   // e.g. "coco://protocol/mission/v1/MissionRequest"
+  string schema_version    = 3;   // Semantic version of payload schema
+
+  // ─── ORIGIN ──────────────────────────────────────────────
+  string emitter_fabric    = 4;   // e.g. "kernel", "intelligence", "execution"
+  string emitter_component = 5;   // e.g. "A1_coco_director"
+  string emitter_instance  = 6;   // Runtime instance identifier
+
+  // ─── TENANCY ─────────────────────────────────────────────
+  string organization_id   = 7;
+  string user_id           = 8;
+
+  // ─── CORRELATION (full causal chain) ─────────────────────
+  string mission_id        = 9;
+  string run_id            = 10;  // CognitiveRun ID (Article XIII)
+  string task_id           = 11;  // Optional; empty for mission-level msgs
+  string causation_id      = 12;  // envelope_id of message that caused this one
+  string correlation_id    = 13;  // Groups related messages across time
+
+  // ─── TIMING ──────────────────────────────────────────────
+  int64  emitted_at_unix_ns = 14;
+  int64  deadline_unix_ns   = 15; // Optional; 0 = no deadline
+
+  // ─── DELIVERY GUARANTEES ─────────────────────────────────
+  string idempotency_key   = 16;  // SHA-256 hex; identical => no-op
+  int32  attempt_number    = 17;  // 1 on first send; incremented on retry
+
+  // ─── PAYLOAD ─────────────────────────────────────────────
+  bytes  payload           = 18;  // Serialized inner message (matches schema_uri)
+  string payload_hash      = 19;  // SHA-256 hex of payload bytes
+
+  // ─── CLASSIFICATION ──────────────────────────────────────
+  Sensitivity sensitivity  = 20;  // For routing & audit
+  repeated string tags     = 21;  // Free-form labels
+
+  // ─── INTEGRITY ───────────────────────────────────────────
+  string signature         = 22;  // Ed25519 sig over envelope hash (internal mTLS)
+}
+
+enum Sensitivity {
+  SENSITIVITY_UNSPECIFIED = 0;
+  PUBLIC                  = 1;
+  INTERNAL                = 2;
+  CONFIDENTIAL            = 3;
+  RESTRICTED              = 4;   // PII, PHI, PCI, secrets
+}
+Envelope Validation Rules (enforced at every fabric boundary)
+text
+
+1. envelope_id must be a valid ULID.
+2. schema_uri must resolve in the Schema Registry.
+3. schema_version must be compatible with receiver's supported range.
+4. emitted_at_unix_ns must not be in the future (>5s skew rejected).
+5. deadline_unix_ns, if set, must be in the future.
+6. payload_hash must match SHA-256(payload); otherwise integrity violation.
+7. signature must verify against emitter's registered public key.
+8. idempotency_key already seen within retention window → return prior result.
+9. sensitivity=RESTRICTED requires tenant-scoped encryption at rest.
+10. tenant fields (organization_id, user_id) must survive to every downstream msg.
+2. THE MISSION PROTOCOL
+Owner: Kernel Fabric
+Consumers: All fabrics
+Purpose: Lifecycle of Missions, Tasks, TaskGraphs, and Checkpoints (Constitutional Dimension 7).
+
+2.1 MissionRequest
+Emitted by: Gateway or Kernel. Consumed by: Kernel (Mission Engine).
+
+protobuf
+
+message MissionRequest {
+  string mission_id                = 1;    // ULID
+  string project_id                = 2;    // Optional; empty for detached missions
+  string parent_mission_id         = 3;    // Optional; for sub-missions
+
+  // ─── OBJECTIVE ─────────────────────────────────────────
+  string objective                 = 4;    // Human natural language
+  string normalized_intent         = 5;    // Post-S2 (Comprehend) canonical form
+  repeated string success_criteria = 6;    // Testable acceptance conditions
+  repeated Constraint constraints  = 7;
+
+  // ─── EXECUTION ENVELOPE ─────────────────────────────────
+  MissionTier tier                 = 8;    // DEFAULT | PRO | RANGER | ENTERPRISE
+  int32  cognitive_depth           = 9;    // D0..D6 (Article XIII §2)
+  ResourceBudget budget            = 10;
+  AutonomyLevel autonomy           = 11;   // L0..L5 (Ranger Runtime Spec)
+
+  // ─── DELIVERY EXPECTATIONS ─────────────────────────────
+  DeliveryMode delivery_mode       = 12;   // SYNC | ASYNC | STREAMING | CHECKPOINTED
+  repeated string deliverable_types = 13;  // e.g. "code", "report", "deployment"
+
+  // ─── CONTEXT ATTACHMENT ────────────────────────────────
+  repeated ArtifactRef input_artifacts = 14;
+  ContextHints context_hints       = 15;   // Hints for A4 Memory Manager
+}
+
+message Constraint {
+  string kind         = 1;   // "must", "must_not", "budget", "deadline", "policy"
+  string statement    = 2;   // Human-readable rule
+  Severity severity   = 3;
+}
+
+message ResourceBudget {
+  int64  max_compute_seconds       = 1;
+  int64  max_wall_clock_seconds    = 2;
+  int32  max_parallel_agents       = 3;
+  int64  max_model_tokens_total    = 4;
+  int64  max_tool_calls_total      = 5;
+  double max_cost_usd              = 6;
+}
+
+enum MissionTier      { TIER_UNSPECIFIED=0; DEFAULT=1; PRO=2; RANGER=3; ENTERPRISE=4; }
+enum AutonomyLevel    { L0_ANSWER=0; L1_RECOMMEND=1; L2_REVERSIBLE=2; L3_MULTISTEP=3; L4_CHECKPOINTED=4; L5_CONTINUOUS=5; }
+enum DeliveryMode     { SYNC=0; ASYNC=1; STREAMING=2; CHECKPOINTED=3; }
+enum Severity         { INFO=0; WARN=1; ERROR=2; CRITICAL=3; }
+2.2 MissionState (canonical status document)
+protobuf
+
+message MissionState {
+  string mission_id                = 1;
+  MissionPhase phase               = 2;
+  string current_step              = 3;    // S1..S15 from Cognitive Runtime
+
+  repeated string active_task_ids  = 4;
+  repeated string completed_task_ids = 5;
+  repeated string blocked_task_ids = 6;
+  repeated string failed_task_ids  = 7;
+
+  ResourceUsage usage              = 8;
+  repeated CheckpointRef checkpoints = 9;
+
+  int64  started_at_unix_ns        = 10;
+  int64  last_updated_unix_ns      = 11;
+  int64  estimated_completion_unix_ns = 12;
+
+  double progress_percent          = 13;   // 0.0..100.0
+  string status_summary            = 14;   // Human-readable one-liner
+}
+
+enum MissionPhase {
+  CREATED           = 0;
+  UNDERSTANDING     = 1;
+  CHALLENGING       = 2;
+  RESEARCHING       = 3;
+  PLANNING          = 4;
+  ORGANIZING        = 5;
+  EXECUTING         = 6;
+  VERIFYING         = 7;
+  REPAIRING         = 8;
+  REFINING          = 9;
+  DELIVERING        = 10;
+  REMEMBERING       = 11;
+  COMPLETED         = 12;
+  OPERATING         = 13;
+  CANCELLED         = 14;
+  FAILED            = 15;
+}
+
+message ResourceUsage {
+  int64 compute_seconds_used  = 1;
+  int64 wall_clock_seconds    = 2;
+  int64 model_tokens_used     = 3;
+  int64 tool_calls_executed   = 4;
+  double cost_usd_accrued     = 5;
+}
+2.3 TaskGraph & Task
+protobuf
+
+message TaskGraph {
+  string mission_id                = 1;
+  string graph_id                  = 2;
+  int32  graph_version             = 3;    // Incremented on replanning
+  repeated Task nodes              = 4;
+  repeated TaskEdge edges          = 5;
+  string critical_path             = 6;    // Comma-separated task_ids
+  string created_by_agent          = 7;    // Typically A2_mission_planner
+}
+
+message Task {
+  string task_id                   = 1;
+  string mission_id                = 2;
+  string parent_task_id            = 3;
+  string objective                 = 4;
+  TaskKind kind                    = 5;
+
+  repeated string required_capabilities = 6;  // e.g. "python_arch", "legal_ip"
+  string preferred_agent_id        = 7;       // Optional; router may override
+
+  repeated ArtifactRef input_refs  = 8;
+  repeated string expected_outputs = 9;       // Artifact type descriptors
+
+  int32  verification_level        = 10;      // L0..L10 (Verification Model)
+  int32  cognitive_depth           = 11;      // May differ from mission depth
+  ResourceBudget task_budget       = 12;
+
+  repeated string success_criteria = 13;
+  int32  max_repair_attempts       = 14;
+  TaskStatus status                = 15;
+  int32  attempt_number            = 16;
+}
+
+message TaskEdge {
+  string from_task_id  = 1;
+  string to_task_id    = 2;
+  EdgeKind kind        = 3;
+}
+
+enum TaskKind {
+  REASON=0; RESEARCH=1; PLAN=2; CODE=3; EXECUTE=4;
+  ANALYZE=5; DESIGN=6; VERIFY=7; DELIVER=8; DECIDE=9; CLARIFY=10;
+}
+
+enum TaskStatus {
+  PENDING=0; READY=1; ASSIGNED=2; RUNNING=3; VERIFYING=4;
+  REPAIRING=5; COMPLETED=6; BLOCKED=7; FAILED=8; CANCELLED=9;
+}
+
+enum EdgeKind {
+  DEPENDS_ON=0; FEEDS=1; TRIGGERS=2; CONDITIONAL=3;
+}
+2.4 Checkpoint (for long-running & Ranger missions)
+protobuf
+
+message Checkpoint {
+  string checkpoint_id             = 1;
+  string mission_id                = 2;
+  int32  checkpoint_number         = 3;
+  string checkpoint_hash           = 4;    // Merkle root of state snapshot
+
+  MissionState state_snapshot      = 5;
+  TaskGraph graph_snapshot         = 6;
+  repeated ArtifactRef artifact_refs = 7;
+  ContextSnapshot context_snapshot = 8;    // See Context Fabric
+
+  string reason                    = 9;    // "scheduled", "phase_transition", "risk_gate"
+  int64  created_at_unix_ns        = 10;
+}
+
+message CheckpointRef {
+  string checkpoint_id             = 1;
+  int32  checkpoint_number         = 2;
+  string checkpoint_hash           = 3;
+  int64  created_at_unix_ns        = 4;
+}
+2.5 Canonical JSON Serialization Example
+JSON
+
+{
+  "envelope": {
+    "envelope_id": "01J8XZQK2V3P4Y7RSMN8FGH2QW",
+    "schema_uri": "coco://protocol/mission/v1/MissionRequest",
+    "schema_version": "1.0.0",
+    "emitter_fabric": "gateway",
+    "emitter_component": "api_gateway",
+    "organization_id": "org_default",
+    "user_id": "usr_01J8...",
+    "mission_id": "mis_01J8XZQKA9",
+    "run_id": "run_01J8XZQKB4",
+    "emitted_at_unix_ns": 1730601234567890000,
+    "idempotency_key": "sha256:9f4c...",
+    "sensitivity": "INTERNAL"
+  },
+  "payload": {
+    "mission_id": "mis_01J8XZQKA9",
+    "objective": "Build me a legal-clause redlining tool for M&A NDAs.",
+    "normalized_intent": "engineering:build_application:legal_domain",
+    "success_criteria": [
+      "Tool ingests NDA PDFs and produces redlined output within 60s",
+      "Verified against 20-doc test corpus with >0.95 precision",
+      "Deployed to internal staging with authentication"
+    ],
+    "tier": "PRO",
+    "cognitive_depth": 4,
+    "autonomy": "L3_MULTISTEP",
+    "delivery_mode": "CHECKPOINTED",
+    "deliverable_types": ["code", "deployment", "verification_report"],
+    "budget": {
+      "max_wall_clock_seconds": 21600,
+      "max_parallel_agents": 16,
+      "max_cost_usd": 25.00
+    }
+  }
+}
+3. THE AGENT PROTOCOL
+Owner: Intelligence Fabric (Agent Runtime)
+Purpose: Agent lifecycle — spawn, assign, execute, report.
+
+3.1 AgentSpawnRequest
+protobuf
+
+message AgentSpawnRequest {
+  string spawn_id                  = 1;
+  string mission_id                = 2;
+  string task_id                   = 3;
+  string requesting_agent_id       = 4;    // e.g. B1_engineering_director
+
+  // ─── AGENT SELECTION ───────────────────────────────────
+  string agent_definition_id       = 5;    // Static ID (C1..C134) or "dynamic:*"
+  DynamicAgentSpec dynamic_spec    = 6;    // Populated only for factory-spawned agents
+
+  // ─── INITIALIZATION ────────────────────────────────────
+  ContextPacketRef initial_context = 7;
+  repeated ToolGrant tool_grants   = 8;
+  repeated MemoryScopeGrant memory_grants = 9;
+  ModelPreferences model_prefs     = 10;
+
+  // ─── EXECUTION ENVELOPE ────────────────────────────────
+  ResourceBudget budget            = 11;
+  int64  deadline_unix_ns          = 12;
+  string critic_agent_id           = 13;   // Overrides definition default if set
+}
+
+message DynamicAgentSpec {
+  string domain                    = 1;
+  repeated string knowledge_sources = 2;
+  string methodology_framework     = 3;
+  repeated string methodology_steps = 4;
+  string system_prompt_template    = 5;
+}
+
+message ToolGrant {
+  string tool_id                   = 1;
+  ToolScope scope                  = 2;   // From Agent Contract
+  int32  max_invocations           = 3;
+  int64  grant_ttl_seconds         = 4;
+}
+
+message MemoryScopeGrant {
+  string scope                     = 1;   // working|conversation|episodic|semantic|procedural|project|organizational
+  AccessMode mode                  = 2;
+}
+
+enum AccessMode { READ=0; WRITE=1; READ_WRITE=2; }
+
+enum ToolScope {
+  TOOL_SCOPE_UNSPECIFIED = 0;
+  READ_ONLY              = 1;
+  WORKSPACE_WRITE        = 2;
+  COMPUTE_EXEC           = 3;
+  SANDBOX_EXEC           = 4;
+  NETWORK_EGRESS         = 5;
+}
+3.2 AgentAssignment (broadcast when agent is bound to a task)
+protobuf
+
+message AgentAssignment {
+  string assignment_id             = 1;
+  string agent_instance_id         = 2;    // Bound running instance
+  string agent_definition_id       = 3;
+  string task_id                   = 4;
+  string mission_id                = 5;
+
+  AgentIdentity identity           = 6;
+  int64  assigned_at_unix_ns       = 7;
+  int64  assignment_expiry_unix_ns = 8;
+  string assigned_by               = 9;    // Typically A1_coco_director
+}
+
+message AgentIdentity {
+  string agent_id                  = 1;
+  string display_name              = 2;
+  AgentTier tier                   = 3;
+  string domain                    = 4;
+  string version                   = 5;
+}
+
+enum AgentTier {
+  TIER_UNSPECIFIED   = 0;
+  TIER_1_CORE        = 1;
+  TIER_2_DIRECTOR    = 2;
+  TIER_3_SPECIALIST  = 3;
+  TIER_4_OPERATOR    = 4;
+}
+3.3 AgentRunReport (final structured output of an AgentRun)
+protobuf
+
+message AgentRunReport {
+  string run_id                    = 1;
+  string agent_instance_id         = 2;
+  string task_id                   = 3;
+  string mission_id                = 4;
+
+  RunOutcome outcome               = 5;
+  string outcome_summary           = 6;    // Terse, human-facing (COCO Voice)
+
+  // ─── STRUCTURED FINDINGS ───────────────────────────────
+  repeated Finding findings        = 7;
+  repeated ArtifactRef artifacts_produced = 8;
+  repeated DecisionRef decisions_recorded = 9;
+  repeated MemoryRef memories_written     = 10;
+  repeated EvidenceRef evidence_gathered  = 11;
+
+  // ─── COGNITIVE TRACE ───────────────────────────────────
+  repeated ModelCallRef model_calls = 12;
+  repeated ToolCallRef  tool_calls  = 13;
+  repeated string assumptions_made  = 14;
+  repeated string open_questions    = 15;
+
+  // ─── QUALITY SELF-ASSESSMENT ───────────────────────────
+  ConfidenceReport confidence      = 16;
+  ResourceUsage usage              = 17;
+  repeated string next_recommended_tasks = 18;
+
+  int64  started_at_unix_ns        = 19;
+  int64  completed_at_unix_ns      = 20;
+}
+
+message Finding {
+  string finding_id                = 1;
+  string claim                     = 2;
+  EpistemicStatus status           = 3;   // Article XIII §6
+  double confidence                = 4;   // 0.0..1.0
+  repeated string evidence_refs    = 5;
+  repeated string contradicts_refs = 6;
+}
+
+message ConfidenceReport {
+  double overall_confidence        = 1;
+  string reasoning                 = 2;
+  repeated string caveats          = 3;
+  bool   requires_human_review     = 4;
+}
+
+enum RunOutcome {
+  RUN_OUTCOME_UNSPECIFIED = 0;
+  COMPLETED_SUCCESS       = 1;
+  COMPLETED_PARTIAL       = 2;
+  BLOCKED_INFO_NEEDED     = 3;
+  FAILED_UNRECOVERABLE    = 4;
+  ABORTED_BUDGET_EXCEEDED = 5;
+  ABORTED_POLICY_VIOLATION= 6;
+  ESCALATED_TO_HUMAN      = 7;
+}
+
+enum EpistemicStatus {
+  EPISTEMIC_UNSPECIFIED = 0;
+  FACT                  = 1;
+  SUPPORTED             = 2;
+  INFERRED              = 3;
+  WEAK_INFERENCE        = 4;
+  ASSUMED               = 5;
+  UNKNOWN               = 6;
+  CONTESTED             = 7;
+}
+3.4 AgentControlSignal (mid-flight control)
+protobuf
+
+message AgentControlSignal {
+  string signal_id                 = 1;
+  string agent_instance_id         = 2;
+  ControlKind kind                 = 3;
+  string reason                    = 4;
+  string issued_by                 = 5;   // Agent ID or "human:user_xxx"
+}
+
+enum ControlKind {
+  PAUSE            = 0;
+  RESUME           = 1;
+  CANCEL           = 2;
+  ESCALATE         = 3;
+  BUDGET_REVISE    = 4;
+  CONTEXT_REFRESH  = 5;
+  PERMISSION_REVOKE= 6;
+}
+4. THE TOOL PROTOCOL
+Owner: Execution Fabric
+Purpose: Safe, permissioned tool invocation via Tier 4 Operators.
+
+4.1 ToolInvocationRequest
+protobuf
+
+message ToolInvocationRequest {
+  string invocation_id             = 1;   // ULID
+  string agent_instance_id         = 2;   // Caller
+  string task_id                   = 3;
+  string mission_id                = 4;
+
+  string tool_id                   = 5;   // Registry-known identifier
+  string tool_version              = 6;
+
+  google.protobuf.Struct arguments = 7;   // Schema-validated per tool
+  string arguments_hash            = 8;   // SHA-256 of canonical JSON
+
+  ExecutionContext exec_context    = 9;
+
+  // ─── AUTHORIZATION ─────────────────────────────────────
+  string capability_token          = 10;  // Signed grant from A6 Risk Officer
+  int64  token_expiry_unix_ns      = 11;
+
+  // ─── EXECUTION ENVELOPE ────────────────────────────────
+  int64  timeout_ms                = 12;
+  int64  max_output_bytes          = 13;
+  ResourceLimits limits            = 14;
+  bool   requires_human_approval   = 15;
+}
+
+message ExecutionContext {
+  string sandbox_id                = 1;   // Empty = allocate fresh
+  string workspace_root            = 2;
+  map<string,string> env           = 3;   // Non-secret env vars only
+  repeated string mounted_artifact_refs = 4;
+  NetworkPolicy network_policy     = 5;
+}
+
+message NetworkPolicy {
+  bool   egress_allowed            = 1;
+  repeated string allowed_domains  = 2;
+  repeated string allowed_ports    = 3;
+  bool   proxy_required            = 4;
+}
+
+message ResourceLimits {
+  int32  cpu_cores                 = 1;
+  int32  memory_mb                 = 2;
+  int32  disk_mb                   = 3;
+  int32  gpu_count                 = 4;
+  int64  max_wall_seconds          = 5;
+}
+4.2 ToolInvocationResult
+protobuf
+
+message ToolInvocationResult {
+  string invocation_id             = 1;
+  string tool_id                   = 2;
+  ToolExecutionStatus status       = 3;
+
+  google.protobuf.Struct output    = 4;   // Small structured results
+  ArtifactRef output_artifact_ref  = 5;   // For large outputs (>16KB)
+  string output_hash               = 6;
+
+  string stderr_summary            = 7;   // Truncated; full in artifact
+  ArtifactRef logs_artifact_ref    = 8;
+  int32  exit_code                 = 9;
+
+  int64  started_at_unix_ns        = 10;
+  int64  completed_at_unix_ns      = 11;
+  int64  wall_time_ms              = 12;
+  int64  cpu_time_ms               = 13;
+  int64  memory_peak_mb            = 14;
+
+  ErrorReport error                = 15;   // Populated only on failure
+}
+
+message ErrorReport {
+  ErrorCategory category           = 1;
+  string message                   = 2;
+  string root_cause                = 3;
+  string suggested_repair          = 4;
+  repeated string stack_trace      = 5;
+  bool   retryable                 = 6;
+  int32  retry_after_ms            = 7;
+}
+
+enum ToolExecutionStatus {
+  TOOL_STATUS_UNSPECIFIED = 0;
+  SUCCESS                 = 1;
+  FAILURE_TOOL            = 2;   // Tool ran, returned non-zero
+  FAILURE_TIMEOUT         = 3;
+  FAILURE_OOM             = 4;
+  FAILURE_POLICY          = 5;   // Rejected by A6
+  FAILURE_PERMISSION      = 6;   // Missing capability_token or expired
+  FAILURE_SANDBOX         = 7;   // Sandbox itself crashed
+  AWAITING_APPROVAL       = 8;
+  CANCELLED               = 9;
+}
+
+enum ErrorCategory {
+  ERR_UNKNOWN         = 0;
+  ERR_LOGIC           = 1;
+  ERR_DEPENDENCY      = 2;
+  ERR_CONFIG          = 3;
+  ERR_ENVIRONMENT     = 4;
+  ERR_INTEGRATION     = 5;
+  ERR_REQUIREMENT     = 6;
+  ERR_SECURITY        = 7;
+  ERR_PERFORMANCE     = 8;
+  ERR_NETWORK         = 9;
+  ERR_PERMISSION      = 10;
+}
+4.3 Tool Descriptor (Registry Schema)
+protobuf
+
+message ToolDescriptor {
+  string tool_id                   = 1;
+  string tool_version              = 2;
+  string display_name              = 3;
+  string description               = 4;
+
+  ToolCategory category            = 5;
+  string operator_agent_id         = 6;   // Which D1..D5 executes it
+
+  string input_schema_uri          = 7;   // JSON Schema URI
+  string output_schema_uri         = 8;
+
+  repeated ToolScope required_scopes = 9;
+  bool   requires_human_approval   = 10;
+  bool   idempotent                = 11;
+  bool   destructive               = 12;
+  ResourceLimits default_limits    = 13;
+
+  double median_latency_ms         = 14;   // Populated by Evolution Fabric
+  double failure_rate              = 15;
+  double avg_cost_usd              = 16;
+}
+
+enum ToolCategory {
+  CAT_UNSPECIFIED  = 0;
+  BROWSER          = 1;
+  TERMINAL         = 2;
+  FILESYSTEM       = 3;
+  GIT              = 4;
+  DATABASE         = 5;
+  HTTP             = 6;
+  PYTHON           = 7;
+  NODE             = 8;
+  DOCKER           = 9;
+  DEPLOY           = 10;
+  SEARCH           = 11;
+  RESEARCH_DB      = 12;
+  DOMAIN_SPECIFIC  = 13;
+}
+4.4 Capability Token (signed by A6 Risk Officer)
+protobuf
+
+message CapabilityToken {
+  string token_id                  = 1;
+  string agent_instance_id         = 2;
+  string tool_id                   = 3;
+  ToolScope granted_scope          = 4;
+  int32  max_invocations           = 5;
+  int32  invocations_used          = 6;
+  int64  issued_at_unix_ns         = 7;
+  int64  expires_at_unix_ns        = 8;
+  string issued_by                 = 9;   // Always A6
+  string signature                 = 10;  // Ed25519 over canonical fields
+}
+5. THE MODEL PROTOCOL
+Owner: Intelligence Fabric (Model Router)
+Purpose: Unified interface across all model providers — hosted, open-weight local, or private.
+
+5.1 ModelRouteRequest
+protobuf
+
+message ModelRouteRequest {
+  string route_id                  = 1;
+  string agent_instance_id         = 2;
+  string task_id                   = 3;
+  string mission_id                = 4;
+
+  ModelCapability capability       = 5;   // What kind of inference?
+  ModelPreferences preferences     = 6;
+
+  ContextPacketRef context_ref     = 7;   // Compiled by Context Fabric
+  string prompt_template_id        = 8;   // Registry reference; optional
+  google.protobuf.Struct prompt_vars = 9;
+
+  GenerationParams params          = 10;
+  RoutingHints routing_hints       = 11;
+}
+
+message ModelPreferences {
+  repeated string preferred_models = 1;   // Priority order
+  repeated string excluded_models  = 2;
+  string minimum_tier              = 3;   // "standard" | "advanced" | "frontier"
+  int32  min_context_tokens        = 4;
+  bool   requires_tool_calling     = 5;
+  bool   requires_vision           = 6;
+  bool   requires_json_mode        = 7;
+  bool   allows_streaming          = 8;
+}
+
+message GenerationParams {
+  int32  max_output_tokens         = 1;
+  double temperature               = 2;
+  double top_p                     = 3;
+  double frequency_penalty         = 4;
+  double presence_penalty          = 5;
+  repeated string stop_sequences   = 6;
+  string response_format           = 7;   // "text" | "json" | "structured"
+  string json_schema_uri           = 8;   // Required when format=structured
+  repeated string tool_definitions = 9;   // Tool definition IDs
+  int32  reasoning_effort          = 10;  // 0..10; for reasoning models
+  int64  seed                      = 11;  // For reproducibility
+}
+
+message RoutingHints {
+  double max_cost_usd              = 1;
+  int32  max_latency_ms            = 2;
+  QualityFloor quality_floor       = 3;
+  bool   allow_fallback            = 4;
+  bool   allow_cross_provider      = 5;
+}
+
+enum ModelCapability {
+  CAP_UNSPECIFIED  = 0;
+  REASON           = 1;
+  CODE             = 2;
+  VISION           = 3;
+  EMBED            = 4;
+  RERANK           = 5;
+  SUMMARIZE        = 6;
+  EXTRACT          = 7;
+  CLASSIFY         = 8;
+  TRANSLATE        = 9;
+  AUDIO_TRANSCRIBE = 10;
+  AUDIO_SYNTHESIZE = 11;
+}
+
+enum QualityFloor {
+  QUALITY_UNSPECIFIED = 0;
+  ACCEPTABLE          = 1;
+  GOOD                = 2;
+  EXCELLENT           = 3;
+  MAXIMUM             = 4;
+}
+5.2 ModelRouteDecision (emitted by Router)
+protobuf
+
+message ModelRouteDecision {
+  string route_id                  = 1;
+  string selected_model_id         = 2;
+  string selected_provider         = 3;
+  string selected_endpoint         = 4;
+
+  repeated string fallback_chain   = 5;
+  string decision_rationale        = 6;
+
+  double estimated_latency_ms      = 7;
+  double estimated_cost_usd        = 8;
+  double estimated_quality_score   = 9;
+  int64  decided_at_unix_ns        = 10;
+}
+5.3 ModelInferenceRequest (adapter contract — provider-agnostic)
+protobuf
+
+message ModelInferenceRequest {
+  string inference_id              = 1;
+  string model_id                  = 2;
+
+  repeated ChatMessage messages    = 3;
+  GenerationParams params          = 4;
+  repeated ToolDefinition tools    = 5;
+
+  bool   stream                    = 6;
+  int64  deadline_unix_ns          = 7;
+}
+
+message ChatMessage {
+  MessageRole role                 = 1;
+  repeated ContentBlock content    = 2;
+  string name                      = 3;   // For tool messages
+  string tool_call_id              = 4;   // For tool responses
+}
+
+message ContentBlock {
+  ContentKind kind                 = 1;
+  string text                      = 2;
+  bytes  image_data                = 3;
+  string image_url                 = 4;
+  string image_media_type          = 5;
+  ToolCall tool_call               = 6;
+  ToolResult tool_result           = 7;
+}
+
+message ToolDefinition {
+  string name                      = 1;
+  string description               = 2;
+  string input_schema_json         = 3;
+}
+
+message ToolCall {
+  string tool_call_id              = 1;
+  string tool_name                 = 2;
+  string arguments_json            = 3;
+}
+
+message ToolResult {
+  string tool_call_id              = 1;
+  string content                   = 2;
+  bool   is_error                  = 3;
+}
+
+enum MessageRole   { SYSTEM=0; USER=1; ASSISTANT=2; TOOL=3; }
+enum ContentKind   { TEXT=0; IMAGE=1; TOOL_CALL=2; TOOL_RESULT=3; }
+5.4 ModelInferenceEvent (streaming)
+protobuf
+
+message ModelInferenceEvent {
+  string inference_id              = 1;
+  int64  sequence                  = 2;   // Monotonic per inference
+  StreamEventKind kind             = 3;
+
+  string text_delta                = 4;
+  ToolCall tool_call_delta         = 5;
+  TokenUsage usage_snapshot        = 6;
+  FinishReason finish_reason       = 7;
+
+  int64  emitted_at_unix_ns        = 8;
+}
+
+message TokenUsage {
+  int32  input_tokens              = 1;
+  int32  output_tokens             = 2;
+  int32  cached_tokens             = 3;
+  int32  reasoning_tokens          = 4;   // For reasoning models
+  double cost_usd                  = 5;
+}
+
+enum StreamEventKind {
+  STREAM_START          = 0;
+  CONTENT_DELTA         = 1;
+  TOOL_CALL_DELTA       = 2;
+  USAGE_UPDATE          = 3;
+  STREAM_END            = 4;
+  STREAM_ERROR          = 5;
+}
+
+enum FinishReason {
+  FINISH_UNSPECIFIED    = 0;
+  STOP                  = 1;
+  MAX_TOKENS            = 2;
+  TOOL_CALLS            = 3;
+  CONTENT_FILTER        = 4;
+  ERROR                 = 5;
+}
+5.5 Model Registry Entry
+protobuf
+
+message ModelDescriptor {
+  string model_id                  = 1;   // e.g. "anthropic/claude-3.5-sonnet@20241022"
+  string provider                  = 2;
+  string family                    = 3;   // "claude" | "gpt" | "qwen" | "llama"
+  string display_name              = 4;
+
+  repeated ModelCapability capabilities = 5;
+  int32  context_window_tokens     = 6;
+  int32  max_output_tokens         = 7;
+
+  ModelTier tier                   = 8;
+  License license                  = 9;
+
+  ModelCost cost                   = 10;
+  ModelPerformance performance     = 11;   // Populated by Evolution Fabric
+
+  bool   supports_tool_calling     = 12;
+  bool   supports_vision           = 13;
+  bool   supports_json_mode        = 14;
+  bool   supports_streaming        = 15;
+  bool   supports_reasoning        = 16;
+
+  DeploymentMode deployment_mode   = 17;
+  repeated string available_endpoints = 18;
+}
+
+message ModelCost {
+  double input_per_million_usd     = 1;
+  double output_per_million_usd    = 2;
+  double cached_input_per_million_usd = 3;
+}
+
+message ModelPerformance {
+  double median_latency_ms         = 1;
+  double p95_latency_ms            = 2;
+  double median_tokens_per_second  = 3;
+  double reliability_score         = 4;
+  double quality_score_reasoning   = 5;
+  double quality_score_coding      = 6;
+  double quality_score_research    = 7;
+  int64  last_evaluated_unix_ns    = 8;
+}
+
+enum ModelTier {
+  MODEL_TIER_UNSPECIFIED = 0;
+  STANDARD               = 1;
+  ADVANCED               = 2;
+  FRONTIER               = 3;
+  RESEARCH               = 4;
+}
+
+enum License {
+  LIC_UNSPECIFIED   = 0;
+  OPEN_SOURCE_OSI   = 1;
+  OPEN_WEIGHT       = 2;
+  COMMERCIAL_HOSTED = 3;
+  PRIVATE_INTERNAL  = 4;
+}
+
+enum DeploymentMode {
+  MODE_UNSPECIFIED  = 0;
+  HOSTED_API        = 1;
+  LOCAL_OLLAMA      = 2;
+  LOCAL_VLLM        = 3;
+  DEDICATED_GPU     = 4;
+  ENTERPRISE_PRIVATE = 5;
+}
+6. THE EVENT PROTOCOL
+Owner: Event Bus (Kernel Fabric)
+Transport: NATS JetStream (with durable, replayable subjects)
+Purpose: Every important action becomes a first-class event. Enables replay, audit, timelines, and evaluation.
+
+6.1 CocoEvent (base envelope for the bus)
+Events reuse CocoEnvelope for identity/tenancy/correlation, but payload is a CocoEvent.
+
+protobuf
+
+message CocoEvent {
+  string event_id                  = 1;   // Same as envelope_id
+  string event_type                = 2;   // Dotted namespace (see §6.3)
+  int32  event_schema_version      = 3;
+
+  string actor_kind                = 4;   // "agent" | "user" | "system" | "external"
+  string actor_id                  = 5;
+
+  string subject_kind              = 6;   // "mission" | "task" | "agent" | "artifact" | ...
+  string subject_id                = 7;
+
+  google.protobuf.Struct data      = 8;   // Event-type-specific payload
+  google.protobuf.Struct metadata  = 9;
+
+  int64  occurred_at_unix_ns       = 10;
+  int64  sequence_number           = 11;  // Monotonic per mission_id
+}
+6.2 NATS Subject Topology
+text
+
+coco.{organization_id}.{env}.{event_family}.{event_type}
+
+Examples:
+  coco.org_default.prod.mission.mission.created
+  coco.org_default.prod.mission.mission.completed
+  coco.org_default.prod.task.task.status_changed
+  coco.org_default.prod.agent.agent.spawned
+  coco.org_default.prod.agent.agent.run_completed
+  coco.org_default.prod.model.model_call.completed
+  coco.org_default.prod.tool.tool_call.completed
+  coco.org_default.prod.verification.artifact.rejected
+  coco.org_default.prod.memory.decision.recorded
+  coco.org_default.prod.security.policy.violated
+Wildcards:
+
+coco.org_default.prod.mission.> — all mission-family events for this org
+coco.*.prod.security.policy.violated — cross-tenant security fan-in for A6
+6.3 The Canonical Event Catalog
+text
+
+MISSION FAMILY
+  mission.created
+  mission.understanding_started
+  mission.understanding_completed
+  mission.challenged
+  mission.planned
+  mission.organized
+  mission.executing_started
+  mission.verified
+  mission.repairing_started
+  mission.repair_completed
+  mission.delivering_started
+  mission.completed
+  mission.failed
+  mission.cancelled
+  mission.checkpoint_created
+  mission.checkpoint_restored
+  mission.budget_warning
+  mission.budget_exceeded
+
+TASK FAMILY
+  task.created
+  task.status_changed
+  task.assigned
+  task.started
+  task.blocked
+  task.completed
+  task.failed
+  task.dependency_satisfied
+  task.repair_scheduled
+
+AGENT FAMILY
+  agent.spawn_requested
+  agent.spawned
+  agent.assigned
+  agent.run_started
+  agent.model_call_issued
+  agent.tool_call_issued
+  agent.assumption_recorded
+  agent.finding_recorded
+  agent.run_completed
+  agent.run_failed
+  agent.retired
+  agent.paused
+  agent.resumed
+
+MODEL FAMILY
+  model.route_requested
+  model.route_decided
+  model.call_started
+  model.call_completed
+  model.call_failed
+  model.fallback_triggered
+  model.rate_limited
+
+TOOL FAMILY
+  tool.invocation_requested
+  tool.invocation_approved
+  tool.invocation_denied
+  tool.sandbox_allocated
+  tool.execution_started
+  tool.execution_completed
+  tool.execution_failed
+  tool.human_approval_requested
+  tool.human_approval_granted
+
+CONTEXT / MEMORY FAMILY
+  context.packet_compiled
+  memory.written
+  memory.superseded
+  memory.contradicted
+  decision.recorded
+  evidence.added
+
+VERIFICATION FAMILY
+  verification.started
+  verification.level_passed
+  verification.level_failed
+  verification.artifact_accepted
+  verification.artifact_rejected
+  critic.review_started
+  critic.review_completed
+
+SECURITY FAMILY
+  security.policy_violated
+  security.permission_denied
+  security.capability_token_issued
+  security.capability_token_revoked
+  security.human_approval_required
+  security.destructive_action_blocked
+  security.rate_limit_exceeded
+
+EVOLUTION FAMILY
+  evolution.metric_recorded
+  evolution.route_policy_updated
+  evolution.agent_score_updated
+  evolution.model_score_updated
+6.4 Consumer Contract
+text
+
+1. Every consumer is durably registered with a consumer_name.
+2. Consumers acknowledge messages within ack_wait (default 30s).
+3. Failed processing → NAK with retry policy (exponential backoff, max 5 tries).
+4. After max retries → published to `coco.{org}.{env}.dlq.{original_subject}`.
+5. Consumers must be idempotent on envelope_id.
+6. Ordering guarantees: strict order within (mission_id, subject_kind, subject_id).
+7. THE VERIFICATION PROTOCOL
+Owner: Verification Fabric
+Purpose: Prove artifacts satisfy requirements via the 10-level ladder (Constitutional Dimension 9).
+
+7.1 VerificationRequest
+protobuf
+
+message VerificationRequest {
+  string verification_id           = 1;
+  string mission_id                = 2;
+  string task_id                   = 3;
+  string requesting_agent_id       = 4;
+
+  repeated ArtifactRef artifacts   = 5;
+  repeated string requirements     = 6;   // Testable acceptance conditions
+
+  int32  target_level              = 7;   // L0..L10
+  repeated int32  levels_to_run    = 8;   // Explicit subset override
+
+  VerificationDomain domain        = 9;   // Selects test battery
+  google.protobuf.Struct domain_params = 10;
+
+  string critic_agent_id           = 11;  // Independent critic; required L9+
+  bool   requires_human_approval   = 12;  // Required L10 in prod contexts
+
+  int64  deadline_unix_ns          = 13;
+  ResourceBudget budget            = 14;
+}
+
+enum VerificationDomain {
+  DOMAIN_UNSPECIFIED = 0;
+  SOFTWARE           = 1;
+  RESEARCH           = 2;
+  LEGAL              = 3;
+  MEDICAL            = 4;
+  FINANCIAL          = 5;
+  HARDWARE           = 6;
+  DESIGN             = 7;
+  BUSINESS           = 8;
+  SCIENTIFIC         = 9;
+  OPERATIONAL        = 10;
+}
+7.2 VerificationResult
+protobuf
+
+message VerificationResult {
+  string verification_id           = 1;
+  VerificationVerdict verdict      = 2;
+  int32  highest_level_passed      = 3;
+  int32  highest_level_attempted   = 4;
+
+  repeated LevelResult level_results = 5;
+  CriticReport critic_report       = 6;   // For levels ≥ L9
+
+  repeated Finding failures        = 7;
+  repeated Finding warnings        = 8;
+  repeated string repair_recommendations = 9;
+
+  ArtifactRef verification_report_artifact = 10;   // Full human-readable report
+  int64  started_at_unix_ns        = 11;
+  int64  completed_at_unix_ns      = 12;
+
+  bool   requires_human_review     = 13;
+  string human_review_ticket_id    = 14;
+}
+
+message LevelResult {
+  int32  level                     = 1;   // 0..10
+  string level_name                = 2;   // "well_formed", "type_correct", etc.
+  LevelStatus status               = 3;
+
+  int32  checks_total              = 4;
+  int32  checks_passed             = 5;
+  int32  checks_failed             = 6;
+  int32  checks_skipped            = 7;
+
+  repeated CheckResult checks      = 8;
+  int64  duration_ms               = 9;
+}
+
+message CheckResult {
+  string check_id                  = 1;
+  string check_name                = 2;
+  string tool_used                 = 3;
+  CheckStatus status               = 4;
+  string message                   = 5;
+  google.protobuf.Struct details   = 6;
+  ArtifactRef evidence_ref         = 7;   // Logs, screenshots, reports
+}
+
+message CriticReport {
+  string critic_agent_id           = 1;
+  double correctness_score         = 2;
+  double completeness_score        = 3;
+  double consistency_score         = 4;
+  double evidence_quality_score    = 5;
+  double risk_score                = 6;
+  double overall_score             = 7;
+
+  repeated string strengths        = 8;
+  repeated string weaknesses       = 9;
+  repeated string missing_requirements = 10;
+  repeated string questionable_assumptions = 11;
+  CriticRecommendation recommendation = 12;
+  string reasoning                 = 13;
+}
+
+enum VerificationVerdict {
+  VERDICT_UNSPECIFIED = 0;
+  ACCEPTED            = 1;
+  ACCEPTED_WITH_NOTES = 2;
+  REJECTED            = 3;
+  REPAIR_REQUIRED     = 4;
+  ESCALATE_HUMAN      = 5;
+  INSUFFICIENT_INFO   = 6;
+}
+
+enum LevelStatus {
+  LEVEL_UNSPECIFIED = 0;
+  PASSED            = 1;
+  FAILED            = 2;
+  PARTIAL           = 3;
+  SKIPPED           = 4;
+  ERRORED           = 5;
+}
+
+enum CheckStatus {
+  CHECK_UNSPECIFIED = 0;
+  CHECK_PASSED      = 1;
+  CHECK_FAILED      = 2;
+  CHECK_SKIPPED     = 3;
+  CHECK_ERROR       = 4;
+}
+
+enum CriticRecommendation {
+  REC_UNSPECIFIED = 0;
+  REC_ACCEPT      = 1;
+  REC_REVISE      = 2;
+  REC_REJECT      = 3;
+  REC_ESCALATE    = 4;
+}
+7.3 RepairOrder (issued when verification fails)
+protobuf
+
+message RepairOrder {
+  string repair_id                 = 1;
+  string verification_id           = 2;
+  string mission_id                = 3;
+  string task_id                   = 4;
+  int32  attempt_number            = 5;   // Current repair loop iteration
+  int32  max_attempts              = 6;
+
+  repeated FailureDiagnosis diagnoses = 7;
+  repeated string proposed_strategies = 8;
+  string assigned_agent_id         = 9;
+
+  int64  issued_at_unix_ns         = 10;
+  int64  deadline_unix_ns          = 11;
+}
+
+message FailureDiagnosis {
+  string failure_id                = 1;
+  ErrorCategory category           = 2;
+  string root_cause                = 3;
+  string affected_artifact_ref     = 4;
+  string suggested_strategy        = 5;
+  double confidence                = 6;
+}
+7.4 The 10 Verification Levels (canonical names)
+text
+
+L0  well_formed          — exists, parses, renders
+L1  structural_valid     — schema/type conformance
+L2  type_correct         — deeper type checking (mypy strict, etc.)
+L3  lint_clean           — style and quality standards
+L4  unit_verified        — unit tests pass
+L5  integration_verified — integration tests pass
+L6  requirement_verified — mission requirements satisfied
+L7  security_verified    — SAST, DAST, secrets, dependency scans
+L8  performance_verified — latency, throughput, resource targets met
+L9  critic_verified      — independent critic approves
+L10 acceptance_verified  — human/user acceptance criteria satisfied
+8. SHARED VALUE TYPES
+These types appear across multiple protocols and share a single canonical definition.
+
+protobuf
+
+message ArtifactRef {
+  string artifact_id               = 1;
+  string uri                       = 2;   // e.g. "coco://artifacts/{artifact_id}"
+  string content_type              = 3;   // MIME type
+  int64  size_bytes                = 4;
+  string sha256                    = 5;
+  string storage_backend           = 6;   // "s3", "postgres", "pgvector"
+}
+
+message ContextPacketRef {
+  string packet_id                 = 1;
+  string uri                       = 2;
+  string sha256                    = 3;
+  int32  token_count               = 4;
+  int64  compiled_at_unix_ns       = 5;
+}
+
+message ContextSnapshot {
+  string snapshot_id               = 1;
+  string uri                       = 2;
+  string sha256                    = 3;
+  repeated string included_memory_ids = 4;
+}
+
+message ModelCallRef {
+  string call_id                   = 1;
+  string model_id                  = 2;
+  int32  input_tokens              = 3;
+  int32  output_tokens             = 4;
+  double cost_usd                  = 5;
+  int64  latency_ms                = 6;
+}
+
+message ToolCallRef {
+  string invocation_id             = 1;
+  string tool_id                   = 2;
+  ToolExecutionStatus status       = 3;
+  int64  latency_ms                = 4;
+}
+
+message DecisionRef {
+  string decision_id               = 1;
+  string uri                       = 2;
+  string summary                   = 3;
+}
+
+message MemoryRef {
+  string memory_id                 = 1;
+  string scope                     = 2;
+  string uri                       = 3;
+}
+
+message EvidenceRef {
+  string evidence_id               = 1;
+  string source_uri                = 2;
+  string sha256                    = 3;
+  double confidence                = 4;
+}
+9. VERSIONING & COMPATIBILITY POLICY
+text
+
+SEMANTIC VERSIONING FOR SCHEMAS
+  MAJOR — Breaking change; consumers must upgrade
+  MINOR — Additive; backward compatible (new optional fields, new enum values)
+  PATCH — Documentation/clarification only
+
+FIELD RULES
+  1. Never renumber protobuf field tags.
+  2. Never change field types.
+  3. Never repurpose a removed field's tag (reserve it permanently).
+  4. New fields must be optional with sensible defaults.
+  5. New enum values must be tolerated by older consumers (unknown → UNSPECIFIED).
+
+REGISTRY
+  All schemas registered at:  coco://schemas/{protocol}/{version}/{message}
+  All fabrics fetch schemas at boot and cache them.
+  Schema Registry is a first-class fabric-adjacent service.
+
+NEGOTIATION
+  Envelope includes schema_version.
+  Receivers advertise supported ranges per protocol.
+  Mismatch → negotiation handshake, or graceful degradation to lowest common version.
+  Unresolvable mismatch → NACK with SCHEMA_INCOMPATIBLE error, message DLQ'd.
+10. ERROR PROTOCOL (UNIVERSAL FAILURE ENVELOPE)
+Any RPC or event handler may fail. Failures use a standard error envelope:
+
+protobuf
+
+message CocoError {
+  string error_id                  = 1;   // ULID
+  ErrorCategory category           = 2;
+  ErrorSeverity severity           = 3;
+  string code                      = 4;   // Stable code, e.g. "TOOL_TIMEOUT"
+  string message                   = 5;   // Human-readable summary (COCO Voice)
+
+  string root_cause                = 6;
+  string suggested_repair          = 7;
+  bool   retryable                 = 8;
+  int32  retry_after_ms            = 9;
+
+  string originating_envelope_id   = 10;
+  string originating_fabric        = 11;
+  string originating_component     = 12;
+
+  google.protobuf.Struct diagnostic_data = 13;
+  repeated string stack_trace      = 14;
+  ArtifactRef logs_artifact_ref    = 15;
+
+  int64  occurred_at_unix_ns       = 16;
+}
+
+enum ErrorSeverity {
+  SEV_UNSPECIFIED = 0;
+  SEV_INFO        = 1;
+  SEV_WARN        = 2;
+  SEV_ERROR       = 3;
+  SEV_CRITICAL    = 4;
+  SEV_FATAL       = 5;
+}
+11. GRPC SERVICE INTERFACES
+The fabrics expose these gRPC services. All calls carry CocoEnvelope as metadata + typed payload.
+
+protobuf
+
+service KernelService {
+  rpc CreateMission           (MissionRequest)          returns (MissionState);
+  rpc GetMissionState         (GetMissionStateRequest)  returns (MissionState);
+  rpc CancelMission           (CancelMissionRequest)    returns (MissionState);
+  rpc StreamMissionEvents     (StreamMissionEventsRequest) returns (stream CocoEvent);
+  rpc CreateCheckpoint        (CreateCheckpointRequest) returns (Checkpoint);
+  rpc RestoreCheckpoint       (RestoreCheckpointRequest) returns (MissionState);
+}
+
+service IntelligenceService {
+  rpc SpawnAgent              (AgentSpawnRequest)       returns (AgentAssignment);
+  rpc SubmitAgentReport       (AgentRunReport)          returns (SubmitAck);
+  rpc ControlAgent            (AgentControlSignal)      returns (ControlAck);
+  rpc RouteModel              (ModelRouteRequest)       returns (ModelRouteDecision);
+  rpc InferModel              (ModelInferenceRequest)   returns (stream ModelInferenceEvent);
+}
+
+service ExecutionService {
+  rpc InvokeTool              (ToolInvocationRequest)   returns (ToolInvocationResult);
+  rpc InvokeToolStreaming     (ToolInvocationRequest)   returns (stream ToolStreamEvent);
+  rpc AllocateSandbox         (SandboxAllocateRequest)  returns (SandboxHandle);
+  rpc ReleaseSandbox          (SandboxReleaseRequest)   returns (SandboxReleaseAck);
+}
+
+service VerificationService {
+  rpc RequestVerification     (VerificationRequest)     returns (VerificationResult);
+  rpc StreamVerification      (VerificationRequest)     returns (stream LevelResult);
+  rpc IssueRepairOrder        (RepairOrder)             returns (RepairOrderAck);
+}
+
+service ContextService {
+  rpc CompileContext          (CompileContextRequest)   returns (ContextPacketRef);
+  rpc GetContextPacket        (GetContextPacketRequest) returns (ContextPacket);
+  rpc RetrieveMemory          (MemoryQuery)             returns (MemoryResults);
+  rpc WriteMemory             (WriteMemoryRequest)      returns (MemoryWriteAck);
+}
+
+service SecurityService {
+  rpc IssueCapabilityToken    (CapabilityTokenRequest)  returns (CapabilityToken);
+  rpc RevokeCapabilityToken   (RevokeTokenRequest)      returns (RevokeAck);
+  rpc CheckPolicy             (PolicyCheckRequest)      returns (PolicyCheckResult);
+  rpc RequestHumanApproval    (ApprovalRequest)         returns (ApprovalTicket);
+}
+12. CANONICAL END-TO-END WIRE EXAMPLE
+A single user request flowing through the protocols. Envelopes elided for brevity — assume every message is wrapped.
+
+Step 1 — Gateway → Kernel (Mission Protocol):
+
+text
+
+KernelService.CreateMission(MissionRequest)
+  objective: "Redline this NDA for me"
+  tier: PRO
+  cognitive_depth: 3
+Step 2 — Kernel emits event:
+
+text
+
+coco.org_default.prod.mission.mission.created
+  subject: mis_01J8...
+Step 3 — Kernel → Intelligence (Agent Protocol):
+
+text
+
+IntelligenceService.SpawnAgent(AgentSpawnRequest)
+  agent_definition_id: "C36_legal_corporate_attorney"
+  task_id: tsk_analyze_01
+  tool_grants: [contract_redline_engine:workspace_write]
+Step 4 — Intelligence → Context (Context Protocol):
+
+text
+
+ContextService.CompileContext(CompileContextRequest)
+  for_agent: C36
+  scope: [project, semantic_legal]
+  → returns ContextPacketRef
+Step 5 — Intelligence → Model (Model Protocol):
+
+text
+
+IntelligenceService.RouteModel(ModelRouteRequest)
+  capability: REASON
+  quality_floor: EXCELLENT
+  → ModelRouteDecision(selected: "anthropic/claude-3.5-sonnet@20241022")
+
+IntelligenceService.InferModel(ModelInferenceRequest) [streaming]
+  → ModelInferenceEvent × N
+Step 6 — Intelligence → Execution (Tool Protocol):
+
+text
+
+SecurityService.IssueCapabilityToken(...) → CapabilityToken(sig=...)
+ExecutionService.InvokeTool(ToolInvocationRequest)
+  tool_id: "contract_redline_engine"
+  capability_token: "..."
+  → ToolInvocationResult(status: SUCCESS, output_artifact_ref: art_redlined_01)
+Step 7 — Intelligence → Verification (Verification Protocol):
+
+text
+
+VerificationService.RequestVerification(VerificationRequest)
+  artifacts: [art_redlined_01]
+  target_level: 9
+  domain: LEGAL
+  critic_agent_id: "C36_critic_adversarial_attorney"
+  → VerificationResult(verdict: ACCEPTED_WITH_NOTES, level_results: [...])
+Step 8 — Intelligence → Kernel (Agent Protocol):
+
+text
+
+IntelligenceService.SubmitAgentReport(AgentRunReport)
+  outcome: COMPLETED_SUCCESS
+  artifacts_produced: [art_redlined_01, art_verification_report_01]
+Step 9 — Kernel → Gateway (Mission Protocol):
+
+text
+
+MissionState(phase: COMPLETED, progress: 100.0)
+Step 10 — Events emitted throughout (all consumed by Observability & Evolution):
+
+text
+
+task.completed → verification.artifact_accepted → mission.delivering_started
+→ mission.completed → evolution.metric_recorded
+13. SUMMARY OF SPECIFICATION 2 LOCKS
+The Fabric Protocols are now fully specified:
+
+Envelope Protocol Locked — Universal CocoEnvelope with 22 fields governing identity, tenancy, correlation, integrity, and delivery guarantees.
+Mission Protocol Locked — MissionRequest, MissionState, TaskGraph, Task, Checkpoint with full state machine (16 phases) and 10 task kinds.
+Agent Protocol Locked — AgentSpawnRequest (static + dynamic), AgentAssignment, AgentRunReport with epistemic-status findings, and AgentControlSignal.
+Tool Protocol Locked — ToolInvocationRequest/Result, ToolDescriptor, CapabilityToken (Ed25519-signed), and 9 tool execution statuses.
+Model Protocol Locked — ModelRouteRequest/Decision, provider-agnostic ModelInferenceRequest, streaming ModelInferenceEvent, and full ModelDescriptor with performance tracking.
+Event Protocol Locked — CocoEvent on NATS JetStream with hierarchical subject topology, complete canonical event catalog (~80 event types), and durable consumer contracts.
+Verification Protocol Locked — VerificationRequest, per-level LevelResult with individual CheckResults, CriticReport for L9+, and RepairOrder for the repair loop.
+Shared Value Types Locked — ArtifactRef, ContextPacketRef, DecisionRef, MemoryRef, EvidenceRef, ModelCallRef, ToolCallRef.
+Versioning Policy Locked — Strict semver, additive-only field evolution, schema registry, wire-time negotiation.
+Error Protocol Locked — Universal CocoError with 6 severity levels and 11 error categories.
+gRPC Services Locked — 6 service interfaces (Kernel, Intelligence, Execution, Verification, Context, Security) covering every inter-fabric operation.
+Every fabric now has an unambiguous, typed, versioned contract for every message it may send or receive. A fabric can be re-implemented in a different language, replaced entirely, or scaled independently without touching another fabric.
+
+NEXT DEEP SPECIFICATION
+The wire is now locked. We proceed to DEEP SPEC 3 — The Database Schema:
+
+Complete PostgreSQL DDL for all 27 Core Objects (Constitutional Dimension 3)
+pgvector integration for embeddings, memory retrieval, and semantic search
+The Event Log design (append-only, partitioned, replayable) that materializes the Event Protocol
+The Project Brain graph structure (nodes, edges, knowledge propagation)
+Multi-tenancy isolation (Row-Level Security policies per organization)
+Migration architecture, index strategy, and read/write partitioning
+The audit log schema derived from the Event Protocol
+Materialized views for the observability & evolution fabrics

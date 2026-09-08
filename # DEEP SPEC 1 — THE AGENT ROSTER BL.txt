@@ -1,0 +1,860 @@
+# DEEP SPEC 1 — THE AGENT ROSTER BLUEPRINT
+
+**System:** DSRT COCO  
+**Layer:** Intelligence Fabric & Agent Runtime  
+**Status:** Approved & Locked Specification  
+**Governing Standard:** Article XIII (Cognitive Runtime) & Constitutional Dimension 6 (Agent Model)
+
+---
+
+## 1. AGENT TAXONOMY & ARCHITECTURAL CLASSIFICATION
+
+COCO does not treat agents as conversational prompt wrappers. An Agent in COCO is a **typed, stateful, permission-bounded cognitive actor** defined by:
+
+$$\text{Agent} = \{\text{Identity}, \text{Role}, \text{Methodology}, \text{Knowledge Bases}, \text{Tools}, \text{Constraints}, \text{Critic}, \text{Evaluation Rubric}\}$$
+
+The agent taxonomy is strictly organized into **four operational tiers**, ensuring high throughput, deterministic execution, and clear separation of control plane vs. data plane.
+
+```text
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      TIER 1: CORE GOVERNANCE (8-12)                      │
+│     System Orchestration · Task Decomposition · Risk · Universal Critic  │
+└────────────────────────────────────┬─────────────────────────────────────┘
+                                     │
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                       TIER 2: DOMAIN DIRECTORS (10)                      │
+│   Engineering · Research · Legal · Finance · Medical · Product · Security│
+└────────────────────────────────────┬─────────────────────────────────────┘
+                                     │
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                   TIER 3: SPECIALISTS (134+ CAPABILITIES)                │
+│    Deep Domain Experts · Methodologically Strict · Independent Critics   │
+└────────────────────────────────────┬─────────────────────────────────────┘
+                                     │
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                       TIER 4: OPERATORS (20-30)                          │
+│    Sanitized Tools · Shell · Git · Browser · DB · Deploy · API Execution │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. TIER 1 — CORE GOVERNANCE AGENTS
+
+Tier 1 agents form the **Cognitive Control Plane**. They are persistent, run continuously within the kernel loop, and govern the execution of all downstream directors and specialists.
+
+```text
+               ┌─────────────────────────────────────────┐
+               │           A1 COCO DIRECTOR              │
+               └────────────────────┬────────────────────┘
+                                    │
+         ┌──────────────────────────┼──────────────────────────┐
+         ▼                          ▼                          ▼
+┌─────────────────┐        ┌─────────────────┐        ┌─────────────────┐
+│A2 MISSION PLANNER│        │  A6 RISK OFFICER │        │ A4 MEMORY MANAGER│
+└────────┬────────┘        └────────┬────────┘        └────────┬────────┘
+         │                          │                          │
+         ▼                          ▼                          ▼
+┌─────────────────┐        ┌─────────────────┐        ┌─────────────────┐
+│A5 MODEL ROUTER  │        │A3 UNIVERSAL CRITIC│      │ A7 SYNTHESIS    │
+└─────────────────┘        └─────────────────┘        └─────────────────┘
+```
+
+### A1 — COCO Director (The Orchestrator)
+*   **Role:** Universal Mission Commander and Cognitive Executive.
+*   **Responsibility:** Receives input from the Gateway, executes Perception and Intent Engines ($S1 \rightarrow S2$), sets Cognitive Depth ($D0-D6$), spawns Tier 2 Directors, and manages final delivery.
+*   **Methodology:** Goal-Directed Intent Resolution & Dynamic Topology Construction.
+*   **Model Requirement:** Tier-1 Frontier Reasoning Model (e.g., Claude 3.5 Sonnet / O1 / DeepSeek-R1 class).
+*   **Permissions:** Read/Write Kernel State, Spawn Any Agent, Allocate Compute Envelope.
+*   **Constraints:** Cannot execute raw tools directly; must delegate all execution to lower tiers.
+
+### A2 — Mission Planner & Task Decomposer
+*   **Role:** Directed Acyclic Graph (DAG) Engineer.
+*   **Responsibility:** Receives objective from A1, executes S7 (Plan), decomposes missions into discrete, dependency-mapped tasks with explicit inputs, outputs, success criteria, and verification levels ($L0-L10$).
+*   **Methodology:** Hierarchical Task Network (HTN) Planning & Critical Path Analysis.
+*   **Model Requirement:** High-Context Reasoning & Structured Output Specialist.
+*   **Permissions:** Write TaskGraph, Read ProjectBrain.
+*   **Constraints:** Tasks must be granular enough for single-agent execution; must enforce DAG validity (no cycles).
+
+### A3 — Universal Critic & Red Team
+*   **Role:** Adversarial Quality Controller.
+*   **Responsibility:** Executes S10 (Critique), applies $L9$ verification, attacks claims, attempts to break code/architecture, surfaces hidden assumptions, and enforces the COCO Standards.
+*   **Methodology:** Red-Teaming, Fuzz Reasoning, Socratic Stress-Testing.
+*   **Model Requirement:** Frontier Reasoning Model configured for Adversarial Critique.
+*   **Permissions:** Reject Any Artifact, Issue Repair Orders, Halt Execution.
+*   **Constraints:** Must provide concrete, actionable root-cause diagnoses for every rejection.
+
+### A4 — Memory & Context Manager
+*   **Role:** Information Synthesizer & Knowledge Graph Custodian.
+*   **Responsibility:** Executes S3 (Recall) and S4 (Context Build), queries 7 memory scopes, calculates memory relevance, compresses context packets, and writes back to ProjectBrain at S14.
+*   **Methodology:** Vector-Graph Hybrid Retrieval, Recency-Importance-Relevance Decay Scoring.
+*   **Model Requirement:** Long-Context Retrieval & Summarization Model.
+*   **Permissions:** Read/Write Memory Scopes, Access Vector Index & Knowledge Graph.
+*   **Constraints:** Enforce zero context leakage between tenants; must store provenance with every memory record.
+
+### A5 — Model & Intelligence Router
+*   **Role:** Computational Substrate Optimizer.
+*   **Responsibility:** Analyzes task complexity, latency, context size, and budget, routing each task to the optimal model (Open-Weight, Local vLLM, or Hosted Frontier API).
+*   **Methodology:** Multi-Armed Bandit with Cost-Quality-Latency Pareto Optimization.
+*   **Model Requirement:** Lightweight Deterministic Classifier / Fast Sub-second Model.
+*   **Permissions:** Read Model Registry, Assign Model Adapters.
+*   **Constraints:** Never exceed mission compute envelope; enforce provider fallback chains on error.
+
+### A6 — Risk, Safety & Compliance Officer
+*   **Role:** Boundary Enforcer & Security Authority.
+*   **Responsibility:** Monitors real-time events for safety violations, permission overrides, data leakages, destructive execution, and budget exhaustion.
+*   **Methodology:** Deterministic Policy Checking, Static Rule Parsing, Anomaly Detection.
+*   **Model Requirement:** Deterministic Rule Engine + Guardrail LLM Classifier.
+*   **Permissions:** Global Kill Switch, Revoke Tool Permissions, Force Human-in-the-Loop Gate.
+*   **Constraints:** Overrides A1 Director if a hard constitutional safety rule is violated.
+
+### A7 — Synthesis & Delivery Agent
+*   **Role:** Deliverable Architect & Response Composer.
+*   **Responsibility:** Receives verified artifacts, applies S13 (Compose Response), selects the appropriate Response Mode (Direct, Reasoned, Investigative, Mission Report, etc.), and formats outputs to the COCO Voice Standard.
+*   **Methodology:** COCO Voice Protocol, Structured Markdown/Artifact Packaging.
+*   **Model Requirement:** High-Precision Natural Language Generation Model.
+*   **Permissions:** Read Verified Artifacts, Write Final Output Stream.
+*   **Constraints:** Strictly eliminate corporate slop, fluff, and unevidenced claims.
+
+### A8 — Evolution & Telemetry Evaluator
+*   **Role:** System Performance Analyst.
+*   **Responsibility:** Post-mission, analyzes event logs, compares planned vs. actual resource utilization, grades agent accuracy, and writes performance vectors to the Evolution Fabric.
+*   **Methodology:** Offline Telemetry Aggregation, Reinforcement Learning Signal Generation.
+*   **Model Requirement:** Offline Data Analysis Model / Batch Evaluator.
+*   **Permissions:** Read Full Mission Event Store, Write System Metrics.
+*   **Constraints:** Runs asynchronously; cannot block real-time mission execution.
+
+---
+
+## 3. TIER 2 — DOMAIN DIRECTORS
+
+Domain Directors are senior orchestrators responsible for specific professional verticals. They analyze tasks assigned by the Mission Planner, assemble Tier 3 Specialists into dynamic organizations, enforce domain-specific methodologies, and supervise execution.
+
+```text
+                                TIER 2 DOMAIN DIRECTORS
+                                           │
+  ┌───────────────┬───────────────┬────────┴──────┬───────────────┬───────────────┐
+  ▼               ▼               ▼               ▼               ▼               ▼
+B1 ENG          B2 RESEARCH     B3 LEGAL        B4 FINANCE      B5 MEDICAL      B6 PRODUCT
+Director        Director        Director        Director        Director        Director
+  │               │               │               │               │               │
+  ▼               ▼               ▼               ▼               ▼               ▼
+B7 CREATIVE     B8 SECURITY     B9 OPS          B10 HARDWARE
+Director        Director        Director        Director
+```
+
+| ID | Director | Domain Scope | Primary Methodology | Default Specialists Managed |
+|---|---|---|---|---|
+| **B1** | **Engineering Director** | Full-Stack Software, Architecture, Infrastructure, DB | Test-Driven Dev (TDD), Modular Domain-Driven Design (DDD) | C1-C20 (Software Branch) |
+| **B2** | **Research & Intel Director** | Web Research, Academic Synthesis, Patent Search, Data Extraction | Triangulated Evidence Extraction, Citation Graph Verification | C21-C35 (Research Branch) |
+| **B3** | **Legal & Regulatory Director** | Statutory Analysis, Contract Review, Compliance, IP | IRAC (Issue, Rule, Application, Conclusion), Precedent Mapping | C36-C47 (Legal Branch) |
+| **B4** | **Financial & Economic Director** | Financial Modeling, Valuation, Market Economics, Audit | Discounted Cash Flow (DCF), LBO, Unit Economic Breakdown | C48-C59 (Finance Branch) |
+| **B5** | **Medical & Life Sciences Director** | Clinical Research, Diagnostics, Drug Discovery, Bio-Engineering | Evidence-Based Medicine (EBM), Systematic Review Protocol | C60-C71 (Medical Branch) |
+| **B6** | **Product & Strategy Director** | Product Requirements, Market Strategy, UX, Monetization | Jobs-To-Be-Done (JTBD), First-Principles Moat Analysis | C72-C83 (Product Branch) |
+| **B7** | **Creative & Media Director** | Technical Writing, Branding, UI Design Systems, Media | Design System Specs, Structured Information Hierarchy | C84-C93 (Creative Branch) |
+| **B8** | **Security Director** | Threat Modeling, Code Auditing, AppSec, IAM | STRIDE, MITRE ATT&CK Framework, Zero-Trust Audit | C94-C103 (Security Branch) |
+| **B9** | **Operations & Supply Director** | Logistics, Process Optimization, Supply Chain | Value Stream Mapping, Bottleneck Theory (TOC) | C104-C118 (Operations Branch)|
+| **B10**| **Hardware & Systems Director** | Robotics, Embedded Systems, Circuit Design, CAD | Failure Mode & Effects Analysis (FMEA), Physics Simulation | C119-C134 (Hardware Branch) |
+
+---
+
+## 4. TIER 3 — SPECIALIST ROSTER (THE 134+ CAPABILITIES)
+
+Tier 3 Specialists are deep, hyper-focused experts. Every specialist is coupled with a **Domain Critic**, an **Expert Knowledge Base**, **Domain-Specific Tools**, and a strict **Methodology**.
+
+Below is the complete 134-capability structure organized across 10 functional branches, followed by uncompromised, deep specifications for flagship specialists across key domains.
+
+### Master Roster Map (Capabilities C1 to C134)
+
+```text
+BRANCH 1: SOFTWARE & SYSTEMS ENGINEERING (C1 - C20)
+  C1: Python Systems Architect           C11: API & Middleware Engineer
+  C2: Frontend & UI Architect (React/TS) C12: Performance & Profiling Engineer
+  C3: Backend Systems Engineer           C13: Mobile Engineer (React Native/iOS)
+  C4: PostgreSQL & DB Specialist         C14: Data Pipeline & ETL Engineer
+  C5: DevOps & Kubernetes Specialist     C15: Machine Learning Infrastructure
+  C6: Cloud Infrastructure (AWS/GCP)    C16: Vector DB & Retrieval Specialist
+  C7: Distributed Systems Specialist     C17: Legacy Code Migration Specialist
+  C8: Distributed Cache Engineer (Redis) C18: Embedded Firmware Specialist
+  C9: Microservices & Event Specialist   C19: QA & Automation Specialist
+  C10: WebSec & Cryptography Engineer    C20: Technical Documentation Engineer
+
+BRANCH 2: RESEARCH & INFORMATION INTELLIGENCE (C21 - C35)
+  C21: Deep Web Investigator             C29: Cross-Language Translator
+  C22: Academic & Paper Synthesizer      C30: Contradiction Detection Specialist
+  C23: Patent & IP Search Specialist     C31: Primary Source Evaluator
+  C24: Data Scraper & Parser             C32: Real-time News & Signal Specialist
+  C25: Citation & Provenance Verifier    C33: Benchmark & Dataset Analyst
+  C26: Quantitative Data Specialist      C34: Regulatory Archive Researcher
+  C27: Qualitative Synthesis Specialist  C35: Executive & Biographical Analyst
+  C28: Market & Industry Investigator
+
+BRANCH 3: LEGAL, POLICY & GOVERNANCE (C36 - C47)
+  C36: Corporate & Commercial Attorney   C42: Labor & Employment Legal Specialist
+  C37: IP & Patent Law Attorney          C43: Tax Law & Structuring Attorney
+  C38: Regulatory Compliance Officer     C44: International Trade & Customs Specialist
+  C39: Contract & SLA Redliner           C45: Antitrust & Competition Analyst
+  C40: GDPR & Data Privacy Attorney      C46: Environmental & ESG Compliance
+  C41: M&A / Due Diligence Attorney      C47: Litigation Risk Analyst
+
+BRANCH 4: FINANCIAL, ECONOMIC & VALUATION (C48 - C59)
+  C48: Corporate Financial Modeler       C54: Venture Capital & Equity Specialist
+  C49: DCF & LBO Valuation Specialist    C55: Tax Optimization Specialist
+  C50: Unit Economics & SaaS Analyst     C56: Real Estate & Asset Valuation
+  C51: Risk & Volatility Modeler         C57: Forensic Accounting Specialist
+  C52: Macroeconomic & FX Specialist     C58: Capital Allocation Strategist
+  C53: Cryptoeconomics & Token Analyst   C59: Actuarial & Insurance Specialist
+
+BRANCH 5: MEDICINE, LIFE SCIENCES & HEALTHCARE (C60 - C71)
+  C60: Clinical Research Investigator    C66: Genomic & Bio-Data Specialist
+  C61: Diagnostic Decision Support Spec  C67: Healthcare Regulatory Compliance
+  C62: Pharmacology & Interaction Spec   C68: Medical Device (FDA/CE) Spec
+  C63: Immunology & Pathology Specialist C69: Public Health & Epidemiology Spec
+  C64: Oncology Literature Specialist    C70: Healthcare Economics Specialist
+  C65: Neuroscience Research Specialist  C71: Clinical Trial Protocol Designer
+
+BRANCH 6: BUSINESS, PRODUCT & GROWTH (C72 - C83)
+  C72: Product Requirements Specialist   C78: Customer Discovery & Persona Spec
+  C73: Go-To-Market (GTM) Strategist     C79: Pricing & Packaging Strategist
+  C74: Competitive Moat Analyst          C80: Enterprise Sales Process Designer
+  C75: User Acquisition & Growth Eng     C81: Product-Led Growth (PLG) Specialist
+  C76: Funnel Optimization Specialist    C82: Customer Success & Churn Specialist
+  C77: Strategic Partnership Specialist  C83: M&A Synergy & Integration Specialist
+
+BRANCH 7: HARDWARE, ROBOTICS & PHYSICAL SYSTEMS (C84 - C93)
+  C84: Mechanical & CAD Designer         C89: IoT Infrastructure Specialist
+  C85: PCB Layout & Electronics Engineer C90: Autonomous Navigation Specialist
+  C86: Firmware & Microcontroller Spec   C91: Materials Science Specialist
+  C87: Control Systems & Kinematics Spec C92: Thermal & Power Management Spec
+  C88: Robotics Sensor Fusion Specialist C93: Manufacturing & DFMA Engineer
+
+BRANCH 8: CREATIVE, MEDIA & COMMUNICATIONS (C94 - C103)
+  C94: UI/UX Design System Specialist    C99: Brand Identity & Voice Designer
+  C95: Design System Architect           C100: Technical Copywriter & Editor
+  C96: Interactive Prototype Designer    C101: Video Script & Storyboard Spec
+  C97: Information Architecture Spec     C102: Community & Developer Rel Spec
+  C98: Accessibility (WCAG) Specialist   C103: Crisis Communication Strategist
+
+BRANCH 9: APPLIED SCIENCES & MATHEMATICS (C104 - C118)
+  C104: Statistical Modeling Specialist  C112: Operations Research Specialist
+  C105: Quantum Computing Specialist     C113: Bio-Informatics Specialist
+  C106: Physics Simulation Specialist    C114: Applied Cryptography Specialist
+  C107: Computational Chemistry Spec     C115: Game Theory & Auction Designer
+  C108: Dynamical Systems Specialist     C116: Signal Processing Engineer
+  C109: Spatial & GIS Analytics Spec     C117: Graph Theory & Topology Spec
+  C110: Fluid Dynamics (CFD) Specialist  C118: Causal Inference Specialist
+  C111: Climate & Atmospheric Scientist
+
+BRANCH 10: OPERATIONAL & DOMAIN-SPECIFIC (C119 - C134)
+  C119: Warehousing & Logistics Spec     C127: Educational Curriculum Designer
+  C120: Procurement & Vendor Specialist  C128: Hospitality & Experience Spec
+  C121: Real Estate Facility Manager     C129: Aerospace & Avionics Engineer
+  C122: Construction Project Engineer    C130: Automotive Systems Specialist
+  C123: Energy Grid & Utility Specialist C131: Maritime & Marine Engineer
+  C124: Agriculture & AgTech Specialist  C132: Defense & Dual-Use Tech Spec
+  C125: E-Commerce Operations Specialist  C133: Urban Planning & Smart City Spec
+  C126: Media & Entertainment Operations C134: Mining & Extraction Specialist
+```
+
+---
+
+### FLAGSHIP SPECIALIST DEEP-DIVES (EXPERT-BEATING BLUEPRINTS)
+
+To satisfy the **Constitutional Requirement** ("Specialists must beat median human professionals"), below are the full, production-ready blueprints for 5 flagship specialists across different domains.
+
+---
+
+### BLUEPRINT 1: C36 — Corporate & Commercial Attorney (Legal Domain)
+
+```yaml
+specialist_id: C36_legal_corporate_attorney
+name: Corporate & Commercial Legal Advisor
+tier: 3
+domain: Legal, Policy & Governance
+reports_to: B3_legal_director
+
+expert_beating_thesis: >
+  Outperforms human corporate lawyers by exhaustively cross-referencing statutory databases,
+  case precedents, and jurisdictional filings in parallel while enforcing rigid IRAC analysis 
+  and subjecting every clause to an independent, adversarial legal critic.
+
+model_profile:
+  reasoning_model: frontier-reasoning-high (e.g. DeepSeek-R1 / O1)
+  temperature: 0.0
+  max_context: 128000
+
+knowledge_sources:
+  - statute_db: [US_Code, EU_Directives, India_Companies_Act_2013, UK_Companies_Act]
+  - case_law: [Delaware_Chancery_Court, SEC_No_Action_Letters, High_Court_Precedents]
+  - repositories: [Practical_Law_Templates, NVCA_Standard_Docs, ABA_Model_Agreements]
+
+tool_suite:
+  - tool_id: legal_statute_lookup
+    scope: read-only
+  - tool_id: case_law_citation_resolver
+    scope: read-only
+  - tool_id: precedent_semantic_search
+    scope: read-only
+  - tool_id: contract_redline_engine
+    scope: workspace-write
+  - tool_id: jurisdiction_detector
+    scope: read-only
+
+methodology:
+  framework: IRAC (Issue, Rule, Application, Conclusion)
+  steps:
+    1. Identify all legal issues, ambiguities, and liabilities in input.
+    2. Retrieve governing statutes and binding precedent for specific jurisdiction.
+    3. Apply statutory language and case law strictly to the facts.
+    4. Draft unambiguous contractual terms or legal opinion.
+    5. Pass draft to C36_Critic for adversarial attack.
+    6. Resolve all critic rejections before finalizing.
+
+constraints:
+  must:
+    - Cite specific statute sections or case citations for every legal assertion.
+    - Explicitly state jurisdiction and governing law.
+    - Highlight clauses with non-standard indemnification, liability caps, or IP assignments.
+  must_not:
+    - Never invent citations or legal precedent.
+    - Never give definitive legal guarantees on unsettled law; state probability ranges.
+    - Never proceed without explicit jurisdiction definition.
+
+critic_agent:
+  id: C36_critic_adversarial_attorney
+  role: Adversarial Counsel
+  action: >
+    Checks that every citation exists, verifies case law hasn't been overturned (Shepardizing),
+    searches for missing counter-arguments, and attempts to find loopholes in drafted clauses.
+
+evaluation_rubric:
+  citation_accuracy: 1.0     # 100% required
+  jurisdictional_fit: 1.0    # Must match target region
+  ambiguity_score: < 0.05    # Drafted terms must be tight
+  rejection_threshold: 0.90  # Critic must score >0.90 to pass
+```
+
+---
+
+### BLUEPRINT 2: C1 — Python Systems Architect (Software Engineering Domain)
+
+```yaml
+specialist_id: C1_eng_python_architect
+name: Python Systems Architect & Core Engineer
+tier: 3
+domain: Software & Systems Engineering
+reports_to: B1_engineering_director
+
+expert_beating_thesis: >
+  Beats human Python architects by enforcing strict typing, AsyncIO correctness,
+  memory-efficient data structures, complete unit/integration test coverage, and
+  running 10-level verification loops (compile, lint, typecheck, SAST, dynamic execution).
+
+model_profile:
+  reasoning_model: frontier-coding-high (e.g. Claude 3.5 Sonnet / Qwen-2.5-Coder-32B)
+  temperature: 0.1
+  max_context: 128000
+
+knowledge_sources:
+  - standards: [PEP_8, PEP_484, PEP_525_Async Generators, Twelve_Factor_App]
+  - frameworks: [FastAPI, Pydantic_v2, SQLAlchemy_v2, Asyncpg, Pytest, Celery]
+  - design_patterns: [Gang_of_Four, Clean_Architecture, Domain_Driven_Design]
+
+tool_suite:
+  - tool_id: workspace_file_editor
+    scope: workspace-write
+  - tool_id: python_runtime_sandbox
+    scope: sandbox-exec
+  - tool_id: ruff_linter_typechecker
+    scope: sandbox-exec
+  - tool_id: pytest_runner
+    scope: sandbox-exec
+  - tool_id: mypy_strict_checker
+    scope: sandbox-exec
+
+methodology:
+  framework: TDD + Clean Modular Monolith Architecture
+  steps:
+    1. Define domain models and Pydantic validation schemas first.
+    2. Define explicit interface contracts (Abstract Base Classes).
+    3. Write Pytest unit tests establishing expected behavior.
+    4. Implement clean, type-hinted AsyncIO code satisfying tests.
+    5. Run Ruff linter and strict Mypy typechecking.
+    6. Execute tests in isolated Docker sandbox.
+    7. On failure, invoke self-diagnosis and repair loop.
+
+constraints:
+  must:
+    - 100% type hint coverage (`mypy --strict` compliant).
+    - Asynchronous I/O (`async`/`await`) for all network/disk calls.
+    - Complete error handling with custom exception hierarchies.
+  must_not:
+    - Never use global state or bare `except:` blocks.
+    - Never execute un-sandboxed python code.
+    - Never hardcode credentials, paths, or environment variables.
+
+critic_agent:
+  id: C1_critic_code_reviewer
+  role: Senior Staff Code Reviewer
+  action: >
+    Performs static analysis, checks code complexity (Cyclomatic Complexity < 10),
+    verifies memory safety, checks test coverage (>90%), and audits security (Bandit).
+
+evaluation_rubric:
+  compilation_success: 1.0   # Must compile
+  mypy_strict_pass: 1.0      # Zero type errors
+  test_pass_rate: 1.0        # 100% tests pass
+  coverage: >= 0.90          # Line coverage
+```
+
+---
+
+### BLUEPRINT 3: C48 — Corporate Financial Modeler (Finance Domain)
+
+```yaml
+specialist_id: C48_fin_corporate_modeler
+name: Corporate Financial Modeler & Analyst
+tier: 3
+domain: Financial, Economic & Valuation
+reports_to: B4_finance_director
+
+expert_beating_thesis: >
+  Outperforms Wall Street analysts by automatically constructing dynamic 3-statement 
+  financial models with audited formula integrity, stress-testing 10,000 Monte Carlo 
+  scenarios in seconds, and linking all assumptions directly to primary filings (10-K/10-Q).
+
+model_profile:
+  reasoning_model: frontier-reasoning-high
+  temperature: 0.0
+  max_context: 128000
+
+knowledge_sources:
+  - accounting: [US_GAAP, IFRS, FASB_Standards]
+  - financial_db: [SEC_EDGAR, Bloomberg_Data_Schema, Morningstar_Taxonomy]
+  - valuation_playbooks: [McKinsey_Valuation, Damodaran_Valuation_Models]
+
+tool_suite:
+  - tool_id: financial_calculator_engine
+    scope: compute-exec
+  - tool_id: sec_edgar_extractor
+    scope: read-only
+  - tool_id: monte_carlo_simulator
+    scope: compute-exec
+  - tool_id: excel_formula_builder
+    scope: workspace-write
+
+methodology:
+  framework: Audited 3-Statement Dynamic Modeling + Monte Carlo Risk Analysis
+  steps:
+    1. Extract historical 3-statement data from audited GAAP filings.
+    2. Build dynamic driver-based revenue and expense forecast mechanics.
+    3. Construct balance sheet and cash flow statements with zero balance error.
+    4. Perform sensitivity analysis across key operational levers.
+    5. Run 10,000 Monte Carlo iterations on high-uncertainty variables.
+    6. Verify formula linkage and check balance identity ($Assets = Liabilities + Equity$).
+
+constraints:
+  must:
+    - Every projected line item must be explicitly tied to a stated operational driver.
+    - Balance sheet must balance across all projected periods ($Error = 0.00$).
+    - Citation attached for every historical number back to SEC filing page/table.
+  must_not:
+    - Never hardcode calculated values in formulas.
+    - Never plug balance sheets using un-explained balancing variables.
+
+critic_agent:
+  id: C48_critic_forensic_auditor
+  role: Forensic Financial Auditor
+  action: >
+    Verifies accounting identity integrity, checks formulas for circular references,
+    audits historical baseline data against SEC filings, and stress-tests edge cases.
+
+evaluation_rubric:
+  accounting_balance_identity: 1.0  # Zero balance error
+  formula_audit_pass: 1.0           # Dynamic, zero hardcoded values
+  filing_citation_rate: 1.0         # All historicals cited
+```
+
+---
+
+### BLUEPRINT 4: C60 — Clinical Research Investigator (Medical Domain)
+
+```yaml
+specialist_id: C60_med_clinical_investigator
+name: Clinical Research Investigator & Medical Analyst
+tier: 3
+domain: Medicine, Life Sciences & Healthcare
+reports_to: B5_medical_director
+
+expert_beating_thesis: >
+  Outperforms human clinical researchers by synthesizing thousands of PubMed/MEDLINE 
+  papers, extracting clinical trial outcomes (P-values, Hazard Ratios, Sample Sizes), 
+  evaluating bias via Cochrane Risk tools, and generating evidence-graded medical summaries.
+
+model_profile:
+  reasoning_model: frontier-reasoning-high
+  temperature: 0.0
+  max_context: 128000
+
+knowledge_sources:
+  - databases: [PubMed, ClinicalTrials_gov, Cochrane_Library, EMBASE, FDA_Drug_Labels]
+  - standards: [CONSORT_Statement, PRISMA_Guidelines, GRADE_Framework]
+
+tool_suite:
+  - tool_id: pubmed_entrez_search
+    scope: read-only
+  - tool_id: clinical_trials_parser
+    scope: read-only
+  - tool_id: meta_analysis_calculator
+    scope: compute-exec
+  - tool_id: cochrane_bias_evaluator
+    scope: compute-exec
+
+methodology:
+  framework: PRISMA-Compliant Systematic Review & GRADE Evidence Assessment
+  steps:
+    1. Formulate clinical query using PICO (Population, Intervention, Comparator, Outcome).
+    2. Search PubMed, EMBASE, and ClinicalTrials.gov with structured boolean queries.
+    3. Filter trials by sample size, randomization, blinding, and attrition rate.
+    4. Extract statistical effect sizes (OR, RR, HR, 95% Confidence Intervals).
+    5. Evaluate risk of bias using Cochrane Risk of Bias tool.
+    6. Grade final evidence quality using GRADE criteria (High, Moderate, Low, Very Low).
+
+constraints:
+  must:
+    - Report 95% Confidence Intervals and P-values for all efficacy claims.
+    - Apply GRADE framework to every clinical recommendation.
+    - Highlight boxed warnings, adverse events, and contraindications.
+  must_not:
+    - Never generate medical advice without explicit GRADE evidence scoring.
+    - Never cite non-peer-reviewed or predatory journals.
+
+critic_agent:
+  id: C60_critic_medical_peer_reviewer
+  role: Medical Journal Peer Reviewer
+  action: >
+    Verifies study statistical extractions against primary PDF tables, checks that 
+    risk of bias was correctly applied, and flags overstated clinical conclusions.
+
+evaluation_rubric:
+  extraction_accuracy: 1.0     # Numbers match trial data
+  prisma_compliance: 1.0      # Search process transparent
+  grade_scoring_fidelity: >0.95
+```
+
+---
+
+### BLUEPRINT 5: C21 — Deep Web Investigator (Research Domain)
+
+```yaml
+specialist_id: C21_res_deep_investigator
+name: Deep Web Investigator & Evidence Gatherer
+tier: 3
+domain: Research & Information Intelligence
+reports_to: B2_research_director
+
+expert_beating_thesis: >
+  Beats human researchers by executing multi-hop search strategies across open web, 
+  archival databases, regulatory filings, and primary documents simultaneously, 
+  extracting claim-level evidence with cryptographic hash provenance.
+
+model_profile:
+  reasoning_model: frontier-reasoning-medium
+  temperature: 0.1
+  max_context: 128000
+
+knowledge_sources:
+  - indices: [Google_Search_API, Bing_Web_API, WayBack_Machine, Common_Crawl]
+  - registries: [WHOIS_Registries, SEC_EDGAR, OpenCorporates, Patent_Databases]
+
+tool_suite:
+  - tool_id: headless_browser_operator
+    scope: sandbox-exec
+  - tool_id: search_engine_aggregator
+    scope: read-only
+  - tool_id: document_content_extractor
+    scope: compute-exec
+  - tool_id: evidence_provenance_hasher
+    scope: compute-exec
+
+methodology:
+  framework: Triangulated Evidence Extraction & Citation Graph Verification
+  steps:
+    1. Deconstruct research topic into core claims, entities, and keywords.
+    2. Issue parallel search queries across multiple independent search indices.
+    3. Crawl target pages using headless browser; capture full text + screenshot DOM.
+    4. Extract direct quotes and factual claims answering research objective.
+    5. Verify each claim across at least 3 independent, primary sources.
+    6. Generate SHA-256 hash of extracted source text for cryptographic provenance.
+
+constraints:
+  must:
+    - Require 3 independent primary sources for high-impact factual assertions.
+    - Store raw source text, URL, timestamp, and content hash for every quote.
+    - Explicitly classify sources as Primary, Secondary, or Unverified.
+  must_not:
+    - Never cite blogs, social media posts, or unverified secondary rewrites as primary facts.
+    - Never report information from pages that return HTTP errors or anti-bot blocks.
+
+critic_agent:
+  id: C21_critic_fact_checker
+  role: Fact Checker & Provenance Auditor
+  action: >
+    Re-fetches URLs to confirm quote existence, checks source credibility scores, 
+    and verifies that extracted quotes were not taken out of context.
+
+evaluation_rubric:
+  provenance_completeness: 1.0  # 100% facts cited with URL + Hash
+  triangulation_rate: >= 0.85   # Claims verified across multiple sources
+  hallucination_rate: 0.00
+```
+
+---
+
+## 5. TIER 4 — OPERATOR AGENTS
+
+Tier 4 Operators are **pure execution workers**. They have zero autonomous reasoning authority—their sole job is to execute concrete tool commands safely inside isolated environments and return structured results to Tier 3 Specialists.
+
+```text
+               TIER 4 OPERATORS (Sanitized Tool Execution)
+                                    │
+    ┌──────────────┬───────────────┼───────────────┬──────────────┐
+    ▼              ▼               ▼               ▼              ▼
+D1 BROWSER     D2 TERMINAL     D3 GIT          D4 DATABASE    D5 DEPLOY
+Operator       Operator        Operator        Operator       Operator
+```
+
+```yaml
+Operators:
+
+  D1_browser_operator:
+    name: Headless Browser Operator
+    capabilities: [click, type, navigate, screenshot, extract_dom, render_pdf]
+    environment: Isolated Playwright Container
+    permissions: Network egress limited to whitelisted domains / ports.
+
+  D2_terminal_operator:
+    name: Terminal & Shell Operator
+    capabilities: [exec_command, spawn_process, read_stdout, read_stderr]
+    environment: Ephemeral Docker Container (Alpine / Ubuntu)
+    permissions: Non-root execution; memory: 2GB, CPU: 2 cores, no host mounts.
+
+  D3_git_operator:
+    name: Git Repository Operator
+    capabilities: [clone, checkout, commit, push, create_branch, merge]
+    environment: Isolated Local Repository Folder
+    permissions: Workspace folder write access only; SSH keys injected via Secret Broker.
+
+  D4_database_operator:
+    name: Database Query Operator
+    capabilities: [execute_sql, run_migration, inspect_schema, dump_table]
+    environment: PostgreSQL / MySQL Sandbox Connection
+    permissions: Restricted SQL user account; DDL requires Tier 1 explicit approval.
+
+  D5_deploy_operator:
+    name: Deployment & Cloud Operator
+    capabilities: [docker_build, push_container, apply_terraform, deploy_k8s]
+    environment: Cloud Provider CLI Runner
+    permissions: Production deployments require human approval gate ($L10 Verification).
+```
+
+---
+
+## 6. THE AGENT CONTRACT & SCHEMAS
+
+Every agent definition in COCO must parse against this strict **OpenAPI / Pydantic V2 Schema**. Definitions that fail validation are rejected at boot time.
+
+```python
+from enum import Enum
+from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, Field, HttpUrl
+
+class AgentTier(str, Enum):
+    TIER_1_CORE = "tier_1_core"
+    TIER_2_DIRECTOR = "tier_2_director"
+    TIER_3_SPECIALIST = "tier_3_specialist"
+    TIER_4_OPERATOR = "tier_4_operator"
+
+class ToolScope(str, Enum):
+    READ_ONLY = "read_only"
+    WORKSPACE_WRITE = "workspace_write"
+    COMPUTE_EXEC = "compute_exec"
+    SANDBOX_EXEC = "sandbox_exec"
+    NETWORK_EGRESS = "network_egress"
+
+class AgentToolRequirement(BaseModel):
+    tool_id: str
+    scope: ToolScope
+    is_required: bool = True
+
+class ModelProfile(BaseModel):
+    reasoning_model: str = Field(description="Identifier for preferred reasoning LLM")
+    fallback_models: List[str] = Field(default_factory=list)
+    temperature: float = Field(default=0.0, ge=0.0, le=1.0)
+    max_context_tokens: int = Field(default=128000)
+
+class AgentConstraints(BaseModel):
+    must_rules: List[str] = Field(description="Rules the agent must strictly follow")
+    must_not_rules: List[str] = Field(description="Banned actions/patterns")
+    requires_human_approval: List[str] = Field(default_factory=list)
+
+class EvaluationRubric(BaseModel):
+    metrics: Dict[str, float] = Field(description="Metric name to minimum passing score")
+    rejection_threshold: float = Field(default=0.85, ge=0.0, le=1.0)
+
+class AgentDefinitionContract(BaseModel):
+    """Immutable contract defining an agent in the COCO Ecosystem."""
+    agent_id: str = Field(pattern=r"^[A-Z][0-9]+_[a-z0-9_]+$")
+    name: str
+    version: str = "1.0.0"
+    tier: AgentTier
+    domain: str
+    reports_to: Optional[str] = None
+    
+    expert_beating_thesis: str = Field(description="Concrete reason why this agent beats median human experts")
+    model_profile: ModelProfile
+    knowledge_sources: List[str]
+    tool_suite: List[AgentToolRequirement]
+    
+    system_prompt_template: str
+    methodology_framework: str
+    methodology_steps: List[str]
+    
+    constraints: AgentConstraints
+    critic_agent_id: Optional[str] = None
+    evaluation_rubric: EvaluationRubric
+    
+    allowed_memory_scopes: List[str]
+```
+
+---
+
+## 7. DYNAMIC AGENT FACTORY & SPAWNING ENGINE
+
+While COCO registers 134 flagship capabilities statically, missions often require **niche, hyper-specific expertise** (e.g., *"Sanskrit Manuscript Specialist"* or *"1970s COBOL Mainframe Migration Specialist"*).
+
+Instead of hardcoding every micro-domain, Tier 2 Directors use the **Dynamic Agent Factory** to compile and spawn custom Tier 3 Specialists at runtime.
+
+```text
+                        MISSION REQUIREMENT
+                    "Analyze 18th Century Maratha 
+                     Land Revenue Documents"
+                               │
+                               ▼
+                    TIER 2 RESEARCH DIRECTOR
+                               │
+                               ▼
+                  IS CAPABILITY IN REGISTRY?
+                               │
+                      ┌────────┴────────┐
+                      │                 │
+                    YES                 NO
+                      │                 │
+                      ▼                 ▼
+               USE REGISTERED    AGENT FACTORY
+                  SPECIALIST      COMPILATION
+                                        │
+                                        ▼
+                               1. Fetch Domain Corpus
+                               2. Assemble Tool Suite
+                               3. Select Base Model
+                               4. Inject Methodology
+                               5. Instantiate Critic
+                                        │
+                                        ▼
+                               SPAWN DYNAMIC AGENT
+                               C135_maratha_revenue_spec
+```
+
+### The Factory Spawning Algorithm
+
+```python
+class DynamicAgentFactory:
+    """Compiles and registers ad-hoc Tier-3 specialists at runtime."""
+    
+    def __init__(self, registry: AgentRegistry, knowledge_engine: KnowledgeEngine):
+        self.registry = registry
+        self.knowledge = knowledge_engine
+
+    async def spawn_specialist(
+        self, 
+        domain_name: str, 
+        task_requirements: TaskRequirements, 
+        parent_director_id: str
+    ) -> AgentDefinitionContract:
+        
+        # 1. Synthesize domain knowledge corpus
+        corpus = await self.knowledge.retrieve_domain_corpus(domain_name)
+        
+        # 2. Derive domain methodology & constraints
+        methodology = await self.derive_methodology(domain_name, task_requirements)
+        
+        # 3. Create paired Adversarial Critic definition
+        critic_id = f"critic_dynamic_{domain_name.lower()}"
+        critic_def = self.build_dynamic_critic(critic_id, domain_name, methodology)
+        await self.registry.register(critic_def)
+        
+        # 4. Construct Agent Definition Contract
+        agent_id = f"C_dynamic_{domain_name.lower()}_{hash(task_requirements.objective)[:6]}"
+        agent_contract = AgentDefinitionContract(
+            agent_id=agent_id,
+            name=f"Dynamic Specialist: {domain_name}",
+            tier=AgentTier.TIER_3_SPECIALIST,
+            domain=domain_name,
+            reports_to=parent_director_id,
+            expert_beating_thesis=f"Dynamically compiled specialist for {domain_name} using primary corpus and strict verification.",
+            model_profile=ModelProfile(
+                reasoning_model="frontier-reasoning-high",
+                temperature=0.0
+            ),
+            knowledge_sources=corpus.source_identifiers,
+            tool_suite=task_requirements.required_tools,
+            system_prompt_template=f"You are the world's leading specialist in {domain_name}...",
+            methodology_framework=methodology.framework_name,
+            methodology_steps=methodology.steps,
+            constraints=AgentConstraints(
+                must_rules=methodology.must_rules,
+                must_not_rules=methodology.must_not_rules
+            ),
+            critic_agent_id=critic_id,
+            evaluation_rubric=EvaluationRubric(
+                metrics={"accuracy": 0.90, "domain_fidelity": 0.95},
+                rejection_threshold=0.88
+            ),
+            allowed_memory_scopes=["working", "project", "semantic"]
+        )
+        
+        # 5. Register in active runtime memory
+        await self.registry.register(agent_contract)
+        return agent_contract
+```
+
+---
+
+## 8. SUMMARY OF SPECIFICATION 1 LOCKS
+
+The **Agent Roster Blueprint** is now fully specified:
+
+1. **Taxonomy Locked:** 4 Tiers (Core Governance, Domain Directors, Specialists, Operators).
+2. **Governance Locked:** Tier 1 Core Agents ($A1-A8$) defined with exact roles, permissions, and model profiles.
+3. **Directors Locked:** Tier 2 Directors ($B1-B10$) mapped to operational domains and methodologies.
+4. **Specialists Structured:** 134 capabilities across 10 branches fully mapped; flagship deep-dives for Legal, Code, Finance, Medical, and Research locked.
+5. **Operators Isolated:** Tier 4 execution agents ($D1-D5$) sandboxed with strict scope limits.
+6. **Contracts Enforced:** Pydantic V2 Agent Definition schema locked for system validation.
+7. **Dynamic Expansion:** Spawning Factory algorithm defined for infinite domain expansion.
+
+---
+
+## NEXT DEEP SPECIFICATION
+
+The agent capabilities are locked. We now proceed to **DEEP SPEC 2 — The Fabric Protocols**, defining the exact, strongly-typed JSON/gRPC contracts for inter-fabric communication:
+
+*   **Mission Protocol:** Mission Request, Task Graph DAG, Checkpoint state schema.
+*   **Agent Protocol:** Agent Spawn, Task Assignment, Agent Run State, Response payload.
+*   **Tool Protocol:** Tool Invocation, Permission Check, Sandbox Exec, Tool Result.
+*   **Model Protocol:** Model Route Request, Unified Adapter Payload, Streaming Events.
+*   **Event Protocol:** Event Bus Schema, Pub/Sub Topics, Audit Log Event format.
+*   **Verification Protocol:** Verification Request, Test Battery Results, Critic Report Schema.

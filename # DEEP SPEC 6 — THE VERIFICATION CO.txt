@@ -1,0 +1,2059 @@
+# DEEP SPEC 6 — THE VERIFICATION COOKBOOK
+
+**System:** DSRT COCO
+**Layer:** Verification Fabric
+**Status:** Approved & Locked Specification
+**Governing Standards:** Constitutional Dimension 9 (Verification Model); Article XIII Law 7 ("Verified Outcomes Over Fast Answers"); Deep Specs 1-5
+**Purpose:** Convert the 10-level Verification Ladder from an abstract standard into a concrete, executable, per-domain test battery that makes "COCO delivers unverified work" structurally impossible.
+
+**Deferred:** Full C1–C134 capability catalog will be finalized at end of Deep Spec sequence (per user directive).
+
+---
+
+## 0. THE COOKBOOK PHILOSOPHY
+
+Every artifact COCO produces must survive an escalating gauntlet of checks before a human sees it. The Verification Fabric is not a QA afterthought — **it is a first-class fabric with equal standing to Intelligence and Execution**.
+
+### The Ten Governing Laws of Verification
+
+```text
+LAW 1  — GENERATION AND VERIFICATION ARE SEPARATE COGNITIVE PROCESSES
+         The agent that produces work never grades its own work at L9.
+         Independent critics are structural, not optional.
+
+LAW 2  — VERIFICATION IS EXECUTED, NOT ASSERTED
+         Every check is a running program with a machine-verifiable result.
+         "I checked it" is not verification. A green test log is verification.
+
+LAW 3  — EVERY LEVEL HAS EXPLICIT PASS CRITERIA
+         "Looks good" is banned. Every check returns PASS | FAIL | SKIPPED
+         | ERROR with structured evidence attached.
+
+LAW 4  — FAILURE TRIGGERS DIAGNOSIS, NOT SILENCE
+         Failed verification never returns a raw error to the user.
+         It triggers root-cause analysis + repair + re-verification.
+
+LAW 5  — VERIFICATION DEPTH MATCHES TASK RISK
+         A one-liner code fix runs L0–L4. A production deployment
+         runs L0–L10. Depth is chosen by policy, not by hope.
+
+LAW 6  — EVERY CHECK PRODUCES REPRODUCIBLE EVIDENCE
+         Logs, test output, screenshots, verification reports —
+         attached as artifacts. Verification is auditable forever.
+
+LAW 7  — VERIFICATION ITSELF IS VERIFIED
+         The verifiers, critics, and test batteries are themselves
+         benchmarked. A broken verifier is a system failure.
+
+LAW 8  — HUMAN APPROVAL IS L10 — NOT AN AFTERTHOUGHT
+         For destructive, high-stakes, or irreversible actions,
+         a human approval gate is a first-class verification level.
+
+LAW 9  — VERIFICATION IS BUDGETED
+         Every check has a cost (compute, latency, license). Budgets
+         are enforced. Excessive checks that don't improve outcomes
+         are trimmed by the Evolution Fabric.
+
+LAW 10 — REGRESSION IS FAILURE
+         A previously-passing artifact that now fails triggers an
+         incident. The system does not silently degrade.
+```
+
+---
+
+## 1. THE VERIFICATION FABRIC — INTERNAL ARCHITECTURE
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────┐
+│                          VERIFICATION FABRIC                                   │
+│                                                                                │
+│                    ┌──────────────────────────┐                                │
+│                    │   VERIFICATION SERVICE   │                                │
+│                    │   (gRPC entry point)     │                                │
+│                    └────────────┬─────────────┘                                │
+│                                 │                                              │
+│                                 ▼                                              │
+│                    ┌──────────────────────────┐                                │
+│                    │   VERIFICATION PLANNER   │                                │
+│                    │   - resolves domain      │                                │
+│                    │   - picks levels to run  │                                │
+│                    │   - budgets execution    │                                │
+│                    └────────────┬─────────────┘                                │
+│                                 │                                              │
+│                                 ▼                                              │
+│                    ┌──────────────────────────┐                                │
+│                    │   LEVEL ORCHESTRATOR     │                                │
+│                    │   (serial per level;     │                                │
+│                    │    parallel checks       │                                │
+│                    │    within a level)       │                                │
+│                    └────────────┬─────────────┘                                │
+│                                 │                                              │
+│      ┌──────────────────────────┼──────────────────────────┐                   │
+│      ▼                          ▼                          ▼                   │
+│  ┌───────────┐            ┌───────────┐              ┌───────────┐             │
+│  │ CHECK     │            │ CHECK     │              │ CHECK     │             │
+│  │ RUNNERS   │            │ RUNNERS   │              │ RUNNERS   │             │
+│  │ POOL      │            │ POOL      │              │ POOL      │             │
+│  │(sandboxed)│            │(sandboxed)│              │(sandboxed)│             │
+│  └─────┬─────┘            └─────┬─────┘              └─────┬─────┘             │
+│        │                        │                          │                   │
+│        └────────────────────────┼──────────────────────────┘                   │
+│                                 ▼                                              │
+│                    ┌──────────────────────────┐                                │
+│                    │   RESULT AGGREGATOR      │                                │
+│                    │   - per-level rollup     │                                │
+│                    │   - critic invocation    │                                │
+│                    │   - verdict computation  │                                │
+│                    └────────────┬─────────────┘                                │
+│                                 │                                              │
+│                     ┌───────────┴───────────┐                                  │
+│                     ▼                       ▼                                  │
+│         ┌─────────────────────┐   ┌─────────────────────┐                      │
+│         │  VERIFICATION       │   │  REPAIR LOOP        │                      │
+│         │  REPORT             │   │  ORCHESTRATOR       │                      │
+│         │  (artifact + event) │   │  (issues RepairOrder│                      │
+│         └─────────────────────┘   │   on failure)       │                      │
+│                                   └─────────────────────┘                      │
+└────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Design Principles
+
+```text
+1. LEVELS ARE SERIAL, CHECKS WITHIN A LEVEL ARE PARALLEL
+   L1 must pass before L2 begins. Within L4 (unit tests), all suites run parallel.
+
+2. EARLY EXIT ON HARD FAILURE
+   A hard-fail (e.g., artifact does not exist at L0) short-circuits.
+   No point running unit tests on a file that failed to write.
+
+3. CONTINUE ON SOFT FAILURE
+   A soft-fail (e.g., style violation at L3) logs but continues.
+   Repair may fold multiple soft-fails into a single fix pass.
+
+4. EVERY CHECK RUNS IN A DEDICATED SANDBOX
+   Runners share nothing. A misbehaving check cannot poison another.
+
+5. RESULTS ARE APPEND-ONLY
+   Once a LevelResult is emitted, it's immutable. Re-runs create new rows.
+```
+
+---
+
+## 2. THE 10-LEVEL VERIFICATION LADDER (CANONICAL DEFINITIONS)
+
+Each level has: **name · question answered · pass criterion · typical checks · applicable domains.**
+
+```text
+╔═════════════════════════════════════════════════════════════════════════════╗
+║ L0 — WELL-FORMED                                                            ║
+║ Question:  Does the artifact exist and open?                                ║
+║ Pass:      File exists · size > 0 · parses/renders in target format         ║
+║ Examples:  code compiles/parses · PDF opens · docx opens · JSON valid       ║
+║ Domains:   all                                                              ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L1 — STRUCTURAL VALID                                                       ║
+║ Question:  Does the artifact match its declared structure?                  ║
+║ Pass:      Schema/type conformance · required sections present              ║
+║ Examples:  JSON validates against schema · code has expected files          ║
+║            · legal memo has IRAC sections · report has executive summary    ║
+║ Domains:   all                                                              ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L2 — TYPE / LOGIC CORRECT                                                   ║
+║ Question:  Are internal contracts satisfied?                                ║
+║ Pass:      Strict type/logic check passes                                   ║
+║ Examples:  mypy --strict · TypeScript strict · SQL type check ·             ║
+║            citation format validates · double-entry accounting balances     ║
+║ Domains:   software, finance, legal (citations), scientific                 ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L3 — LINT / STYLE CLEAN                                                     ║
+║ Question:  Does the artifact meet quality/style standards?                  ║
+║ Pass:      Linter/style-checker: zero errors                                ║
+║ Examples:  ruff · eslint · Prettier · legal memo house style ·              ║
+║            APA/Bluebook citation format · design system tokens              ║
+║ Domains:   all                                                              ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L4 — UNIT VERIFIED                                                          ║
+║ Question:  Do isolated components/claims behave correctly?                  ║
+║ Pass:      Unit tests pass · isolated claims individually verifiable        ║
+║ Examples:  pytest · jest · property-based tests · each citation resolves    ║
+║            · each formula in a model computes correctly · each fact         ║
+║            traces to a source                                               ║
+║ Domains:   all                                                              ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L5 — INTEGRATION VERIFIED                                                   ║
+║ Question:  Do components work together end-to-end?                          ║
+║ Pass:      Integration tests pass · end-to-end flow works                   ║
+║ Examples:  API integration tests · docker compose up + health · full        ║
+║            model recalculates · cross-references between memo sections      ║
+║            consistent · design system components render together            ║
+║ Domains:   software, finance, hardware, design                              ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L6 — REQUIREMENT VERIFIED                                                   ║
+║ Question:  Does the artifact satisfy the mission's stated requirements?     ║
+║ Pass:      Every declared requirement has a matched, passing test           ║
+║ Examples:  requirement-to-test traceability matrix · every success          ║
+║            criterion mapped to evidence · playbook coverage complete        ║
+║ Domains:   all                                                              ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L7 — SECURITY / SAFETY VERIFIED                                             ║
+║ Question:  Is the artifact safe to deliver / deploy / rely on?              ║
+║ Pass:      SAST/DAST/dependency/PII scans clean · policy checks pass        ║
+║ Examples:  bandit + semgrep · trivy · gitleaks · GDPR PII scan ·            ║
+║            HIPAA PHI scan · privilege leak scan · clinical safety           ║
+║            (contraindication check) · FMEA critical-severity zero           ║
+║ Domains:   all (redacted per domain risk profile)                           ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L8 — PERFORMANCE / QUALITY VERIFIED                                         ║
+║ Question:  Does the artifact meet non-functional targets?                   ║
+║ Pass:      Latency/throughput/accuracy/coverage thresholds met              ║
+║ Examples:  p95 latency < SLA · load test at expected concurrency ·          ║
+║            test coverage ≥ 90% · citation triangulation rate ≥ 3 ·          ║
+║            model runs in < N seconds · WCAG AAA contrast met                ║
+║ Domains:   all                                                              ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L9 — CRITIC VERIFIED                                                        ║
+║ Question:  Does an independent expert critic approve?                       ║
+║ Pass:      CriticReport.recommendation ∈ {ACCEPT, ACCEPT_WITH_NOTES}        ║
+║ Examples:  C36_critic reviews legal memo · A3 Universal Critic on           ║
+║            deliverable · adversarial code review · adversarial red-team     ║
+║ Domains:   all (Rung 3+ specialists)                                        ║
+╠═════════════════════════════════════════════════════════════════════════════╣
+║ L10 — HUMAN ACCEPTANCE VERIFIED                                             ║
+║ Question:  Does the responsible human approve the outcome?                  ║
+║ Pass:      Human approval recorded via ApprovalTicket                       ║
+║ Examples:  attorney signs off on legal memo · clinician approves DDX ·      ║
+║            production deployment approval · destructive action approval     ║
+║ Domains:   all (mandatory for high-risk actions per Autonomy Level)         ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## 3. THE VERIFICATION PLANNER
+
+The planner selects **which levels to run for which task**. It converts a `VerificationRequest` (Deep Spec 2 §7.1) into an ordered execution plan.
+
+### 3.1 Level Selection Policy
+
+```python
+def select_levels(
+    task: Task,
+    mission: Mission,
+    domain: VerificationDomain,
+    tier: MissionTier,
+    autonomy: AutonomyLevel,
+    verification_level: int,   # target_level from task spec
+) -> list[int]:
+    """
+    Levels 0..target_level are always attempted; additional gates
+    may be added based on risk and tier.
+    """
+    levels = list(range(0, verification_level + 1))
+
+    # Rule 1: L9 (critic) is mandatory for Tier 3+ specialists at Rung 3+
+    if _uses_rung3plus_specialist(task) and 9 not in levels:
+        levels.append(9)
+
+    # Rule 2: L10 (human) is mandatory for:
+    #   - autonomy in {L4_CHECKPOINTED, L5_CONTINUOUS} on destructive actions
+    #   - deployment tasks in production
+    #   - any task explicitly flagged requires_human_approval
+    if _requires_human_gate(task, mission, autonomy):
+        levels.append(10)
+
+    # Rule 3: Default tier caps L8-L10 to prevent budget exhaustion
+    if tier == MissionTier.DEFAULT:
+        levels = [l for l in levels if l <= 7 or _explicitly_requested(task, l)]
+
+    # Rule 4: Enterprise adds L7 domain-specific compliance scans by default
+    if tier == MissionTier.ENTERPRISE:
+        if 7 not in levels: levels.append(7)
+
+    return sorted(set(levels))
+```
+
+### 3.2 Verification Budget
+
+Every verification carries a compute + latency budget derived from the mission's `ResourceBudget`.
+
+```yaml
+default_verification_budgets:
+  default:
+    max_seconds: 60
+    max_compute_seconds: 120
+    max_critic_calls: 1
+  pro:
+    max_seconds: 600
+    max_compute_seconds: 1800
+    max_critic_calls: 3
+  ranger:
+    max_seconds: 3600
+    max_compute_seconds: 36000
+    max_critic_calls: unlimited
+  enterprise:
+    per_contract: true
+```
+
+If budget is exhausted mid-run, remaining checks are marked `SKIPPED_BUDGET`; verdict computation accounts for skipped levels.
+
+---
+
+## 4. THE CHECK REGISTRY
+
+Every concrete check is a first-class registry entry. This enables the Evolution Fabric to measure per-check accuracy, cost, and latency and evolve the batteries over time.
+
+### 4.1 Check Descriptor Schema
+
+```protobuf
+message CheckDescriptor {
+  string check_id                = 1;   // e.g. "software.l3.ruff"
+  string check_name              = 2;
+  int32  applies_to_level        = 3;   // 0..10
+  repeated VerificationDomain applies_to_domains = 4;
+
+  string tool_id                 = 5;   // Registry reference (Deep Spec 2 §4.3)
+  google.protobuf.Struct default_params = 6;
+
+  bool   soft                    = 7;   // Soft fail continues; hard fail blocks
+  bool   idempotent              = 8;
+  int32  timeout_ms              = 9;
+  int32  typical_cost_millis     = 10;
+
+  string pass_criterion          = 11;  // Human-readable spec
+  string evidence_kind           = 12;  // "log", "json_report", "screenshot"
+
+  // Observed performance (populated by Evolution Fabric)
+  double false_positive_rate     = 13;
+  double false_negative_rate     = 14;
+  double median_latency_ms       = 15;
+}
+```
+
+### 4.2 Check Runner Contract
+
+Every check is an implementation of the `CheckRunner` interface — sandboxed, deadline-aware, and metric-emitting.
+
+```python
+class CheckRunner(ABC):
+    check_id: str
+    tool_id: str
+
+    @abstractmethod
+    async def run(
+        self,
+        artifacts: list[ArtifactRef],
+        params: dict,
+        sandbox: SandboxHandle,
+        deadline_ms: int,
+    ) -> CheckResult:
+        """
+        MUST:
+          - Execute within deadline
+          - Emit CheckResult with status, message, details, evidence_ref
+          - Attach reproducible evidence (log artifact, structured report)
+          - Never mutate artifacts (verification is read-only)
+        """
+```
+
+---
+
+## 5. DOMAIN-SPECIFIC VERIFICATION RECIPES
+
+The following ten recipes cover every domain COCO supports. Each recipe defines: **the per-level check battery, the paired critic (L9), and the human approval gate (L10) trigger conditions.**
+
+---
+
+### 5.1 DOMAIN: SOFTWARE (Python/TypeScript/Go/Rust/Node)
+
+```yaml
+domain: SOFTWARE
+languages_covered: [python, typescript, javascript, go, rust, node]
+
+L0_well_formed:
+  - id: software.l0.file_exists
+    tool: filesystem_inspector
+    hard: true
+  - id: software.l0.non_empty
+    tool: filesystem_inspector
+    hard: true
+  - id: software.l0.parseable
+    tool: language_parser        # python -c compile, tsc --noEmit, etc.
+    hard: true
+
+L1_structural_valid:
+  - id: software.l1.package_structure
+    tool: repo_structure_validator
+    checks:
+      - required_files_present     # pyproject.toml, package.json, etc.
+      - src_layout_conforms
+    hard: true
+  - id: software.l1.dependency_manifest_valid
+    tool: manifest_validator
+    hard: true
+
+L2_type_correct:
+  python:
+    - id: software.l2.python.mypy_strict
+      tool: mypy
+      params: {strict: true}
+      hard: true
+  typescript:
+    - id: software.l2.typescript.tsc_strict
+      tool: tsc
+      params: {strict: true, noEmit: true}
+      hard: true
+  rust:
+    - id: software.l2.rust.cargo_check
+      tool: cargo
+      params: {command: check}
+      hard: true
+  go:
+    - id: software.l2.go.build
+      tool: go
+      params: {command: build}
+      hard: true
+
+L3_lint_clean:
+  python:
+    - id: software.l3.python.ruff
+      tool: ruff
+      params: {select: [E, F, W, I, N, UP, ANN, S, B, A]}
+      soft: true
+  typescript:
+    - id: software.l3.typescript.eslint
+      tool: eslint
+      params: {config: recommended-strict}
+      soft: true
+  all:
+    - id: software.l3.editorconfig
+      tool: editorconfig_checker
+      soft: true
+
+L4_unit_verified:
+  - id: software.l4.unit_tests
+    tool: test_runner              # pytest / jest / cargo test / go test
+    hard: true
+    requires:
+      - pass_rate == 1.0
+  - id: software.l4.coverage
+    tool: coverage_reporter        # coverage.py / c8 / tarpaulin
+    hard: false
+    requires:
+      - line_coverage >= 0.90
+      - branch_coverage >= 0.80
+
+L5_integration_verified:
+  - id: software.l5.docker_build
+    tool: docker_build_operator
+    hard: true
+  - id: software.l5.container_health
+    tool: docker_health_probe
+    hard: true
+    params: {healthcheck_timeout_s: 60}
+  - id: software.l5.integration_tests
+    tool: test_runner
+    params: {marker: integration}
+    hard: true
+  - id: software.l5.api_contract_tests
+    tool: schemathesis            # for FastAPI/OpenAPI services
+    hard: false
+
+L6_requirement_verified:
+  - id: software.l6.requirement_traceability
+    tool: requirement_trace_matrix
+    checks:
+      - every_requirement_has_test
+      - every_test_ties_to_requirement
+    hard: true
+  - id: software.l6.acceptance_tests
+    tool: test_runner
+    params: {marker: acceptance}
+    hard: true
+
+L7_security_verified:
+  - id: software.l7.sast_bandit
+    tool: bandit
+    hard: true
+    requires: {high_findings: 0, critical_findings: 0}
+  - id: software.l7.sast_semgrep
+    tool: semgrep
+    params: {config: p/security-audit}
+    hard: true
+  - id: software.l7.dependency_audit
+    tool: pip_audit                # + npm audit / cargo audit
+    hard: true
+    requires: {unfixed_critical_cves: 0}
+  - id: software.l7.secret_scan
+    tool: gitleaks
+    hard: true
+  - id: software.l7.container_scan
+    tool: trivy
+    hard: true
+    requires: {critical_cves: 0}
+  - id: software.l7.license_compliance
+    tool: license_checker
+    soft: true
+
+L8_performance_verified:
+  - id: software.l8.load_test
+    tool: k6
+    params: {vus: 50, duration: 60s}
+    checks: {p95_latency_ms: '< sla_target'}
+    hard: false
+  - id: software.l8.memory_profile
+    tool: memory_profiler
+    checks: {max_rss_mb: '< memory_budget'}
+    soft: true
+  - id: software.l8.cyclomatic_complexity
+    tool: radon
+    checks: {max_function_cc: '<= 10'}
+    soft: true
+
+L9_critic_verified:
+  critic: C1_critic_staff_engineer
+  attack_patterns:
+    - concurrency_attack
+    - error_handling_attack
+    - security_attack
+    - resource_attack
+    - test_quality_attack
+  rejection_threshold: any BLOCKER or > 2 MATERIAL findings
+  min_critic_score: 0.90
+
+L10_human_acceptance:
+  triggered_when:
+    - deployment_target == "production"
+    - destructive_operation == true
+    - autonomy_level in [L4_CHECKPOINTED, L5_CONTINUOUS]
+    - security_scope_touches_auth == true
+  approval_ticket_kind: deployment_or_destructive
+  default_timeout_hours: 24
+```
+
+---
+
+### 5.2 DOMAIN: RESEARCH
+
+```yaml
+domain: RESEARCH
+scope: web/academic/patent/document research deliverables
+
+L0_well_formed:
+  - id: research.l0.report_exists
+  - id: research.l0.report_opens
+
+L1_structural_valid:
+  - id: research.l1.required_sections
+    tool: report_structure_validator
+    checks: [executive_summary, findings, methodology, limitations, citations]
+    hard: true
+  - id: research.l1.claim_structure
+    tool: claim_extractor
+    checks: [every_claim_has_epistemic_status, every_claim_has_confidence]
+    hard: true
+
+L2_type_correct:
+  - id: research.l2.citation_format
+    tool: citation_formatter       # e.g., Bluebook, APA, Chicago
+    hard: true
+  - id: research.l2.numeric_claim_types
+    tool: numeric_validator
+    hard: true
+
+L3_lint_clean:
+  - id: research.l3.house_style
+    tool: style_checker
+    soft: true
+  - id: research.l3.plain_language
+    tool: readability_analyzer
+    checks: {flesch_kincaid_grade: '<= 12'}
+    soft: true
+
+L4_unit_verified:
+  - id: research.l4.every_citation_resolves
+    tool: citation_resolver
+    hard: true
+    checks: {resolution_rate: 1.00}
+  - id: research.l4.every_quote_exists_in_source
+    tool: quote_verifier            # re-fetches source, verifies quote
+    hard: true
+    checks: {quote_match_rate: 1.00}
+  - id: research.l4.source_hash_valid
+    tool: content_hash_verifier
+    hard: true
+
+L5_integration_verified:
+  - id: research.l5.cross_reference_consistency
+    tool: report_cross_ref_analyzer
+    checks: [internal_refs_valid, no_orphan_footnotes]
+    hard: true
+
+L6_requirement_verified:
+  - id: research.l6.pico_coverage           # if PICO was declared
+    tool: pico_coverage_checker
+    hard: true
+  - id: research.l6.every_question_answered
+    tool: question_coverage_analyzer
+    hard: true
+
+L7_security_verified:
+  - id: research.l7.no_pii_leak
+    tool: pii_scanner
+    hard: true
+  - id: research.l7.no_confidential_source_disclosure
+    tool: confidentiality_scanner
+    hard: true
+  - id: research.l7.license_compliance_of_quoted_content
+    tool: quote_license_checker
+    soft: true
+
+L8_performance_verified:
+  - id: research.l8.triangulation_rate
+    tool: evidence_triangulation_analyzer
+    checks: {material_claims_with_3plus_sources: '>= 0.85'}
+    hard: false
+  - id: research.l8.primary_source_ratio
+    tool: source_credibility_analyzer
+    checks: {primary_source_share: '>= 0.60'}
+    soft: true
+
+L9_critic_verified:
+  critic: C21_critic_fact_checker
+  attack_patterns:
+    - citation_reverification
+    - hallucination_probe
+    - source_credibility_challenge
+    - counter_evidence_search
+  min_critic_score: 0.92
+
+L10_human_acceptance:
+  triggered_when:
+    - report_kind in [regulatory_filing, court_filing, published_paper]
+  approval_ticket_kind: research_signoff
+```
+
+---
+
+### 5.3 DOMAIN: LEGAL
+
+```yaml
+domain: LEGAL
+
+L0_well_formed:
+  - id: legal.l0.artifact_exists
+  - id: legal.l0.opens (DOCX/PDF)
+
+L1_structural_valid:
+  - id: legal.l1.irac_structure
+    tool: legal_memo_structure_validator
+    checks: [issue_present, rule_present, application_present, conclusion_present]
+    hard: true
+  - id: legal.l1.jurisdiction_declared
+    tool: jurisdiction_detector
+    hard: true
+
+L2_type_correct:
+  - id: legal.l2.bluebook_citation_format
+    tool: bluebook_validator
+    hard: true
+  - id: legal.l2.defined_terms_consistent
+    tool: defined_terms_analyzer
+    checks: [no_undefined_capitalized_terms, no_shadowed_definitions]
+    hard: true
+
+L3_lint_clean:
+  - id: legal.l3.house_style
+    tool: legal_style_checker
+    soft: true
+  - id: legal.l3.plain_language_client_summary
+    tool: readability_analyzer
+    soft: true
+
+L4_unit_verified:
+  - id: legal.l4.every_citation_resolves
+    tool: case_citation_resolver
+    hard: true
+  - id: legal.l4.every_statute_verified
+    tool: statute_lookup
+    checks: [effective_date_applicable]
+    hard: true
+  - id: legal.l4.shepards_keycite_all_cases
+    tool: citator                   # verifies still good law
+    hard: true
+    checks: {no_negative_treatment: true}
+
+L5_integration_verified:
+  - id: legal.l5.cross_reference_consistency
+    tool: legal_cross_ref_analyzer
+    hard: true
+
+L6_requirement_verified:
+  - id: legal.l6.playbook_coverage
+    tool: playbook_delta_analyzer
+    checks: {blocker_issues_addressed: 1.00, material_issues_addressed: 1.00}
+    hard: true
+  - id: legal.l6.every_question_answered_via_irac
+    tool: irac_completeness_checker
+    hard: true
+
+L7_security_verified:
+  - id: legal.l7.privilege_preservation
+    tool: privilege_scanner        # blocks leakage to non-BAA models
+    hard: true
+  - id: legal.l7.no_client_confidential_leak
+    tool: confidentiality_scanner
+    hard: true
+
+L8_performance_verified:
+  - id: legal.l8.deliverable_time
+    tool: time_measurement
+    checks: {duration_seconds: '<= sla_target'}
+    soft: true
+
+L9_critic_verified:
+  critic: C36_critic_adversarial_attorney
+  attack_patterns:
+    - citation_verification
+    - jurisdictional_attack
+    - counter_argument_check
+    - playbook_completeness
+    - reasoning_soundness
+  rejection_threshold: any BLOCKER or > 2 MATERIAL findings
+
+L10_human_acceptance:
+  triggered_when:
+    - matter_value_usd >= 100000
+    - regulatory_filing == true
+    - unsettled_law_flagged == true
+    - tenant_policy_requires_attorney_review == true
+  approval_ticket_kind: attorney_signoff
+```
+
+---
+
+### 5.4 DOMAIN: FINANCIAL
+
+```yaml
+domain: FINANCIAL
+
+L0_well_formed:
+  - id: finance.l0.model_file_opens (xlsx)
+
+L1_structural_valid:
+  - id: finance.l1.three_statement_present
+    tool: financial_model_structure_validator
+    checks: [income_statement, balance_sheet, cash_flow, assumptions_tab, audit_tab]
+    hard: true
+
+L2_type_correct:
+  - id: finance.l2.formula_types_consistent
+    tool: excel_formula_analyzer
+    hard: true
+  - id: finance.l2.no_circular_references_undocumented
+    tool: circular_reference_detector
+    hard: true
+
+L3_lint_clean:
+  - id: finance.l3.formatting_conventions
+    tool: financial_style_checker
+    checks: [hardcodes_highlighted_blue, formulas_black, assumptions_yellow]
+    soft: true
+
+L4_unit_verified:
+  - id: finance.l4.every_formula_evaluates
+    tool: excel_formula_evaluator
+    hard: true
+  - id: finance.l4.no_hardcodes_in_formula_cells
+    tool: hardcode_detector
+    hard: true
+    checks: {hardcoded_calc_cells: 0}
+  - id: finance.l4.historical_ties_to_source
+    tool: sec_filing_reconciler    # verifies historicals match cited filings
+    hard: true
+
+L5_integration_verified:
+  - id: finance.l5.balance_identity
+    tool: balance_verifier
+    checks: {assets_minus_liabilities_minus_equity: 0.00}
+    hard: true
+  - id: finance.l5.cashflow_reconciliation
+    tool: cf_bs_reconciler
+    checks: {cf_change_equals_bs_cash_change: 0.00}
+    hard: true
+  - id: finance.l5.retained_earnings_rollforward
+    tool: re_rollforward_verifier
+    hard: true
+
+L6_requirement_verified:
+  - id: finance.l6.every_output_addressed
+    tool: model_output_checker
+    hard: true
+
+L7_security_verified:
+  - id: finance.l7.no_confidential_client_data_leaked
+    tool: confidentiality_scanner
+    hard: true
+
+L8_performance_verified:
+  - id: finance.l8.model_recalc_time
+    tool: excel_perf_probe
+    checks: {full_recalc_seconds: '<= 5'}
+    soft: true
+  - id: finance.l8.monte_carlo_convergence
+    tool: monte_carlo_convergence_checker
+    soft: true
+
+L9_critic_verified:
+  critic: C48_critic_forensic_analyst
+  attack_patterns:
+    - identity_verification
+    - formula_audit
+    - historical_verification
+    - assumption_reasonableness
+    - comparability_check
+
+L10_human_acceptance:
+  triggered_when:
+    - deal_value_usd >= 10_000_000
+    - regulatory_filing == true
+    - audit_committee_deliverable == true
+  approval_ticket_kind: md_or_partner_signoff
+```
+
+---
+
+### 5.5 DOMAIN: MEDICAL
+
+```yaml
+domain: MEDICAL
+constitutional_constraint: decision_support_only; L10 mandatory for any clinical-facing output.
+
+L0_well_formed:
+  - id: medical.l0.report_exists
+
+L1_structural_valid:
+  - id: medical.l1.report_structure
+    checks: [pico_present, methods, results, evidence_grading, limitations]
+    hard: true
+
+L2_type_correct:
+  - id: medical.l2.statistical_types_correct
+    tool: statistical_validator
+    checks: [confidence_intervals_present_for_effect_sizes, correct_precision]
+    hard: true
+  - id: medical.l2.icd_snomed_codes_valid
+    tool: terminology_validator
+    hard: true
+
+L3_lint_clean:
+  - id: medical.l3.plain_language_lay_summary
+    soft: true
+
+L4_unit_verified:
+  - id: medical.l4.every_study_extraction_verified
+    tool: extraction_reverifier    # sample audits
+    hard: true
+    checks: {extraction_accuracy: '>= 0.98'}
+  - id: medical.l4.every_citation_resolves
+    tool: pubmed_resolver
+    hard: true
+
+L5_integration_verified:
+  - id: medical.l5.prisma_flow_reconciles
+    tool: prisma_flow_verifier
+    hard: true
+
+L6_requirement_verified:
+  - id: medical.l6.every_pico_answered_with_grade
+    tool: grade_completeness_checker
+    hard: true
+  - id: medical.l6.contraindications_checked
+    tool: contraindication_engine
+    hard: true
+
+L7_security_verified:
+  - id: medical.l7.phi_scan
+    tool: phi_scanner
+    hard: true
+    requires: {phi_findings: 0}
+  - id: medical.l7.hipaa_compliance
+    tool: hipaa_policy_checker
+    hard: true
+  - id: medical.l7.no_dangerous_omissions
+    tool: clinical_omission_scanner
+    hard: true
+  - id: medical.l7.causation_language_correct
+    tool: causation_language_analyzer
+    hard: true
+    checks: {no_causal_claim_from_observational_only: true}
+
+L8_performance_verified:
+  - id: medical.l8.evidence_grade_distribution_reasonable
+    tool: grade_distribution_analyzer
+    soft: true
+
+L9_critic_verified:
+  critic: C60_critic_journal_peer_reviewer
+  attack_patterns: [extraction_verification, bias_assessment, causation_language, guideline_adherence]
+
+L10_human_acceptance:
+  triggered_when: always (constitutional)
+  approval_ticket_kind: licensed_clinician_signoff
+  timeout_hours: 72
+```
+
+---
+
+### 5.6 DOMAIN: HARDWARE
+
+```yaml
+domain: HARDWARE
+scope: CAD, PCB, firmware, mechanical, systems
+
+L0_well_formed:
+  - id: hardware.l0.file_opens
+    tool: cad_file_opener
+    hard: true
+
+L1_structural_valid:
+  - id: hardware.l1.assembly_hierarchy_valid
+    tool: cad_hierarchy_validator
+    hard: true
+  - id: hardware.l1.pcb_layer_stack_declared
+    tool: pcb_stack_validator
+    hard: true
+
+L2_type_correct:
+  - id: hardware.l2.gd_and_t_syntax
+    tool: gdt_validator
+    hard: true
+  - id: hardware.l2.pcb_drc                # design rule check
+    tool: pcb_drc_engine
+    hard: true
+
+L3_lint_clean:
+  - id: hardware.l3.title_block_present
+    soft: true
+
+L4_unit_verified:
+  - id: hardware.l4.tolerance_stack_valid
+    tool: tolerance_stack_calculator
+    hard: true
+  - id: hardware.l4.pcb_signal_integrity_isolated
+    tool: signal_integrity_sim
+    hard: false
+  - id: hardware.l4.firmware_unit_tests
+    tool: embedded_test_runner
+    hard: true
+
+L5_integration_verified:
+  - id: hardware.l5.assembly_interference_check
+    tool: cad_interference_analyzer
+    hard: true
+  - id: hardware.l5.fea_under_load
+    tool: fea_solver
+    hard: true
+    checks: {safety_factor: '>= 2.0'}
+  - id: hardware.l5.hil_smoke_test
+    tool: hardware_in_the_loop
+    hard: true
+
+L6_requirement_verified:
+  - id: hardware.l6.requirement_traceability
+    tool: requirement_trace_matrix
+    hard: true
+
+L7_security_verified:
+  - id: hardware.l7.export_control_compliance
+    tool: export_control_scanner
+    hard: true
+  - id: hardware.l7.fmea_critical_zero
+    tool: fmea_analyzer
+    checks: {critical_severity_open: 0}
+    hard: true
+
+L8_performance_verified:
+  - id: hardware.l8.thermal_within_envelope
+    tool: thermal_sim
+    soft: true
+  - id: hardware.l8.dfma_score
+    tool: dfma_analyzer
+    soft: true
+
+L9_critic_verified:
+  critic: C84_critic_manufacturing_engineer
+  attack_patterns: [manufacturability, tolerance_challenge, edge_case_loading, supply_risk]
+
+L10_human_acceptance:
+  triggered_when:
+    - manufacturing_release == true
+    - certification_submission == true
+  approval_ticket_kind: engineering_release
+```
+
+---
+
+### 5.7 DOMAIN: DESIGN
+
+```yaml
+domain: DESIGN
+scope: UI/UX, design systems, brand, visual
+
+L0_well_formed:
+  - id: design.l0.figma_or_export_opens
+
+L1_structural_valid:
+  - id: design.l1.design_tokens_declared
+    tool: design_token_validator
+    hard: true
+  - id: design.l1.component_library_complete
+    tool: component_inventory_checker
+    hard: true
+
+L2_type_correct:
+  - id: design.l2.token_types_correct
+    tool: token_type_checker
+    hard: true
+
+L3_lint_clean:
+  - id: design.l3.naming_conventions
+    soft: true
+
+L4_unit_verified:
+  - id: design.l4.each_component_renders
+    tool: storybook_renderer
+    hard: true
+  - id: design.l4.visual_regression
+    tool: chromatic_or_percy
+    hard: false
+
+L5_integration_verified:
+  - id: design.l5.figma_code_parity
+    tool: figma_code_diff_analyzer
+    hard: false
+  - id: design.l5.cross_component_composition
+    tool: composition_tester
+    hard: false
+
+L6_requirement_verified:
+  - id: design.l6.every_screen_designed
+    tool: screen_coverage_checker
+    hard: true
+
+L7_security_verified:
+  - id: design.l7.no_pii_in_mockups
+    tool: pii_scanner
+    hard: true
+
+L8_performance_verified:
+  - id: design.l8.wcag_aaa_contrast
+    tool: contrast_analyzer
+    hard: true
+    checks: {min_contrast_ratio: '>= 7.0'}
+  - id: design.l8.wcag_keyboard_nav
+    tool: axe_analyzer
+    hard: true
+  - id: design.l8.motion_reduced_variants
+    tool: motion_variant_checker
+    soft: true
+
+L9_critic_verified:
+  critic: C94_critic_design_lead
+  attack_patterns: [accessibility_gaps, cognitive_load, brand_consistency, edge_screen_layouts]
+
+L10_human_acceptance:
+  triggered_when:
+    - published_brand_deliverable == true
+  approval_ticket_kind: design_director_signoff
+```
+
+---
+
+### 5.8 DOMAIN: BUSINESS / PRODUCT
+
+```yaml
+domain: BUSINESS
+
+L0_well_formed:
+  - id: business.l0.deliverable_exists
+
+L1_structural_valid:
+  - id: business.l1.required_sections
+    checks: [jtbd, market_analysis, moat, unit_economics, roadmap, kill_criteria]
+    hard: true
+
+L2_type_correct:
+  - id: business.l2.numeric_types_correct
+    tool: number_type_validator
+    hard: true
+
+L3_lint_clean:
+  - id: business.l3.executive_readability
+    soft: true
+
+L4_unit_verified:
+  - id: business.l4.every_number_has_source
+    tool: number_source_checker
+    hard: true
+  - id: business.l4.every_assumption_documented
+    hard: true
+
+L5_integration_verified:
+  - id: business.l5.model_scenario_consistency
+    tool: scenario_consistency_checker
+    hard: true
+
+L6_requirement_verified:
+  - id: business.l6.hypothesis_testability
+    tool: hypothesis_analyzer
+    hard: true
+
+L7_security_verified:
+  - id: business.l7.competitive_intel_source_compliant
+    tool: source_license_checker
+    hard: true
+
+L8_performance_verified:
+  - id: business.l8.unit_economics_ci_reported
+    tool: statistical_ci_checker
+    hard: false
+
+L9_critic_verified:
+  critic: C72_critic_devils_advocate
+  attack_patterns: [moat_challenge, unit_econ_stress, market_timing_challenge, competitive_response]
+
+L10_human_acceptance:
+  triggered_when:
+    - board_deliverable == true
+    - investor_deliverable == true
+  approval_ticket_kind: exec_signoff
+```
+
+---
+
+### 5.9 DOMAIN: SCIENTIFIC
+
+```yaml
+domain: SCIENTIFIC
+scope: statistics, physics, chemistry, bio-informatics, applied science
+
+L0_well_formed:
+  - id: scientific.l0.notebook_or_report_opens
+
+L1_structural_valid:
+  - id: scientific.l1.methods_reproducible
+    checks: [data_source_declared, code_versioned, environment_pinned]
+    hard: true
+
+L2_type_correct:
+  - id: scientific.l2.units_dimensional_analysis
+    tool: units_checker           # e.g., pint / astropy.units
+    hard: true
+  - id: scientific.l2.numeric_precision_appropriate
+    tool: precision_analyzer
+    hard: true
+
+L3_lint_clean:
+  - id: scientific.l3.notebook_style
+    tool: nbqa
+    soft: true
+
+L4_unit_verified:
+  - id: scientific.l4.reproducible_from_seed
+    tool: reproducibility_probe
+    hard: true
+  - id: scientific.l4.statistical_test_appropriate
+    tool: stat_test_matcher
+    hard: true
+
+L5_integration_verified:
+  - id: scientific.l5.pipeline_runs_end_to_end
+    tool: workflow_runner
+    hard: true
+
+L6_requirement_verified:
+  - id: scientific.l6.every_hypothesis_tested
+    hard: true
+
+L7_security_verified:
+  - id: scientific.l7.no_data_privacy_breach
+    hard: true
+
+L8_performance_verified:
+  - id: scientific.l8.confidence_intervals_reported
+    hard: true
+  - id: scientific.l8.effect_sizes_not_only_pvalues
+    hard: true
+  - id: scientific.l8.multiple_testing_correction
+    tool: mt_correction_checker
+    hard: true
+
+L9_critic_verified:
+  critic: C104_critic_peer_reviewer
+  attack_patterns: [causal_language, confounding_check, alternative_explanations, reproducibility_probe]
+
+L10_human_acceptance:
+  triggered_when:
+    - published_paper == true
+    - regulatory_submission == true
+  approval_ticket_kind: pi_signoff
+```
+
+---
+
+### 5.10 DOMAIN: OPERATIONAL
+
+```yaml
+domain: OPERATIONAL
+scope: logistics, supply chain, ops research, energy, agriculture
+
+L0_well_formed:
+  - id: ops.l0.deliverable_exists
+
+L1_structural_valid:
+  - id: ops.l1.model_specification_complete
+    checks: [decision_variables, objective, constraints, data_sources]
+    hard: true
+
+L2_type_correct:
+  - id: ops.l2.units_dimensional_analysis
+    tool: units_checker
+    hard: true
+
+L3_lint_clean:
+  - id: ops.l3.notation_consistent
+    soft: true
+
+L4_unit_verified:
+  - id: ops.l4.solver_reaches_optimality
+    tool: or_solver_probe
+    hard: true
+  - id: ops.l4.constraints_active_reported
+    hard: true
+
+L5_integration_verified:
+  - id: ops.l5.discrete_event_simulation_stable
+    tool: des_verifier
+    hard: true
+
+L6_requirement_verified:
+  - id: ops.l6.every_kpi_addressed
+    hard: true
+
+L7_security_verified:
+  - id: ops.l7.no_proprietary_supplier_leakage
+    hard: true
+
+L8_performance_verified:
+  - id: ops.l8.solution_within_budget_envelope
+    hard: true
+  - id: ops.l8.sensitivity_analysis_present
+    hard: true
+
+L9_critic_verified:
+  critic: C119_critic_operations_expert
+  attack_patterns: [edge_case_demand, disruption_scenarios, feasibility_challenge, cost_reality_check]
+
+L10_human_acceptance:
+  triggered_when:
+    - operational_deployment == true
+  approval_ticket_kind: ops_lead_signoff
+```
+
+---
+
+## 6. CRITIC PROMPT LIBRARY (L9 CANONICAL PATTERNS)
+
+Every domain critic runs a **structured attack pattern**. The following are the canonical prompt scaffolds (values in `{{}}` are filled by the runtime).
+
+### 6.1 Universal Critic Header
+
+```text
+You are the paired adversarial critic for {{specialist_id}}.
+Your role is not to help. Your role is to find every reason this work
+could be wrong, incomplete, or unsafe before it reaches the user.
+
+Constitutional Standard:
+- Every finding must cite specific evidence (line, quote, source).
+- Vague criticism ("this could be better") is banned; be concrete.
+- Rank findings: BLOCKER | MATERIAL | ADVISORY.
+- Recommend: ACCEPT | ACCEPT_WITH_NOTES | REVISE | REJECT | ESCALATE.
+
+Attack Patterns to Execute (in order):
+{{attack_patterns_yaml}}
+
+Deliverable Under Review:
+{{artifacts_summary}}
+
+Full Artifacts:
+{{artifacts_ref_list}}
+
+Domain Corpus Available:
+{{corpus_summary}}
+```
+
+### 6.2 Attack Pattern Templates
+
+Each domain critic gets patterns like:
+
+```yaml
+citation_verification:
+  instruction: >
+    For every citation in the deliverable, re-fetch the source and verify
+    the quoted text appears verbatim. Any citation that fails resolution,
+    fails quote-match, or has been overturned/superseded is a BLOCKER.
+
+counter_argument_check:
+  instruction: >
+    For the deliverable's main conclusion, search the corpus for authorities
+    holding the opposite. If any binding contrary authority exists that is
+    not addressed or distinguished, flag as MATERIAL.
+
+reasoning_soundness:
+  instruction: >
+    For each logical step, verify the conclusion follows from the premise.
+    Any leap without support is a MATERIAL finding.
+
+edge_case_probe:
+  instruction: >
+    Enumerate 5 edge cases the deliverable might fail on. Test each against
+    the deliverable's logic/output. Any failure is MATERIAL.
+
+adversarial_reformulation:
+  instruction: >
+    Assume a hostile counterparty will use this deliverable against your
+    client / user. What is the strongest attack? Is it addressed?
+```
+
+### 6.3 Critic Output Contract
+
+Critics return a **CriticReport** (per Deep Spec 2 §7.2) with structured scores and recommendation. The Verification Fabric enforces schema conformance.
+
+```yaml
+critic_report_required_fields:
+  - correctness_score       # 0..1
+  - completeness_score      # 0..1
+  - consistency_score       # 0..1
+  - evidence_quality_score  # 0..1
+  - risk_score              # 0..1 (higher = higher risk)
+  - overall_score           # 0..1
+  - strengths               # list
+  - weaknesses              # list
+  - missing_requirements    # list
+  - questionable_assumptions # list
+  - recommendation          # enum
+  - reasoning               # narrative
+
+rejection_rules:
+  - any BLOCKER finding             → REJECT
+  - > 2 MATERIAL findings           → REJECT or REVISE
+  - overall_score < domain_threshold → REVISE
+```
+
+---
+
+## 7. THE REPAIR LOOP
+
+When verification fails, the Repair Loop kicks in. It is a **first-class subsystem**, not an afterthought.
+
+### 7.1 Loop Architecture
+
+```text
+             Verification failure
+                     │
+                     ▼
+       ┌─────────────────────────┐
+       │ 1. FAILURE CLASSIFIER   │
+       │    → ErrorCategory       │
+       │    → severity            │
+       └─────────────┬────────────┘
+                     ▼
+       ┌─────────────────────────┐
+       │ 2. ROOT-CAUSE ANALYZER  │
+       │    - trace failure to    │
+       │      artifact + step     │
+       │    - identify probable   │
+       │      cause               │
+       └─────────────┬────────────┘
+                     ▼
+       ┌─────────────────────────┐
+       │ 3. STRATEGY SELECTOR    │
+       │    - pick repair        │
+       │      strategy from      │
+       │      catalog            │
+       │    - or synthesize new  │
+       └─────────────┬────────────┘
+                     ▼
+       ┌─────────────────────────┐
+       │ 4. REPAIR ASSIGNMENT    │
+       │    - assign to           │
+       │      original agent OR   │
+       │      specialized fixer   │
+       └─────────────┬────────────┘
+                     ▼
+       ┌─────────────────────────┐
+       │ 5. REPAIR EXECUTION     │
+       │    - agent runs repair  │
+       │    - produces new       │
+       │      artifact version   │
+       └─────────────┬────────────┘
+                     ▼
+       ┌─────────────────────────┐
+       │ 6. RE-VERIFICATION      │
+       │    - full battery re-run│
+       │    - focused on failed   │
+       │      levels + regressions│
+       └─────────────┬────────────┘
+                     ▼
+              ┌──────┴──────┐
+              │             │
+            PASS          FAIL
+              │             │
+              │       attempt_number++
+              │             │
+              │        max_attempts?
+              │             │
+              │       ┌─────┴─────┐
+              │       NO         YES
+              │       │           │
+              │    back to 1   ESCALATE
+              │                    │
+              ▼                    ▼
+           DONE                HUMAN GATE
+                                or ABANDON
+```
+
+### 7.2 Failure Classifier
+
+Uses the `ErrorCategory` enum from Deep Spec 2 §4.2 plus verification-specific extensions:
+
+```python
+class FailureClassifier:
+    def classify(self, check_result: CheckResult, artifact: ArtifactRef) -> Classification:
+        # Deterministic rules first (fast, cheap)
+        if check_result.check_id.endswith(".mypy_strict"):
+            return Classification(
+                category=ErrorCategory.LOGIC,
+                subcategory="type_error",
+                confidence=0.95,
+                strategy_hint="fix_type_annotations",
+            )
+        if check_result.check_id.endswith(".balance_identity"):
+            return Classification(
+                category=ErrorCategory.LOGIC,
+                subcategory="balance_sheet_plug",
+                confidence=0.99,
+                strategy_hint="rebuild_bs_linkage",
+            )
+        if check_result.check_id.endswith(".every_citation_resolves"):
+            return Classification(
+                category=ErrorCategory.REQUIREMENT,
+                subcategory="fabricated_citation",
+                confidence=0.99,
+                strategy_hint="regenerate_with_verified_sources",
+            )
+        # ... many rules ...
+
+        # Fall back to LLM classifier for novel failures
+        return self._llm_classify(check_result, artifact)
+```
+
+### 7.3 Repair Strategy Catalog
+
+```yaml
+strategies:
+
+  fix_type_annotations:
+    applies_to: [software.l2.python.mypy_strict, software.l2.typescript.tsc_strict]
+    approach: >
+      Attach mypy/tsc output as context to the specialist. Instruct: fix each
+      type error individually, then re-run typecheck locally before returning.
+    max_iterations: 3
+
+  rebuild_bs_linkage:
+    applies_to: [finance.l5.balance_identity]
+    approach: >
+      Attach balance sheet + cash flow + IS to C48. Instruct: trace retained
+      earnings roll-forward, verify working capital linkages, verify PP&E
+      + AD roll-forward, verify debt roll-forward. Do NOT plug.
+    max_iterations: 2
+
+  regenerate_with_verified_sources:
+    applies_to: [research.l4.*, legal.l4.every_citation_resolves]
+    approach: >
+      Discard fabricated citations. Instruct specialist to re-search corpus,
+      cite only sources returned by tool calls with valid content hashes.
+    max_iterations: 2
+
+  patch_missing_test:
+    applies_to: [software.l6.requirement_traceability]
+    approach: >
+      For each requirement without a test, generate the missing test.
+      Prefer property-based tests where applicable.
+    max_iterations: 2
+
+  refactor_complexity:
+    applies_to: [software.l8.cyclomatic_complexity]
+    approach: >
+      For each function exceeding threshold, extract sub-functions to reduce
+      cyclomatic complexity below 10.
+    max_iterations: 2
+
+  address_critic_findings:
+    applies_to: [level_9_critic]
+    approach: >
+      For each critic finding: read the specific evidence, apply the specific
+      fix suggested (if any), then re-run only the failed attack pattern.
+    max_iterations: 3
+
+  security_finding_fix:
+    applies_to: [software.l7.*]
+    approach: >
+      For each high/critical finding: identify the exact code location, apply
+      the well-known remediation, then re-scan.
+    max_iterations: 2
+
+  playbook_gap_close:
+    applies_to: [legal.l6.playbook_coverage]
+    approach: >
+      For each unaddressed BLOCKER or MATERIAL playbook item: analyze the
+      clause, propose specific redline, integrate into deliverable.
+    max_iterations: 2
+```
+
+### 7.4 Repair Escalation
+
+```text
+Escalation triggers:
+
+  1. max_attempts reached without pass
+     → RepairOrder.status = ABANDONED
+     → task.status = FAILED
+     → mission enters BLOCKED phase pending user input
+
+  2. same-category failure across all attempts
+     → same root cause not being addressed
+     → escalate to Tier 2 Domain Director
+     → Director may: assign different specialist, revise scope, request user clarification
+
+  3. failure category CRITICAL security or safety
+     → escalate immediately to A6 Risk Officer
+     → no retry without human approval
+
+  4. verification budget exhausted mid-loop
+     → partial repair recorded
+     → user notified: "N of M checks passing; want to continue or accept?"
+```
+
+---
+
+## 8. THE HUMAN APPROVAL GATE (L10)
+
+L10 is not a rubber stamp. It's a **structured approval workflow** integrated with the Security Fabric.
+
+### 8.1 Approval Ticket Structure
+
+```protobuf
+message ApprovalTicket {
+  string approval_id                = 1;
+  string mission_id                 = 2;
+  string task_id                    = 3;
+  string requested_by_agent         = 4;
+
+  string request_kind               = 5;
+  string request_summary            = 6;         // one-line COCO Voice
+  string request_details_markdown   = 7;         // structured detail
+
+  repeated ArtifactRef artifacts_under_review = 8;
+  VerificationReportRef verification_report   = 9;
+
+  RiskAssessment risk               = 10;
+
+  int64  requested_at_unix_ns       = 11;
+  int64  expires_at_unix_ns         = 12;
+
+  repeated string proposed_actions_if_approved = 13;
+  repeated string proposed_actions_if_denied   = 14;
+}
+
+message RiskAssessment {
+  string severity        = 1;   // LOW | MEDIUM | HIGH | CRITICAL
+  string reversibility   = 2;   // REVERSIBLE | RECOVERABLE | IRREVERSIBLE
+  string blast_radius    = 3;   // ISOLATED | LIMITED | WIDESPREAD
+  repeated string affected_systems = 4;
+  string worst_case_scenario = 5;
+  string mitigation_if_wrong  = 6;
+}
+```
+
+### 8.2 UI Contract for Approval
+
+The user sees a **structured card** built from the ticket:
+
+```text
+┌────────────────────────────────────────────────────────────┐
+│ Approval Required                                          │
+│ ─────────────────                                          │
+│                                                            │
+│ Mission:    Ship v2.4 to production                        │
+│ Requested:  DevOps agent (D5), 12:41 UTC                   │
+│                                                            │
+│ SUMMARY                                                    │
+│ Deploy 47-commit release to prod-us-east.                  │
+│ All 1,482 verification checks passed.                      │
+│ 12 initial failures diagnosed and repaired.                │
+│                                                            │
+│ RISK                                                       │
+│   Severity:       HIGH                                     │
+│   Reversibility:  RECOVERABLE (rollback armed, <60s)       │
+│   Blast radius:   LIMITED (canary at 5% for 10 min first)  │
+│                                                            │
+│ VERIFICATION REPORT                                        │
+│   L0-L8:  all pass                                         │
+│   L9:     C1_critic ACCEPT (score 0.94)                    │
+│           2 ACCEPT_WITH_NOTES items (see report)           │
+│                                                            │
+│ IF APPROVED                                                │
+│   1. Push image → registry                                 │
+│   2. Update k8s manifest                                   │
+│   3. Canary 5% for 10 min with SLO watch                   │
+│   4. If green: full rollout                                │
+│   5. Auto-rollback on error rate > 0.5%                    │
+│                                                            │
+│ IF DENIED                                                  │
+│   - Build artifact preserved                               │
+│   - No changes to production                               │
+│                                                            │
+│ EXPIRES  in 22 h 18 min                                    │
+│                                                            │
+│                        [ APPROVE ]   [ DENY ]   [ NOTES ]  │
+└────────────────────────────────────────────────────────────┘
+```
+
+### 8.3 Approval Policy
+
+```yaml
+approval_policies:
+
+  destructive_actions:
+    approvers_required: 1
+    approver_role: ["project_owner", "org_admin"]
+    audit_log: true
+    ttl_hours: 24
+
+  production_deployment:
+    approvers_required: 1
+    approver_role: ["project_owner", "engineering_lead"]
+    audit_log: true
+    ttl_hours: 24
+    additional_checks:
+      - business_hours_only: true (configurable)
+      - two_person_rule: false (configurable, defaults true for enterprise)
+
+  legal_matter_over_100k:
+    approvers_required: 1
+    approver_role: ["licensed_attorney_of_record"]
+    audit_log: true
+    ttl_hours: 72
+
+  medical_decision_support:
+    approvers_required: 1
+    approver_role: ["licensed_clinician"]
+    audit_log: true
+    ttl_hours: 72
+
+  financial_deliverable_over_10m:
+    approvers_required: 1
+    approver_role: ["md_or_partner"]
+    audit_log: true
+    ttl_hours: 48
+```
+
+---
+
+## 9. VERIFICATION BUDGETING
+
+Per Law 9, verification is budgeted. The Verification Fabric enforces envelopes without silently degrading quality.
+
+### 9.1 Budget Enforcement
+
+```python
+class VerificationBudgetEnforcer:
+    async def check_can_run(
+        self,
+        planned_checks: list[CheckDescriptor],
+        remaining_budget: VerificationBudget,
+    ) -> BudgetDecision:
+        estimated_cost = sum(c.typical_cost_millis for c in planned_checks)
+        estimated_time = self._critical_path_ms(planned_checks)
+
+        if estimated_time > remaining_budget.max_wall_ms:
+            return BudgetDecision(
+                fits=False,
+                overflow_ms=estimated_time - remaining_budget.max_wall_ms,
+                recommendation="skip_soft_checks_or_extend_budget",
+            )
+        return BudgetDecision(fits=True)
+```
+
+### 9.2 Skipping Policy
+
+When budget forces skips:
+
+```text
+1. NEVER skip hard checks
+2. NEVER skip L7 (security) checks
+3. NEVER skip L9 (critic) for Rung 3+ specialists
+4. Prefer skipping L8 soft performance checks first
+5. Prefer skipping L3 style checks second
+6. Log every skip with reason=BUDGET_EXHAUSTED
+7. User-facing message notes the skip
+```
+
+### 9.3 Budget Amendment Flow
+
+If a mission needs more verification than budgeted:
+
+```text
+1. Verification Planner emits `mission.verification_budget_warning`
+2. If auto-scaling authorized (Pro/Ranger): budget auto-extended once
+3. If auto-scaling denied: user prompted "extend budget?" with cost estimate
+4. Extension recorded as decision
+```
+
+---
+
+## 10. REGRESSION TESTING (VERIFYING THE VERIFIERS)
+
+Per Law 7 and Law 10, the verification system is itself verified.
+
+### 10.1 The Verifier Regression Suite
+
+For every check in the registry, we maintain a paired regression suite:
+
+```yaml
+regression_suite_structure:
+  check_id: software.l2.python.mypy_strict
+  fixtures:
+    - id: known_good_typed_code
+      artifact: fixtures/typed_correct.py
+      expected: {status: PASSED}
+    - id: known_missing_annotation
+      artifact: fixtures/missing_annotation.py
+      expected: {status: FAILED, contains_error: "Function is missing"}
+    - id: known_incompatible_type
+      artifact: fixtures/incompatible_type.py
+      expected: {status: FAILED, contains_error: "Incompatible types"}
+    - id: adversarial_syntax
+      artifact: fixtures/adversarial.py
+      expected: {status: ERROR, no_crash: true}
+
+  cadence: nightly
+  regression_alert: B_verification_director
+```
+
+### 10.2 Critic Calibration Suite
+
+For every domain critic, we maintain a **calibration suite** — deliverables scored by both human experts and the critic. The critic's scores must track human scores within tolerance.
+
+```yaml
+critic_calibration:
+  critic_id: C36_critic_adversarial_attorney
+  fixtures:
+    - deliverable: fixtures/nda_pack_20
+      human_panel_score: 0.84
+      tolerance: ±0.05
+      cadence: monthly
+  alert_on_calibration_drift: true
+```
+
+### 10.3 Regression Metrics
+
+```text
+Prometheus metrics emitted:
+
+  coco_verifier_regression_pass_rate{check_id}
+  coco_verifier_false_positive_rate{check_id}
+  coco_verifier_false_negative_rate{check_id}
+  coco_critic_calibration_drift{critic_id}
+  coco_critic_score_variance{critic_id}
+  coco_verification_level_pass_rate{domain, level}
+  coco_repair_loop_success_rate{failure_category}
+  coco_repair_loop_iterations{failure_category, quantile}
+```
+
+---
+
+## 11. VERIFICATION OBSERVABILITY
+
+### 11.1 Per-Mission Verification Timeline
+
+Every mission produces a **Verification Timeline** — a queryable, replayable record of every check run:
+
+```json
+{
+  "mission_id": "mis_01J8...",
+  "task_id": "tsk_01J8...",
+  "verification_id": "ver_01J8...",
+  "domain": "SOFTWARE",
+  "started_at": "2025-11-...",
+  "completed_at": "2025-11-...",
+  "target_level": 10,
+  "levels_run": [0,1,2,3,4,5,6,7,8,9,10],
+  "verdict": "ACCEPTED_WITH_NOTES",
+  "level_summaries": [
+    {"level": 0, "status": "PASSED", "checks_total": 3, "checks_passed": 3, "duration_ms": 42},
+    {"level": 1, "status": "PASSED", "checks_total": 2, "checks_passed": 2, "duration_ms": 89},
+    {"level": 2, "status": "FAILED_THEN_REPAIRED", "attempts": 2, "final_status": "PASSED"},
+    ...
+  ],
+  "repair_orders_issued": 2,
+  "repair_orders_succeeded": 2,
+  "critic_report_ref": "art_01J8...",
+  "human_approval_id": "app_01J8...",
+  "total_checks_run": 1482,
+  "total_checks_passed": 1470,
+  "total_wall_time_ms": 45210,
+  "total_compute_ms": 178430
+}
+```
+
+### 11.2 Cross-Mission Aggregates (via Evolution Fabric)
+
+Nightly aggregates emitted to `evolution.model_performance` equivalent for verification:
+
+```sql
+CREATE MATERIALIZED VIEW verification.v_check_performance AS
+SELECT
+  check_id,
+  date_trunc('day', started_at) AS day,
+  COUNT(*)                       AS runs,
+  AVG(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS pass_rate,
+  AVG(duration_ms)               AS avg_duration_ms,
+  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95_duration_ms
+FROM verification.check_results cr
+JOIN verification.level_results lr USING (level_result_id)
+JOIN verification.verifications v USING (verification_id)
+GROUP BY check_id, date_trunc('day', started_at);
+```
+
+### 11.3 Alerts
+
+```yaml
+verification_alerts:
+
+  - name: check_regression
+    condition: pass_rate_7d < pass_rate_28d * 0.90
+    severity: HIGH
+    route: B_verification_director
+
+  - name: repair_loop_success_dropping
+    condition: repair_success_rate_7d < 0.85
+    severity: HIGH
+    route: A6_risk_officer
+
+  - name: critic_calibration_drift
+    condition: critic_score_delta_vs_human_panel > 0.10
+    severity: CRITICAL
+    route: domain_director
+
+  - name: L7_security_finding_spike
+    condition: L7_failure_rate_1h > 3 * baseline
+    severity: CRITICAL
+    route: security_oncall
+
+  - name: verification_budget_exhaustion_common
+    condition: budget_exhaustion_rate_7d > 0.10
+    severity: MEDIUM
+    route: evolution_engineer
+```
+
+---
+
+## 12. THE VERIFICATION SDK
+
+To make it trivial for domain teams to add new checks and critics, COCO exposes a small internal SDK.
+
+### 12.1 Registering a New Check
+
+```python
+from coco.verification import check, ArtifactRef, CheckResult
+
+@check(
+    check_id="finance.l5.working_capital_rollforward",
+    applies_to_level=5,
+    applies_to_domains=["FINANCIAL"],
+    tool_id="wc_rollforward_verifier",
+    soft=False,
+    idempotent=True,
+    timeout_ms=15000,
+    pass_criterion="AR + Inventory - AP roll-forward reconciles to CFS Δ WC",
+)
+async def working_capital_rollforward(
+    artifacts: list[ArtifactRef],
+    params: dict,
+    sandbox: SandboxHandle,
+    deadline_ms: int,
+) -> CheckResult:
+    xlsx = await sandbox.load_artifact(artifacts[0])
+    model = FinancialModel.load(xlsx)
+
+    for period in model.forecast_periods():
+        delta_ar = model.ar[period] - model.ar[period - 1]
+        delta_inv = model.inventory[period] - model.inventory[period - 1]
+        delta_ap = model.ap[period] - model.ap[period - 1]
+        cfs_wc_change = model.cf_statement[period].working_capital_change
+
+        expected = -(delta_ar + delta_inv - delta_ap)
+        if abs(expected - cfs_wc_change) > 0.005:
+            return CheckResult.failed(
+                message=f"Working capital roll-forward mismatch in {period}",
+                details={
+                    "expected": expected,
+                    "actual": cfs_wc_change,
+                    "delta": cfs_wc_change - expected,
+                },
+                evidence_artifact_ref=await sandbox.write_evidence(
+                    "wc_rollforward_diff.json", details
+                ),
+            )
+    return CheckResult.passed(message="WC roll-forward reconciles across all periods")
+```
+
+### 12.2 Registering a New Critic
+
+```python
+from coco.verification import critic, CriticReport
+
+@critic(
+    critic_id="C48_critic_forensic_analyst",
+    applies_to_level=9,
+    applies_to_domain="FINANCIAL",
+    paired_with_specialist="C48_corporate_financial_modeler",
+    model_capability="reason.deep",
+    attack_patterns=[
+        "identity_verification",
+        "formula_audit",
+        "historical_verification",
+        "assumption_reasonableness",
+        "comparability_check",
+    ],
+)
+async def review_financial_model(
+    artifacts: list[ArtifactRef],
+    context: CriticContext,
+) -> CriticReport:
+    ...
+```
+
+The SDK handles registry, telemetry, sandboxing, and result plumbing. Domain teams focus on the check logic.
+
+---
+
+## 13. DELIVERY OF VERIFICATION EVIDENCE
+
+Every mission delivery carries a **Verification Report** artifact — never optional.
+
+### 13.1 Report Structure
+
+```markdown
+# Verification Report — mission mis_01J8...
+
+## Summary
+- Verdict:          ACCEPTED_WITH_NOTES
+- Verification ID:  ver_01J8...
+- Domain:           SOFTWARE
+- Target level:     10
+- Levels run:       L0-L10
+- Total checks:     1,482
+- Passed:           1,470
+- Failed & repaired: 12
+- Skipped:          0
+- Total wall time:  45.2s
+- Total compute:    2.9 min
+
+## Level Results
+L0 · well-formed             ✓ 3/3 checks (42ms)
+L1 · structural valid        ✓ 2/2 checks (89ms)
+L2 · type correct            ✓ 1/1 (2 initial failures repaired)
+L3 · lint clean              ✓ 4/4 checks
+L4 · unit verified           ✓ 87/87 tests, coverage 94.2%
+L5 · integration verified    ✓ 12/12 checks
+L6 · requirement verified    ✓ 23/23 requirements traced
+L7 · security verified       ✓ SAST 0 crit, deps 0 CVE, secrets 0
+L8 · performance verified    ✓ p95 143ms (target 200ms)
+L9 · critic (C1_critic)      ✓ ACCEPT (score 0.94)
+                                 2 ACCEPT_WITH_NOTES:
+                                   - consider adding retry on line 87
+                                   - docstring on health endpoint absent
+L10 · human acceptance        ✓ Approved by usr_… at 12:47 UTC
+
+## Repair Log
+- L2 failure: mypy strict — 2 missing annotations
+    Strategy: fix_type_annotations
+    Attempts: 1
+    Outcome:  PASSED
+- L5 failure: integration test port conflict
+    Strategy: reallocate_sandbox_ports
+    Attempts: 1
+    Outcome:  PASSED
+
+## Attached Evidence
+- pytest_full_output.log        (art_01J8...)
+- mypy_strict_output.log        (art_01J8...)
+- coverage_report.html          (art_01J8...)
+- bandit_report.json            (art_01J8...)
+- semgrep_report.sarif          (art_01J8...)
+- trivy_container_scan.json     (art_01J8...)
+- gitleaks_report.json          (art_01J8...)
+- k6_load_test_report.html      (art_01J8...)
+- critic_report.json            (art_01J8...)
+- human_approval_ticket.json    (art_01J8...)
+```
+
+### 13.2 UI Presentation
+
+The user sees a compact summary with expand-to-full-report. No user is ever left wondering "did COCO actually check this?"
+
+---
+
+## 14. SUMMARY OF SPECIFICATION 6 LOCKS
+
+The **Verification Cookbook** is now fully specified:
+
+1. **Ten Governing Laws Locked** — separation of generation/verification, executed-not-asserted, explicit pass criteria, diagnosis on failure, depth matches risk, reproducible evidence, verify the verifiers, L10 first-class, budgeted verification, regression is failure.
+2. **Ten-Level Verification Ladder Canonical Definitions Locked** — each level has explicit question, pass criterion, typical checks, applicable domains.
+3. **Verification Fabric Architecture Locked** — planner → orchestrator → runners → aggregator → report/repair pipeline; serial levels, parallel checks, sandboxed runners.
+4. **Verification Planner & Level Selection Policy Locked** — automatic addition of L9 for Rung 3+ specialists, L10 for destructive/high-risk, tier-appropriate caps.
+5. **Check Registry & Runner Contract Locked** — every check is a first-class registry entry with observed FP/FN rates and cost tracking.
+6. **Ten Per-Domain Verification Recipes Locked** — Software, Research, Legal, Financial, Medical, Hardware, Design, Business, Scientific, Operational — each with L0-L10 check batteries, critic assignments, and L10 trigger conditions.
+7. **Critic Prompt Library Locked** — universal critic header, canonical attack pattern templates, structured CriticReport output contract, rejection rules.
+8. **Repair Loop Architecture Locked** — failure classifier, root-cause analyzer, strategy selector, repair execution, re-verification, escalation triggers; strategy catalog with iteration limits.
+9. **Human Approval Gate (L10) Locked** — ApprovalTicket structure, structured UI card, per-domain approval policies (destructive, deployment, legal >$100k, medical, financial >$10M).
+10. **Verification Budgeting Locked** — per-tier envelopes, skipping policy (never skip hard/L7/L9), budget amendment flow.
+11. **Regression Testing Locked** — verifier regression suite per check, critic calibration suite per critic, regression metrics.
+12. **Verification Observability Locked** — per-mission timeline, cross-mission aggregates, alert catalog.
+13. **Verification SDK Locked** — trivial in-code registration of new checks and critics with automatic registry/telemetry/sandboxing.
+14. **Delivery of Verification Evidence Locked** — mandatory Verification Report artifact with structured summary and full attached evidence.
+
+The verification layer no longer relies on hope. Every artifact ascends a defined ladder. Every failure triggers diagnosis, not silence. Every claim of success is backed by machine-verifiable evidence. **The Constitutional promise — "verified outcomes, not fast answers" — is now operationally enforced.**
+
+---
+
+## NEXT DEEP SPECIFICATION
+
+Verification is locked. We proceed to **DEEP SPEC 7 — The Monorepo Blueprint**:
+
+- Exact folder structure of the COCO monorepo
+- Per-package technology choices and boundaries
+- Build system (Turborepo / Nx for TS; uv/hatch for Python)
+- Language boundaries (Python for kernel & agents; TypeScript for web/desktop/CLI; Go for high-throughput fabrics if warranted; Rust for security-critical sandbox runtime)
+- Shared protocol packages (generated from protobuf schemas)
+- Testing pyramid per package
+- CI/CD pipeline layout
+- Local development environment (docker-compose, devcontainers)
+- Release train (versioning, changelog, deployment orchestration)
+- Contribution & code-review conventions
+
+**Confirm: proceed to Deep Spec 7 — Monorepo Blueprint?**

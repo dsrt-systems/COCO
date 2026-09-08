@@ -1,0 +1,1640 @@
+# DEEP SPEC 4 — THE MODEL FABRIC
+
+**System:** DSRT COCO
+**Layer:** Intelligence Fabric / Model Substrate
+**Status:** Approved & Locked Specification
+**Governing Standards:** Constitutional Dimensions 5 (Intelligence Model), 6 (Agent Model), 10 (Economic Model); Article XIII (Cognitive Runtime); Deep Specs 1-3
+
+---
+
+## 0. MODEL FABRIC PHILOSOPHY
+
+The Model Fabric is COCO's **substrate abstraction layer**. Its purpose is not to run models — it is to make models **interchangeable, measurable, and routable** so that the rest of COCO never depends on any specific one.
+
+### The Ten Governing Laws of the Model Fabric
+
+```text
+LAW 1  — CAPABILITIES, NOT MODELS
+         COCO agents request capabilities (reason, code, vision, embed).
+         The fabric selects the model. Agents never name a provider.
+
+LAW 2  — ROUTING IS AN EVOLVED CAPABILITY
+         Every route decision is recorded. Outcomes feed back into policy.
+         The router improves without human tuning.
+
+LAW 3  — PROVIDER-AGNOSTIC ADAPTERS
+         Every model — OpenAI, Anthropic, Google, xAI, DeepSeek, Qwen,
+         Llama, Mistral, custom fine-tunes, local Ollama, local vLLM —
+         speaks the same wire protocol: ModelInferenceRequest.
+
+LAW 4  — NEVER SINGLE-VENDOR-LOCKED
+         Every capability has at least 2 providers registered.
+         Fallback is automatic and invisible to callers.
+
+LAW 5  — DEADLINE PROPAGATION IS SACRED
+         Every inference carries a deadline. Adapters honor it.
+         Cascading timeouts are engineering failures, not accidents.
+
+LAW 6  — COST IS FIRST-CLASS
+         Every call is priced pre-execution and reconciled post-execution.
+         Budget envelopes are enforced, not requested.
+
+LAW 7  — CACHE AGGRESSIVELY, INVALIDATE PRECISELY
+         Semantic and exact-match caching are default-on.
+         Cache keys include: prompt, params, tools, model_id, org_id.
+
+LAW 8  — LOCAL + HOSTED CO-EXIST
+         Local models (Ollama, vLLM) are first-class citizens with the
+         same telemetry, SLAs, and routing eligibility as hosted APIs.
+
+LAW 9  — STREAMING BY DEFAULT
+         All user-facing inference streams. Non-streaming is the exception.
+         Cancellation propagates to the provider, not silently discarded.
+
+LAW 10 — CIRCUIT BREAKERS PROTECT COCO
+         Providers fail. Rate limits happen. The fabric degrades gracefully:
+         circuit-break, fallback, requeue, or explicitly surface the failure.
+```
+
+---
+
+## 1. MODEL FABRIC TOPOLOGY
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                              INTELLIGENCE FABRIC                                  │
+│                                                                                  │
+│                          ┌──────────────────────┐                                │
+│                          │   AGENT RUNTIME      │                                │
+│                          │  (issues capability  │                                │
+│                          │   requests)          │                                │
+│                          └──────────┬───────────┘                                │
+│                                     │                                            │
+│  ═══════════════════════════════════▼════════════════════════════════════════    │
+│                             MODEL FABRIC BOUNDARY                                │
+│  ═══════════════════════════════════▼════════════════════════════════════════    │
+│                                                                                  │
+│                          ┌──────────────────────┐                                │
+│                          │  ROUTER (A5)         │                                │
+│                          │  - Depth analysis    │                                │
+│                          │  - Cost/latency/quality bandit                        │
+│                          │  - Fallback chains   │                                │
+│                          └──────────┬───────────┘                                │
+│                                     │                                            │
+│              ┌──────────────────────┼──────────────────────┐                     │
+│              ▼                      ▼                      ▼                     │
+│      ┌──────────────┐       ┌──────────────┐      ┌──────────────┐               │
+│      │ MODEL        │       │ CACHE        │      │ GUARDRAILS   │               │
+│      │ REGISTRY     │       │ (semantic +  │      │ (safety,     │               │
+│      │              │       │  exact-match)│      │  policy)     │               │
+│      └──────────────┘       └──────┬───────┘      └──────┬───────┘               │
+│                                    │                     │                       │
+│                                    ▼                     ▼                       │
+│                          ┌──────────────────────────────────┐                    │
+│                          │       ADAPTER GATEWAY            │                    │
+│                          │  (Unified ModelInferenceRequest) │                    │
+│                          └──────────────┬───────────────────┘                    │
+│                                         │                                        │
+│  ┌──────────────────────────────────────┼──────────────────────────────────┐    │
+│  │  HOSTED ADAPTERS         LOCAL ADAPTERS         SPECIALIST ADAPTERS      │    │
+│  │  ─────────────           ─────────────          ────────────────         │    │
+│  │  • OpenAI                • Ollama                • Embedding pipelines   │    │
+│  │  • Anthropic             • vLLM                  • Reranker pool        │    │
+│  │  • Google                • llama.cpp             • Audio (STT/TTS)      │    │
+│  │  • xAI                   • MLX (Apple silicon)   • Vision OCR           │    │
+│  │  • DeepSeek              • TensorRT-LLM          • Domain fine-tunes    │    │
+│  │  • Mistral                                                              │    │
+│  │  • Fireworks / Groq / Together (aggregators)                            │    │
+│  └────────────────────────────────────────────────────────────────────────┘    │
+│                                         │                                        │
+│                                         ▼                                        │
+│                          ┌──────────────────────────────────┐                    │
+│                          │     TELEMETRY & EVOLUTION        │                    │
+│                          │  (model_calls, model_performance)│                    │
+│                          └──────────────────────────────────┘                    │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. CAPABILITY TAXONOMY
+
+Agents request **capabilities**, not models. Capabilities are fine-grained enough to route intelligently without being so granular that they explode.
+
+### 2.1 The 22 First-Class Capabilities
+
+```text
+REASONING CAPABILITIES
+  reason.fast              Sub-second reasoning for D0/D1 tasks
+  reason.standard          General multi-step reasoning for D2 tasks
+  reason.deep              Extended thinking / chain-of-thought for D3-D6
+  reason.tool_augmented    Reasoning with tool-call orchestration
+
+CODING CAPABILITIES
+  code.gen.short           Snippet-level generation (<200 LOC)
+  code.gen.repo            Repository-scale generation (multi-file)
+  code.edit                Precise edits to existing code
+  code.review              Code review, security audit, refactor
+
+RESEARCH CAPABILITIES
+  research.extract         Extract facts/entities from documents
+  research.synthesize      Cross-source synthesis with citations
+
+VISION CAPABILITIES
+  vision.understand        General image understanding
+  vision.ocr               Text extraction from images/PDFs
+  vision.chart             Chart / diagram interpretation
+
+AUDIO CAPABILITIES
+  audio.transcribe         Speech-to-text
+  audio.synthesize         Text-to-speech
+
+STRUCTURED CAPABILITIES
+  structured.extract       Extract JSON conforming to schema
+  structured.classify      Classification into fixed categories
+
+RETRIEVAL CAPABILITIES
+  embed.text               Text embedding for vector search
+  embed.code               Code embedding
+  embed.multimodal         Text+image embedding
+  rerank                   Cross-encoder reranking of candidates
+
+TRANSLATION
+  translate                Cross-language translation
+```
+
+### 2.2 Capability Descriptor Schema
+
+```protobuf
+message CapabilityDescriptor {
+  string capability_id            = 1;   // e.g. "reason.deep"
+  string display_name             = 2;
+  string description              = 3;
+
+  QualityAxis primary_axis        = 4;   // What "good" means for this capability
+  repeated string required_features = 5; // e.g. "tool_calling", "json_mode", "vision"
+
+  int32  typical_input_tokens     = 6;
+  int32  typical_output_tokens    = 7;
+  int32  typical_latency_ms       = 8;
+
+  string default_prompt_template  = 9;   // Reference to prompt library
+  string default_output_schema    = 10;  // JSON Schema URI (if structured)
+}
+
+enum QualityAxis {
+  AXIS_UNSPECIFIED     = 0;
+  ACCURACY             = 1;   // Correctness of factual output
+  REASONING_QUALITY    = 2;   // Multi-step logic quality
+  CODE_CORRECTNESS     = 3;   // Compiles, passes tests
+  INSTRUCTION_FOLLOW   = 4;   // Adherence to instructions
+  STRUCTURED_FIDELITY  = 5;   // JSON schema conformance
+  LATENCY              = 6;   // Speed dominates
+  COST                 = 7;   // Cost dominates
+}
+```
+
+---
+
+## 3. THE MODEL REGISTRY (Extended)
+
+The registry defined in Deep Spec 3 (`models.model_registry`) is extended with **routing-critical metadata** the Router uses at decision time.
+
+### 3.1 Extended Model Descriptor
+
+```protobuf
+message ExtendedModelDescriptor {
+  // ─── CORE IDENTITY (from Deep Spec 2 §5.5) ────────────
+  string model_id                  = 1;
+  string provider                  = 2;
+  string family                    = 3;
+  string display_name              = 4;
+
+  // ─── ROUTING METADATA ─────────────────────────────────
+  repeated CapabilityBinding capabilities = 5;
+  int32  context_window_tokens     = 6;
+  int32  max_output_tokens         = 7;
+  ModelTier tier                   = 8;
+  License license                  = 9;
+
+  // ─── OPERATIONAL ──────────────────────────────────────
+  DeploymentMode deployment_mode   = 10;
+  repeated Endpoint endpoints      = 11;
+  ProviderSLA sla                  = 12;
+  RateLimitProfile rate_limits     = 13;
+
+  // ─── ECONOMICS ────────────────────────────────────────
+  ModelCost cost                   = 14;
+
+  // ─── FEATURES ─────────────────────────────────────────
+  ModelFeatures features           = 15;
+
+  // ─── OBSERVED PERFORMANCE (rolling; nightly refresh) ─
+  ObservedPerformance observed     = 16;
+
+  // ─── ELIGIBILITY & POLICY ─────────────────────────────
+  EligibilityRules eligibility     = 17;
+
+  // ─── LIFECYCLE ────────────────────────────────────────
+  int64  registered_at_unix_ns     = 18;
+  int64  deprecated_at_unix_ns     = 19;
+  string replacement_model_id      = 20;
+}
+
+message CapabilityBinding {
+  string capability_id             = 1;   // "reason.deep", "code.gen.repo", etc.
+  double declared_quality_score    = 2;   // 0..1; provider claim, seeded from benchmarks
+  double observed_quality_score    = 3;   // 0..1; measured by Evolution Fabric
+  bool   preferred                 = 4;   // Router bias toward preferred models
+}
+
+message Endpoint {
+  string endpoint_id               = 1;   // e.g. "openai-us-east-1"
+  string base_url                  = 2;
+  string region                    = 3;
+  int32  max_concurrent_requests   = 4;
+  bool   supports_streaming        = 5;
+  string credential_secret_ref     = 6;   // Vault path
+  EndpointHealth health            = 7;
+}
+
+message EndpointHealth {
+  HealthState state                = 1;   // HEALTHY | DEGRADED | UNAVAILABLE
+  double success_rate_5m           = 2;
+  double p50_latency_ms_5m         = 3;
+  double p95_latency_ms_5m         = 4;
+  int64  last_error_unix_ns        = 5;
+  int64  circuit_breaker_open_until_unix_ns = 6;
+}
+
+message ProviderSLA {
+  double target_availability_pct   = 1;   // Provider's SLA
+  int32  target_p50_latency_ms     = 2;
+  int32  target_p95_latency_ms     = 3;
+  int32  max_retries               = 4;
+  int32  base_backoff_ms           = 5;
+}
+
+message RateLimitProfile {
+  int32  requests_per_minute       = 1;
+  int32  tokens_per_minute         = 2;
+  int32  concurrent_requests       = 3;
+  int32  daily_request_quota       = 4;
+  int32  daily_token_quota         = 5;
+}
+
+message ModelFeatures {
+  bool supports_tool_calling       = 1;
+  bool supports_parallel_tools     = 2;
+  bool supports_vision             = 3;
+  bool supports_audio              = 4;
+  bool supports_json_mode          = 5;
+  bool supports_structured_output  = 6;
+  bool supports_streaming          = 7;
+  bool supports_reasoning          = 8;   // Explicit reasoning tokens
+  bool supports_caching            = 9;   // Provider-side prompt caching
+  bool supports_batch              = 10;
+  bool supports_fine_tuning        = 11;
+  int32 max_tools_per_request      = 12;
+  int32 max_images_per_request     = 13;
+}
+
+message ObservedPerformance {
+  int64  window_start_unix_ns      = 1;
+  int64  window_end_unix_ns        = 2;
+  int64  total_calls               = 3;
+  double success_rate              = 4;
+  double p50_latency_ms            = 5;
+  double p95_latency_ms            = 6;
+  double p99_latency_ms            = 7;
+  double median_ttft_ms            = 8;   // Time to first token
+  double median_tokens_per_second  = 9;
+  double avg_cost_per_call_usd     = 10;
+  map<string,double> per_capability_quality = 11;   // capability_id → 0..1
+}
+
+message EligibilityRules {
+  repeated string allowed_tenants  = 1;   // Empty = all tenants
+  repeated string blocked_tenants  = 2;
+  repeated string allowed_regions  = 3;
+  repeated Sensitivity max_sensitivity = 4;   // e.g. don't send RESTRICTED to external
+  bool   requires_baa              = 5;   // Business Associate Agreement (HIPAA)
+  bool   requires_dpa              = 6;   // Data Processing Agreement (GDPR)
+  bool   data_residency_enforced   = 7;
+  repeated string tier_restrictions = 8;   // "default", "pro", "ranger", "enterprise"
+}
+
+enum HealthState {
+  HEALTH_UNSPECIFIED = 0;
+  HEALTHY            = 1;
+  DEGRADED           = 2;
+  UNAVAILABLE        = 3;
+  MAINTENANCE        = 4;
+}
+```
+
+### 3.2 Registry Bootstrap (Reference Set for v1)
+
+```yaml
+# Illustrative subset — the full registry is a living registry populated
+# and evaluated continuously by the Evolution Fabric.
+
+hosted_models:
+  # Frontier reasoning
+  - model_id: anthropic/claude-3-5-sonnet@20241022
+    tier: FRONTIER
+    capabilities:
+      - {id: reason.deep,       preferred: true}
+      - {id: reason.standard,   preferred: true}
+      - {id: reason.tool_augmented, preferred: true}
+      - {id: code.gen.repo,     preferred: true}
+      - {id: code.edit,         preferred: true}
+      - {id: code.review,       preferred: true}
+      - {id: research.synthesize}
+      - {id: vision.understand}
+      - {id: structured.extract}
+    context_window_tokens: 200000
+    max_output_tokens: 8192
+    features: {tool_calling: true, vision: true, streaming: true, caching: true}
+    cost: {input: 3.00, output: 15.00, cached_input: 0.30}   # USD / 1M tokens
+
+  - model_id: openai/o3-mini@latest
+    tier: FRONTIER
+    capabilities:
+      - {id: reason.deep,       preferred: true}
+      - {id: reason.standard}
+      - {id: code.gen.short,    preferred: true}
+      - {id: code.edit}
+    features: {tool_calling: true, reasoning: true, streaming: true}
+    cost: {input: 1.10, output: 4.40}
+
+  - model_id: google/gemini-2.0-flash@latest
+    tier: ADVANCED
+    capabilities:
+      - {id: reason.fast,       preferred: true}
+      - {id: reason.standard}
+      - {id: vision.understand, preferred: true}
+      - {id: vision.chart,      preferred: true}
+      - {id: audio.transcribe}
+    context_window_tokens: 1000000
+    features: {tool_calling: true, vision: true, audio: true, streaming: true}
+    cost: {input: 0.10, output: 0.40}
+
+  - model_id: deepseek/deepseek-r1@latest
+    tier: FRONTIER
+    capabilities:
+      - {id: reason.deep,       preferred: true}
+      - {id: reason.standard}
+    features: {reasoning: true, streaming: true}
+    cost: {input: 0.55, output: 2.19}
+
+  - model_id: xai/grok-2@latest
+    tier: ADVANCED
+    capabilities:
+      - {id: reason.standard}
+      - {id: code.gen.short}
+    features: {tool_calling: true, streaming: true}
+    cost: {input: 2.00, output: 10.00}
+
+local_models:
+  # Local reasoning workhorse
+  - model_id: qwen/qwen2.5-72b-instruct@vllm
+    deployment_mode: LOCAL_VLLM
+    tier: ADVANCED
+    capabilities:
+      - {id: reason.standard,   preferred: true}
+      - {id: reason.fast}
+      - {id: code.gen.short}
+      - {id: structured.extract}
+    context_window_tokens: 131072
+    features: {tool_calling: true, json_mode: true, streaming: true}
+    cost: {input: 0.00, output: 0.00}   # Sunk cost = GPU
+
+  - model_id: qwen/qwen2.5-coder-32b@ollama
+    deployment_mode: LOCAL_OLLAMA
+    capabilities:
+      - {id: code.gen.short,    preferred: true}
+      - {id: code.edit,         preferred: true}
+      - {id: code.review}
+    features: {streaming: true}
+
+  - model_id: meta/llama-3.3-70b@vllm
+    deployment_mode: LOCAL_VLLM
+    tier: STANDARD
+    capabilities:
+      - {id: reason.fast, preferred: true}
+      - {id: reason.standard}
+    features: {tool_calling: true, streaming: true}
+
+embedding_models:
+  - model_id: openai/text-embedding-3-large
+    capabilities: [{id: embed.text, preferred: true}]
+    features: {batch: true}
+    cost: {input: 0.13}
+
+  - model_id: bge/bge-large-en-v1.5@local
+    deployment_mode: LOCAL_VLLM
+    capabilities: [{id: embed.text}]
+
+  - model_id: voyage/voyage-code-3
+    capabilities: [{id: embed.code, preferred: true}]
+
+reranker_models:
+  - model_id: cohere/rerank-3.5
+    capabilities: [{id: rerank, preferred: true}]
+
+  - model_id: bge/bge-reranker-v2-m3@local
+    deployment_mode: LOCAL_VLLM
+    capabilities: [{id: rerank}]
+```
+
+**Key principle:** Every capability has multiple registered providers — hosted for peak quality, local for cost-controlled and privacy-sensitive workloads. The router chooses at runtime.
+
+---
+
+## 4. THE UNIFIED ADAPTER INTERFACE
+
+Every provider — regardless of API shape — is wrapped in a **ModelAdapter** conforming to a single interface. Adapters normalize inputs, outputs, streaming, errors, and metrics.
+
+### 4.1 Adapter Contract
+
+```python
+# coco/model_fabric/adapter.py
+
+from abc import ABC, abstractmethod
+from typing import AsyncIterator
+from coco.protocol.v1 import (
+    ModelInferenceRequest,
+    ModelInferenceEvent,
+    ExtendedModelDescriptor,
+    Endpoint,
+    HealthState,
+)
+
+
+class ModelAdapter(ABC):
+    """
+    Uniform interface across all model providers.
+    Implementations MUST be:
+      - async-first
+      - cancellation-safe (must abort provider request on task cancel)
+      - deadline-aware (must not exceed request.deadline_unix_ns)
+      - metric-emitting (via injected telemetry sink)
+    """
+
+    provider: str                       # e.g. "anthropic", "ollama"
+    supported_families: list[str]       # e.g. ["claude"]
+
+    @abstractmethod
+    async def infer(
+        self,
+        request: ModelInferenceRequest,
+        endpoint: Endpoint,
+    ) -> AsyncIterator[ModelInferenceEvent]:
+        """
+        Execute inference, yielding streaming events.
+        For non-streaming providers, yields a single STREAM_END with full result.
+        Adapter is responsible for:
+          - Provider-specific auth (via SecretBroker)
+          - Provider-specific request shape translation
+          - Provider-specific response normalization
+          - Retry on transient errors (respecting deadline)
+          - Emitting usage on STREAM_END
+        """
+
+    @abstractmethod
+    async def embed(
+        self,
+        texts: list[str],
+        model_id: str,
+        endpoint: Endpoint,
+    ) -> list[list[float]]:
+        """Batch embedding. Returns vectors in the same order as inputs."""
+
+    @abstractmethod
+    async def rerank(
+        self,
+        query: str,
+        documents: list[str],
+        model_id: str,
+        endpoint: Endpoint,
+    ) -> list[tuple[int, float]]:
+        """Return (original_index, score) pairs sorted desc by score."""
+
+    @abstractmethod
+    async def health_check(self, endpoint: Endpoint) -> HealthState:
+        """Lightweight liveness probe — used by the health poller."""
+
+    @abstractmethod
+    def estimate_tokens(self, text: str, model_id: str) -> int:
+        """Cheap token estimate (adapter caches tokenizers)."""
+
+    @abstractmethod
+    def estimate_cost(
+        self,
+        input_tokens: int,
+        estimated_output_tokens: int,
+        model_id: str,
+    ) -> float:
+        """USD cost estimate; used by Router for budget checks."""
+```
+
+### 4.2 Adapter Registry
+
+```python
+class AdapterRegistry:
+    """
+    Discovers and instantiates adapters. One adapter class per provider.
+    Adapters are loaded at boot and pinned in memory (they hold connection pools).
+    """
+
+    def __init__(self):
+        self._adapters: dict[str, ModelAdapter] = {}
+
+    def register(self, adapter: ModelAdapter) -> None:
+        self._adapters[adapter.provider] = adapter
+
+    def get_for_model(self, descriptor: ExtendedModelDescriptor) -> ModelAdapter:
+        adapter = self._adapters.get(descriptor.provider)
+        if not adapter:
+            raise UnknownProviderError(descriptor.provider)
+        if descriptor.family not in adapter.supported_families:
+            raise UnsupportedFamilyError(descriptor.family, adapter.provider)
+        return adapter
+
+    def all(self) -> list[ModelAdapter]:
+        return list(self._adapters.values())
+```
+
+### 4.3 Reference Adapter — Anthropic
+
+```python
+class AnthropicAdapter(ModelAdapter):
+    provider = "anthropic"
+    supported_families = ["claude"]
+
+    def __init__(self, secret_broker, http_client, telemetry, tokenizer_cache):
+        self._secrets = secret_broker
+        self._http = http_client            # httpx.AsyncClient with connection pool
+        self._telemetry = telemetry
+        self._tokenizers = tokenizer_cache
+
+    async def infer(self, request, endpoint):
+        api_key = await self._secrets.fetch(endpoint.credential_secret_ref)
+        body = self._translate_to_anthropic(request)      # normalize protocol → provider shape
+        deadline_ms = self._deadline_ms(request)
+
+        started = time.time_ns()
+        input_tokens = self._count_input_tokens(request)
+
+        try:
+            async with self._http.stream(
+                "POST",
+                f"{endpoint.base_url}/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json=body,
+                timeout=self._timeout(deadline_ms),
+            ) as response:
+                if response.status_code == 429:
+                    raise RateLimitError(retry_after_ms=self._parse_retry_after(response))
+                if response.status_code >= 500:
+                    raise ProviderUnavailableError(response.status_code)
+                response.raise_for_status()
+
+                output_tokens = 0
+                async for line in response.aiter_lines():
+                    event = self._parse_anthropic_sse(line)
+                    if event is None:
+                        continue
+                    if event.kind == StreamEventKind.CONTENT_DELTA:
+                        output_tokens += self._estimate_delta_tokens(event.text_delta)
+                    yield event
+
+                # Final usage event
+                yield ModelInferenceEvent(
+                    inference_id=request.inference_id,
+                    kind=StreamEventKind.STREAM_END,
+                    usage_snapshot=TokenUsage(
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cost_usd=self.estimate_cost(input_tokens, output_tokens, request.model_id),
+                    ),
+                )
+        except asyncio.CancelledError:
+            # Ensure provider connection is torn down; do not swallow
+            raise
+        finally:
+            self._telemetry.record_inference(
+                inference_id=request.inference_id,
+                model_id=request.model_id,
+                provider=self.provider,
+                endpoint=endpoint.endpoint_id,
+                started_ns=started,
+                completed_ns=time.time_ns(),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+```
+
+**Adapters for OpenAI, Google, xAI, DeepSeek, Mistral, Ollama, vLLM, and llama.cpp** follow the identical shape. Only the translation layer and response parsing differ.
+
+### 4.4 Local Adapter — vLLM (OpenAI-compatible)
+
+```python
+class VLLMAdapter(ModelAdapter):
+    """
+    vLLM exposes an OpenAI-compatible endpoint. We inherit the OpenAI adapter
+    translation and override only auth, endpoint discovery, and health.
+    """
+    provider = "vllm"
+    supported_families = ["qwen", "llama", "mistral", "deepseek", "custom"]
+
+    async def health_check(self, endpoint):
+        # vLLM exposes /health returning 200 OK when ready
+        try:
+            r = await self._http.get(f"{endpoint.base_url}/health", timeout=2.0)
+            return HealthState.HEALTHY if r.status_code == 200 else HealthState.DEGRADED
+        except Exception:
+            return HealthState.UNAVAILABLE
+
+    def estimate_cost(self, input_tokens, output_tokens, model_id):
+        # Local models: incremental cash cost = 0. Accounting cost tracked in GPU pool.
+        return 0.0
+```
+
+### 4.5 Adapter Error Taxonomy (normalized to `CocoError`)
+
+```text
+PROVIDER-RAW              →   NORMALIZED CocoError
+─────────────────────────    ────────────────────────────────
+HTTP 401/403              →   category=PERMISSION, retryable=false
+HTTP 429                  →   category=NETWORK, retryable=true, retry_after_ms set
+HTTP 500/502/503/504      →   category=NETWORK, retryable=true, retry_after_ms=exp
+HTTP 400 (bad_request)    →   category=LOGIC, retryable=false
+HTTP 413 (too_large)      →   category=REQUIREMENT, retryable=false
+Timeout                   →   category=NETWORK, retryable=true
+Cancelled                 →   category=UNKNOWN, retryable=false
+Content filter            →   category=SECURITY, retryable=false
+Context length exceeded   →   category=REQUIREMENT, retryable=false
+Model not found           →   category=CONFIG, retryable=false
+```
+
+The Router treats retryable errors as **transient** and applies fallback logic; non-retryable errors are surfaced immediately.
+
+---
+
+## 5. THE ROUTER — DECISION ENGINE
+
+The Router is the brain of the Model Fabric. It answers one question:
+
+> **"Given this ModelRouteRequest, which model + endpoint + parameter set is the best choice right now?"**
+
+### 5.1 Router Inputs & Outputs
+
+```protobuf
+// Input already defined in Deep Spec 2 §5.1: ModelRouteRequest
+// Output already defined in Deep Spec 2 §5.2: ModelRouteDecision
+// This section defines the internal decision pipeline.
+```
+
+### 5.2 The 8-Stage Router Pipeline
+
+```text
+ModelRouteRequest
+       │
+       ▼
+┌─────────────────────────────────────────────────────────┐
+│ 1. RESOLVE CAPABILITY                                   │
+│    - Load CapabilityDescriptor                          │
+│    - Determine required features (tool_calling, vision) │
+└──────────────────────┬──────────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│ 2. FILTER CANDIDATES                                    │
+│    From registry, keep models where:                    │
+│      - has capability binding                           │
+│      - features ⊇ required_features                     │
+│      - eligibility.allows(tenant, region, sensitivity)  │
+│      - not in preferences.excluded_models               │
+│      - endpoint health != UNAVAILABLE                   │
+│      - context_window >= min_context_tokens             │
+│      - tier >= preferences.minimum_tier                 │
+└──────────────────────┬──────────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│ 3. APPLY EXPLICIT PREFERENCES                           │
+│    If preferences.preferred_models has healthy candidate│
+│    → shortlist just those; skip to Stage 6.             │
+└──────────────────────┬──────────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│ 4. APPLY POLICY OVERRIDES                               │
+│    Organization / Project / Domain routing_policies:    │
+│      - "route all reason.deep on org X to claude-3.5"   │
+│      - "block openai for HIPAA tenants"                 │
+│      - "prefer local models when budget < $X"           │
+└──────────────────────┬──────────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│ 5. COMPUTE UTILITY (Pareto scoring)                     │
+│    For each candidate:                                  │
+│      quality  = observed_quality_score (capability)     │
+│      latency  = 1 - normalize(p95_latency_ms)           │
+│      cost     = 1 - normalize(estimated_cost_usd)       │
+│      availability = success_rate * health_multiplier    │
+│                                                         │
+│      U = w_q·quality + w_l·latency + w_c·cost + w_a·av  │
+│      (weights derived from QualityFloor + routing_hints)│
+└──────────────────────┬──────────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│ 6. BANDIT EXPLORATION (Thompson sampling)               │
+│    ε% of the time, sample from the posterior instead of │
+│    argmax. This keeps the router discovering improvements│
+│    to models that improve over time (e.g., new releases)│
+│    ε shrinks as observation counts grow.                │
+└──────────────────────┬──────────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│ 7. RESERVE CAPACITY                                     │
+│    - Check rate limits (RateLimiter per endpoint)       │
+│    - If saturated, try next candidate                   │
+│    - Reserve slot atomically                            │
+└──────────────────────┬──────────────────────────────────┘
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│ 8. EMIT DECISION                                        │
+│    - ModelRouteDecision with selected_model_id,         │
+│      endpoint, fallback_chain, rationale                │
+│    - Record model.route_decided event                   │
+│    - Return to Intelligence Fabric caller               │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 5.3 Utility Function (Reference Implementation)
+
+```python
+def compute_utility(
+    candidate: ExtendedModelDescriptor,
+    capability_id: str,
+    hints: RoutingHints,
+    hint_weights: WeightVector,
+) -> UtilityScore:
+    """
+    Utility ∈ [0, 1]. Higher is better.
+    Weights come from QualityFloor / hints:
+      MAXIMUM  → (q=0.7, l=0.1, c=0.05, a=0.15)
+      EXCELLENT→ (q=0.55, l=0.15, c=0.15, a=0.15)
+      GOOD     → (q=0.35, l=0.25, c=0.25, a=0.15)
+      ACCEPTABLE → (q=0.20, l=0.30, c=0.35, a=0.15)
+    """
+    binding = _find_binding(candidate, capability_id)
+    quality = binding.observed_quality_score or binding.declared_quality_score
+
+    perf = candidate.observed
+    latency_score = _normalize_latency(perf.p95_latency_ms, hints.max_latency_ms)
+    cost_est = _estimate_cost(candidate, capability_id)
+    cost_score = _normalize_cost(cost_est, hints.max_cost_usd)
+    availability = perf.success_rate * _health_multiplier(candidate)
+
+    w = hint_weights
+    utility = (
+        w.quality * quality
+        + w.latency * latency_score
+        + w.cost * cost_score
+        + w.availability * availability
+    )
+    return UtilityScore(
+        model_id=candidate.model_id,
+        utility=utility,
+        components={
+            "quality": quality,
+            "latency": latency_score,
+            "cost": cost_score,
+            "availability": availability,
+        },
+    )
+```
+
+### 5.4 Thompson Sampling for Exploration
+
+```python
+class ThompsonExplorer:
+    """
+    Per (capability_id, model_id) we maintain a Beta posterior over
+    'this model produces a satisfactory outcome'. Success signals come from:
+      - Critic reports (score >= threshold)
+      - Verification pass at target level
+      - No repair loop triggered
+
+    Sampling gives us principled exploration without pinning traffic
+    to a single winner forever. When a new model registers, its prior
+    is Beta(2, 2) — mild exploration until data accumulates.
+    """
+
+    def sample_utility(self, candidate, base_utility, prior):
+        alpha, beta = prior.alpha, prior.beta
+        sampled = np.random.beta(alpha, beta)
+        # Blend the base utility with the sampled belief, shrinking exploration
+        # weight as observation count grows.
+        n = alpha + beta - 4  # subtract prior
+        exploration_weight = 1.0 / (1.0 + math.log(1 + max(n, 0)))
+        return (1 - exploration_weight) * base_utility + exploration_weight * sampled
+```
+
+### 5.5 Fallback Chains
+
+Every `ModelRouteDecision` carries a `fallback_chain: list[str]` — an ordered list of model IDs to try if the primary fails.
+
+```python
+def build_fallback_chain(
+    ranked_candidates: list[UtilityScore],
+    primary_id: str,
+) -> list[str]:
+    """
+    Fallback rules:
+      1. Prefer different providers (avoid correlated failures).
+      2. Prefer same tier or lower (avoid quality regression).
+      3. Include at least one local model if any exist in candidates
+         (last-resort availability guarantee).
+      4. Cap chain length at 3 (compound latency budget).
+    """
+    primary = _lookup(primary_id)
+    seen_providers = {primary.provider}
+    chain: list[str] = []
+
+    for cand in ranked_candidates:
+        if cand.model_id == primary_id:
+            continue
+        desc = _lookup(cand.model_id)
+        if desc.provider not in seen_providers:
+            chain.append(cand.model_id)
+            seen_providers.add(desc.provider)
+        if len(chain) == 2:
+            break
+
+    # Ensure a local model appears if available
+    if not any(_lookup(m).deployment_mode.name.startswith("LOCAL") for m in chain):
+        local = _first_local(ranked_candidates)
+        if local:
+            chain.append(local.model_id)
+
+    return chain[:3]
+```
+
+### 5.6 Circuit Breaker
+
+```python
+class EndpointCircuitBreaker:
+    """
+    One breaker per endpoint. Opens after N consecutive failures within a window.
+    Half-opens after cooldown; closes on first successful probe.
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        window_seconds: int = 60,
+        open_seconds: int = 30,
+        half_open_max_probes: int = 3,
+    ):
+        ...
+
+    async def before_call(self, endpoint_id: str) -> None:
+        state = self._state[endpoint_id]
+        if state.is_open():
+            raise CircuitOpenError(endpoint_id, opens_at=state.reopens_at)
+        if state.is_half_open():
+            if not state.reserve_probe_slot():
+                raise CircuitOpenError(endpoint_id, opens_at=state.reopens_at)
+
+    def record_success(self, endpoint_id: str) -> None: ...
+    def record_failure(self, endpoint_id: str, category: ErrorCategory) -> None: ...
+```
+
+**Circuit-open events** feed the health poller, which updates `EndpointHealth.circuit_breaker_open_until_unix_ns`. The Router then filters that endpoint from Stage 2 automatically.
+
+---
+
+## 6. RATE LIMITING & CAPACITY MANAGEMENT
+
+### 6.1 Multi-Level Rate Limiter
+
+```text
+LIMITER LEVEL                 SCOPE                              PURPOSE
+──────────────────────────    ────────────────────────────────   ──────────────────────────
+Endpoint limiter              Per (model_id, endpoint_id)         Respect provider limits
+Tenant limiter                Per (organization_id, capability)   Enforce plan envelopes
+Global concurrency limiter    Per model_id                        Prevent thundering herd
+Mission budget limiter        Per mission_id                      Enforce ResourceBudget
+```
+
+Implementation uses **distributed token buckets** in Redis, with per-endpoint keys atomically reserved via Lua scripts.
+
+```python
+class DistributedRateLimiter:
+    """Sliding-window + token-bucket hybrid, Redis-backed."""
+
+    async def try_reserve(
+        self,
+        scope_key: str,
+        tokens_requested: int,
+        deadline_ms: int,
+    ) -> ReserveResult:
+        """
+        Returns RESERVED / DENIED_RATE / DENIED_QUOTA / RETRY_AFTER_MS.
+        Reservations are release-on-completion (RAII pattern in Python via
+        async context manager).
+        """
+```
+
+### 6.2 GPU Warm-Pool (Local Models)
+
+Local models are scheduled through a **warm-pool** to amortize cold-start.
+
+```python
+class GPUWarmPool:
+    """
+    Maintains N live model instances across GPUs.
+    Idle models past TTL are unloaded to free VRAM.
+    Popular models are pinned (no unload).
+    Backed by vLLM's runtime API or Ollama's model management.
+    """
+
+    async def ensure_loaded(self, model_id: str, deadline_ms: int) -> Endpoint: ...
+    async def report_usage(self, model_id: str, duration_ms: int): ...
+    async def eviction_candidate(self) -> str | None: ...
+```
+
+Router coordinates with the warm-pool: if the top candidate is a local model that requires loading, the Router either **waits** (if deadline permits) or **falls through** to the next candidate.
+
+---
+
+## 7. CACHING
+
+### 7.1 Two-Tier Cache Architecture
+
+```text
+                     ┌──────────────────────┐
+                     │  ModelRouteRequest   │
+                     └──────────┬───────────┘
+                                │
+                                ▼
+                     ┌──────────────────────┐
+                     │  L1: EXACT-MATCH     │
+                     │  Redis, TTL=1h       │
+                     │  Key = SHA256(       │
+                     │    prompt, params,   │
+                     │    tools, model_id,  │
+                     │    org_id)           │
+                     └──────────┬───────────┘
+                       Miss     │  Hit → return cached
+                                ▼
+                     ┌──────────────────────┐
+                     │  L2: SEMANTIC        │
+                     │  pgvector, TTL=24h   │
+                     │  Cosine sim > 0.98   │
+                     │  Same org + model    │
+                     └──────────┬───────────┘
+                       Miss     │  Hit → return cached
+                                ▼
+                     ┌──────────────────────┐
+                     │  ADAPTER GATEWAY     │
+                     └──────────────────────┘
+```
+
+### 7.2 Cache Correctness Rules
+
+```text
+NEVER CACHE WHEN:
+  - request.params.temperature > 0.1        (non-deterministic requested)
+  - request.params.seed is unset AND temp > 0
+  - capability ∈ {vision.ocr on live PDFs, research.extract on live URLs}
+  - agent has instructed "no_cache" hint
+  - sensitivity == RESTRICTED (unless per-org opt-in)
+  - tool-augmented reasoning with tool state dependencies
+
+INVALIDATION:
+  - Prompt template version change    → invalidate all keys using that template
+  - Model deprecation                 → drop all entries for that model_id
+  - Org-level "flush cache" action    → drop all entries for that org_id
+  - Tenant data-residency change      → drop all entries in old region
+
+WRITE PATH:
+  - Populate L1 on every successful completion (async, non-blocking)
+  - Populate L2 with embedded prompt on completion
+  - Store {response, provenance, cost_saved, hit_count}
+```
+
+### 7.3 Cache Key Composition
+
+```python
+def compute_cache_key(request: ModelInferenceRequest, org_id: str) -> str:
+    canonical = {
+        "org_id": org_id,
+        "model_id": request.model_id,
+        "messages": _normalize_messages(request.messages),
+        "params": {
+            "temperature": request.params.temperature,
+            "top_p": request.params.top_p,
+            "max_output_tokens": request.params.max_output_tokens,
+            "response_format": request.params.response_format,
+            "json_schema_uri": request.params.json_schema_uri,
+            "stop_sequences": sorted(request.params.stop_sequences),
+            "seed": request.params.seed,
+        },
+        "tools": _normalize_tools(request.tools),
+    }
+    return "sha256:" + hashlib.sha256(
+        json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+```
+
+### 7.4 Prompt-Prefix Caching (Provider-Side)
+
+For providers supporting **prompt caching** (Anthropic, Google, OpenAI), the Model Fabric **structures prompts** to maximize prefix reuse:
+
+```text
+CACHED PREFIX (system, tools, project context)      ← reused across calls
+────────────────────────────────────────────
+DYNAMIC SUFFIX (user turn, current task)            ← per-call
+```
+
+Adapters mark cache checkpoints in the provider request. Savings are recorded in `model_calls.cached_tokens`.
+
+---
+
+## 8. GUARDRAILS (Pre & Post)
+
+The Model Fabric enforces **safety and policy** at the boundary — the Router is not just performance-aware, it is safety-aware.
+
+### 8.1 Pre-Inference Guardrails
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  BEFORE dispatch to adapter, run in parallel:           │
+│                                                         │
+│  1. PROMPT INJECTION DETECTOR                           │
+│     Classifier flags attempts to override system prompt │
+│     via tool outputs or user content.                   │
+│                                                         │
+│  2. PII / SECRET SCANNER                                │
+│     Detects leaked credentials, keys, PII being sent    │
+│     to external providers. Blocks or redacts per policy.│
+│                                                         │
+│  3. SENSITIVITY GATE                                    │
+│     If content sensitivity > endpoint.eligibility →     │
+│     reject and reroute to compliant model.              │
+│                                                         │
+│  4. TOKEN BUDGET CHECK                                  │
+│     Estimated tokens must fit mission budget remaining. │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 8.2 Post-Inference Guardrails
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  BEFORE returning to caller:                            │
+│                                                         │
+│  1. OUTPUT SAFETY CLASSIFIER                            │
+│     Blocks disallowed categories per org policy.        │
+│                                                         │
+│  2. LEAKED SECRET DETECTOR                              │
+│     Scrubs any credentials/PII the model might echo.    │
+│                                                         │
+│  3. HALLUCINATION HEURISTICS                            │
+│     For research/legal/medical capabilities:            │
+│       - Every citation format checked                   │
+│       - Numeric claims flagged for verification         │
+│     Flags surface as `Finding.epistemic_status`.        │
+│                                                         │
+│  4. STRUCTURED OUTPUT VALIDATION                        │
+│     If json_schema_uri set → validate; on fail, either  │
+│     one repair attempt OR return structured error.      │
+└─────────────────────────────────────────────────────────┘
+```
+
+Guardrails emit events (`model.guardrail.blocked`, `model.guardrail.redacted`) into the audit trail.
+
+---
+
+## 9. STREAMING, CANCELLATION, DEADLINE PROPAGATION
+
+### 9.1 Streaming Coordination
+
+```text
+Client (UI / Kernel)
+       │  gRPC bidi stream
+       ▼
+Intelligence Service.InferModel  ──── stream: ModelInferenceEvent
+       │
+       ▼
+Adapter.infer                    ──── HTTP SSE / WebSocket to provider
+       │
+       ▼
+Provider
+```
+
+Every layer supports:
+- **Backpressure**: consumer-driven flow control (async iterator pull)
+- **Cancellation**: `asyncio.CancelledError` propagates from client → adapter → provider abort
+- **Deadline**: `deadline_unix_ns` threaded through every layer; adapter refuses to start a new inference if remaining_ms < min_viable_ms
+
+### 9.2 Cancellation Contract
+
+```python
+async def stream_from_router(request):
+    async with router.route_and_stream(request) as stream:
+        try:
+            async for event in stream:
+                yield event
+        except asyncio.CancelledError:
+            # This automatically triggers adapter's HTTP client to abort the
+            # underlying provider request. Adapter guarantees:
+            #   - open TCP connection is closed
+            #   - reservation is released back to rate limiter
+            #   - partial usage is recorded to model_calls with status=cancelled
+            raise
+```
+
+### 9.3 Deadline Enforcement
+
+```python
+def enforce_deadline(deadline_unix_ns: int, min_viable_ms: int = 500):
+    remaining_ns = deadline_unix_ns - time.time_ns()
+    if remaining_ns < min_viable_ms * 1_000_000:
+        raise DeadlineExceededError(
+            "Insufficient time remaining to attempt inference"
+        )
+    return remaining_ns / 1_000_000  # returns ms for adapter timeout
+```
+
+---
+
+## 10. COST GOVERNANCE
+
+### 10.1 Envelope Enforcement
+
+Every mission carries a `ResourceBudget`. Every inference is:
+1. **Estimated** pre-call (`adapter.estimate_cost`)
+2. **Deducted** from the mission's remaining envelope atomically
+3. **Reconciled** post-call with actual usage
+
+```python
+class BudgetEnforcer:
+    async def try_reserve(
+        self,
+        mission_id: str,
+        estimated_cost_usd: float,
+        estimated_tokens: int,
+    ) -> BudgetReservation:
+        """
+        Atomic Redis operation:
+          if remaining_budget >= estimated_cost:
+            deduct, return Reservation(reservation_id, deducted_amount)
+          else:
+            raise BudgetExhaustedError
+
+        The reservation is a hold. On completion, `reconcile()` adjusts
+        the deducted amount to actual cost (refund overestimate, or
+        emit `mission.budget_warning` on underestimate).
+        """
+```
+
+### 10.2 Tier-Envelope Defaults
+
+```text
+TIER          MODEL COST         MAX MODEL          NOTES
+              PER MISSION        TIER
+────────      ────────────      ─────────           ───────────────────────
+DEFAULT       $0.25              ADVANCED           Local models preferred
+PRO           $5.00              FRONTIER           Full fabric access
+RANGER        $100.00            FRONTIER           Configurable per mission
+ENTERPRISE    Contract-defined   Private/Custom     Dedicated capacity
+```
+
+### 10.3 Budget Warnings
+
+Events emitted:
+- `mission.budget_warning` at 50%, 75%, 90% consumption
+- `mission.budget_exceeded` at 100% → mission enters `BLOCKED` state pending user action
+
+The Router **degrades gracefully** as budget approaches exhaustion: quality weights shift toward cheaper models, exploration ε drops, and cache hits are aggressively preferred.
+
+---
+
+## 11. BATCH INFERENCE
+
+For non-latency-sensitive workloads (embeddings, offline evaluation, evolution reruns):
+
+```protobuf
+message BatchInferenceRequest {
+  string batch_id                  = 1;
+  string organization_id           = 2;
+  string capability_id             = 3;
+  repeated string preferred_models = 4;
+
+  repeated ModelInferenceRequest items = 5;
+
+  string completion_callback_uri   = 6;    // Optional webhook when done
+  int64  deadline_unix_ns          = 7;    // Batch-level deadline
+  BatchOptions options             = 8;
+}
+
+message BatchOptions {
+  int32  max_parallelism           = 1;
+  bool   use_provider_batch_api    = 2;    // OpenAI /batches, Anthropic Message Batches
+  bool   allow_partial_completion  = 3;
+  double discount_threshold_usd    = 4;    // Use batch API only if savings exceed
+}
+```
+
+**Provider batch APIs** (OpenAI, Anthropic) offer ~50% discount at 24h SLA. The batch runtime uses them when `deadline` permits and `discount_threshold_usd` is met.
+
+---
+
+## 12. EMBEDDING & RERANKING PIPELINES
+
+### 12.1 Embedding Pipeline
+
+```text
+                    ┌──────────────────────────┐
+                    │  EMBEDDING SERVICE       │
+                    │  (dedicated worker pool) │
+                    └────────────┬─────────────┘
+                                 │
+   ┌─────────────────────────────┼─────────────────────────────┐
+   ▼                             ▼                             ▼
+Text batcher              Code batcher              Multimodal batcher
+(bge-large / OpenAI)      (voyage-code-3)           (nomic-embed-vision)
+   │                             │                             │
+   └─────────────────────────────┼─────────────────────────────┘
+                                 ▼
+                    ┌──────────────────────────┐
+                    │  ADAPTER GATEWAY         │
+                    │  (batch calls)           │
+                    └────────────┬─────────────┘
+                                 ▼
+                    ┌──────────────────────────┐
+                    │  pgvector WRITE          │
+                    │  (memories, evidence,    │
+                    │   knowledge_nodes)       │
+                    └──────────────────────────┘
+```
+
+**Batch size** dynamically tuned per provider (OpenAI: 2048; local: bounded by VRAM). Failed items retry individually; permanent failures logged with reason.
+
+### 12.2 Reranking Pipeline
+
+Used by Context Fabric during retrieval:
+```text
+Vector search top-K (K=100)
+        ↓
+Reranker (cross-encoder)
+        ↓
+Top-N (N=10-20)
+        ↓
+Context Compiler
+```
+
+Rerankers are pooled and load-balanced. Local `bge-reranker-v2-m3` on GPU is the default; Cohere Rerank 3.5 is the frontier option.
+
+---
+
+## 13. OBSERVABILITY & TELEMETRY
+
+Every inference produces:
+
+### 13.1 Structured Log
+```json
+{
+  "level": "info",
+  "event": "model.call.completed",
+  "call_id": "01J8...",
+  "mission_id": "mis_01J8...",
+  "run_id": "run_01J8...",
+  "agent_definition_id": "C36_legal_corporate_attorney",
+  "capability": "reason.deep",
+  "model_id": "anthropic/claude-3-5-sonnet@20241022",
+  "provider": "anthropic",
+  "endpoint": "openai-us-east-1",
+  "input_tokens": 12432,
+  "output_tokens": 1876,
+  "cached_tokens": 8000,
+  "reasoning_tokens": 0,
+  "cost_usd": 0.041,
+  "latency_ms": 4210,
+  "ttft_ms": 812,
+  "finish_reason": "stop",
+  "status": "success",
+  "cache_layer": "l2_semantic_hit",
+  "route_rationale": "primary_selection",
+  "fallback_used": false
+}
+```
+
+### 13.2 Metrics (Prometheus / OTel)
+
+```text
+coco_model_calls_total{model_id, provider, status, capability}
+coco_model_latency_ms{model_id, capability, quantile}
+coco_model_ttft_ms{model_id, quantile}
+coco_model_tokens_total{model_id, direction, cached}
+coco_model_cost_usd_total{model_id, organization_id}
+coco_model_cache_hits_total{layer, capability}
+coco_router_decisions_total{selected_model, capability, rationale}
+coco_router_fallback_triggered_total{primary, fallback, reason}
+coco_endpoint_health{endpoint_id, state}
+coco_circuit_breaker_open_total{endpoint_id}
+coco_rate_limit_denied_total{scope, capability}
+coco_budget_warnings_total{tier, threshold}
+```
+
+### 13.3 Traces (OpenTelemetry)
+
+Every `ModelRouteRequest` opens a span with attributes matching the structured log. Adapter calls are child spans. This enables full **latency waterfall** debugging across the fabric.
+
+### 13.4 Telemetry Feedback to Evolution
+
+Nightly, the Evolution Fabric aggregates `model_calls` and updates:
+- `models.model_registry.observed.*` (rolling P50/P95/quality)
+- `evolution.model_performance` (per capability/day)
+- Thompson sampling posteriors (per capability, model)
+- Routing weights (per QualityFloor tier)
+
+---
+
+## 14. INTEGRATION WITH THE INTELLIGENCE FABRIC
+
+### 14.1 The Full Flow (Agent → Model → Response)
+
+```text
+1. Agent (e.g. C1 Python Architect) needs to generate code.
+
+2. Agent constructs ModelRouteRequest:
+     capability = code.gen.repo
+     preferences.minimum_tier = ADVANCED
+     hints.max_cost_usd = 0.50
+     hints.quality_floor = EXCELLENT
+
+3. IntelligenceService.RouteModel(request) → ModelRouteDecision
+     selected: qwen/qwen2.5-coder-32b@ollama
+     fallback: [anthropic/claude-3-5-sonnet, deepseek/deepseek-r1]
+     rationale: "Local coder model within quality floor; primary provider healthy"
+
+4. Agent constructs ModelInferenceRequest with:
+     model_id from decision
+     compiled ContextPacket (from Context Fabric)
+     generation params
+
+5. IntelligenceService.InferModel(request) → stream<ModelInferenceEvent>
+     Model Fabric internally:
+       - Cache lookup (L1 miss, L2 miss)
+       - Guardrail pre-check (pass)
+       - Adapter dispatch
+       - Stream events back
+       - Guardrail post-check (pass)
+       - Cache populate
+       - Telemetry emit
+
+6. Agent consumes stream, assembles response.
+
+7. Agent submits AgentRunReport with model_calls references.
+
+8. Kernel aggregates → mission state updated → user sees delivery.
+```
+
+### 14.2 What the Agent Never Sees
+
+```text
+❌ Provider selection logic
+❌ API keys / credentials
+❌ Rate limit state
+❌ Fallback machinery
+❌ Cache lookup mechanics
+❌ Circuit breaker state
+❌ Cost accounting details
+
+✅ ONLY: capability requested → tokens streamed back
+```
+
+This is the **substrate abstraction** working correctly. Agents remain portable across model landscape changes.
+
+---
+
+## 15. LOCAL MODEL SERVING (COCO-Managed Infrastructure)
+
+### 15.1 Deployment Layout
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│                    LOCAL INFERENCE ZONE                       │
+│                                                              │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐  │
+│  │   OLLAMA POD   │  │    vLLM POD    │  │    vLLM POD    │  │
+│  │                │  │                │  │                │  │
+│  │  Model:        │  │  Model:        │  │  Model:        │  │
+│  │  qwen-coder-32b│  │  qwen-72b      │  │  llama-3.3-70b │  │
+│  │                │  │                │  │                │  │
+│  │  GPU: 1×A100   │  │  GPU: 4×H100   │  │  GPU: 4×H100   │  │
+│  └────────┬───────┘  └────────┬───────┘  └────────┬───────┘  │
+│           │                   │                   │          │
+│           └───────────────────┼───────────────────┘          │
+│                               │                              │
+│                    ┌──────────▼──────────┐                   │
+│                    │  WARM POOL MANAGER  │                   │
+│                    │  (loads, evicts,    │                   │
+│                    │   health probes)    │                   │
+│                    └─────────┬───────────┘                   │
+│                              │                               │
+│                              ▼                               │
+│                    ┌─────────────────────┐                   │
+│                    │  ADAPTER GATEWAY    │                   │
+│                    └─────────────────────┘                   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 15.2 vLLM Configuration (Reference)
+
+```yaml
+# vllm-deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-qwen-72b
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          resources:
+            limits:
+              nvidia.com/gpu: 4
+          args:
+            - --model=Qwen/Qwen2.5-72B-Instruct
+            - --tensor-parallel-size=4
+            - --max-model-len=131072
+            - --enable-prefix-caching
+            - --enable-chunked-prefill
+            - --gpu-memory-utilization=0.92
+            - --served-model-name=qwen/qwen2.5-72b-instruct@vllm
+            - --api-key=$(VLLM_API_KEY)          # Injected via SecretBroker
+            - --host=0.0.0.0
+            - --port=8000
+          livenessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 300              # Model load time
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+```
+
+### 15.3 Cold Start Mitigation
+
+```text
+STRATEGIES:
+  1. Pin popular models in the warm pool (never evict)
+  2. Predictive preloading based on scheduled missions
+  3. Deadline-aware routing: skip local models if load time > remaining budget
+  4. Progressive fallback: try warm local → cold local → hosted
+  5. Model quantization tier: FP16 pinned, FP8 on-demand, GGUF for burst
+```
+
+---
+
+## 16. FINE-TUNING & MODEL EVOLUTION (Forward-Looking)
+
+While Phase 0/1 does not require fine-tuning, the fabric is designed to accommodate it.
+
+### 16.1 Registration of Fine-Tuned Models
+
+```yaml
+- model_id: coco/legal-critic-v1@vllm
+  provider: vllm
+  family: custom
+  deployment_mode: LOCAL_VLLM
+  tier: ADVANCED
+  capabilities:
+    - {id: reason.deep, preferred: false}      # Domain-specific
+  eligibility:
+    tier_restrictions: [pro, ranger, enterprise]
+  metadata:
+    base_model: qwen/qwen2.5-72b-instruct
+    fine_tune_dataset: coco-legal-critic-corpus-v3
+    trained_at: 2025-09-15
+```
+
+### 16.2 Evaluation Loop
+
+Fine-tuned models enter the registry with **shadow traffic** (routed 5% of eligible traffic in parallel with production choice). The Evolution Fabric compares outcomes over N missions; if the fine-tune wins on the target capability's quality axis, it graduates to `preferred: true` in its capability binding.
+
+---
+
+## 17. CONFIGURATION REFERENCE
+
+```yaml
+# coco/model_fabric/config.yaml
+model_fabric:
+
+  router:
+    exploration_epsilon_min: 0.02
+    exploration_epsilon_max: 0.15
+    utility_weights:
+      MAXIMUM:    {quality: 0.70, latency: 0.10, cost: 0.05, availability: 0.15}
+      EXCELLENT:  {quality: 0.55, latency: 0.15, cost: 0.15, availability: 0.15}
+      GOOD:       {quality: 0.35, latency: 0.25, cost: 0.25, availability: 0.15}
+      ACCEPTABLE: {quality: 0.20, latency: 0.30, cost: 0.35, availability: 0.15}
+
+  circuit_breaker:
+    failure_threshold: 5
+    window_seconds: 60
+    open_seconds: 30
+    half_open_max_probes: 3
+
+  rate_limits:
+    default_endpoint_qpm: 500
+    default_tenant_qpm:   200
+    burst_multiplier: 1.5
+
+  cache:
+    l1_ttl_seconds: 3600
+    l2_ttl_seconds: 86400
+    l2_similarity_threshold: 0.98
+    max_l1_bytes_per_org: 536870912         # 512 MB per org
+
+  guardrails:
+    prompt_injection_classifier: enabled
+    pii_scanner: enabled
+    output_safety_classifier: enabled
+    hallucination_heuristics: enabled
+
+  budget:
+    warn_thresholds: [0.50, 0.75, 0.90]
+    hard_stop_at: 1.00
+    reservation_ttl_seconds: 300
+
+  streaming:
+    default_min_viable_ms: 500
+    heartbeat_interval_ms: 10000
+
+  telemetry:
+    otel_endpoint: http://otel-collector:4317
+    log_full_prompts: false                 # PII protection
+    log_prompt_hashes: true
+
+  warm_pool:
+    pinned_models: [qwen/qwen2.5-coder-32b@ollama]
+    idle_ttl_seconds: 900
+    eviction_check_interval_seconds: 60
+```
+
+---
+
+## 18. SUMMARY OF SPECIFICATION 4 LOCKS
+
+The **Model Fabric** is now fully specified:
+
+1. **10 Governing Laws Locked** — capabilities-not-models, no vendor lock-in, deadline propagation, cost governance, aggressive caching, local + hosted co-existence, graceful degradation.
+2. **22 Capabilities Locked** — the fine-grained capability taxonomy agents request against.
+3. **Extended Model Registry Locked** — `ExtendedModelDescriptor` with capability bindings, endpoint health, SLA, rate limits, cost, features, observed performance, and eligibility rules.
+4. **Adapter Interface Locked** — the `ModelAdapter` ABC every provider implements, with normalized error taxonomy and cancellation contract.
+5. **Router Pipeline Locked** — 8-stage decision pipeline: resolve → filter → prefer → policy → utility → bandit → reserve → emit.
+6. **Utility Function & Thompson Sampling Locked** — Pareto scoring across quality/latency/cost/availability with exploration that shrinks as data accumulates.
+7. **Fallback & Circuit Breaker Locked** — provider-diverse fallback chains capped at 3; per-endpoint breakers with health integration.
+8. **Multi-Level Rate Limiting Locked** — endpoint, tenant, global, and mission-budget limiters via distributed Redis token buckets.
+9. **Two-Tier Caching Locked** — L1 exact-match (Redis) + L2 semantic (pgvector) with strict correctness rules and provider prompt-prefix caching integration.
+10. **Guardrails Locked** — pre-inference (injection, PII, sensitivity, budget) and post-inference (safety, secrets, hallucination, structured validation).
+11. **Streaming, Cancellation, Deadlines Locked** — full end-to-end propagation with adapter-level tear-down guarantees.
+12. **Cost Governance Locked** — atomic reservations, tier envelopes, progressive degradation as budget approaches exhaustion.
+13. **Batch, Embedding, Reranking Pipelines Locked** — dedicated worker pools, provider batch API integration, dynamic batch sizing.
+14. **Local Model Serving Locked** — vLLM/Ollama deployment pattern, warm-pool management, cold-start mitigation.
+15. **Telemetry & Evolution Feedback Locked** — structured logs, Prometheus metrics, OTel traces, nightly router policy updates.
+16. **Configuration Reference Locked** — every tunable parameter in one file, version-controlled.
+
+The intelligence substrate now has a complete definition. Any agent in any tier can invoke inference through a single interface. Models can be added, removed, upgraded, or replaced without touching agent code. Cost, latency, quality, and safety are enforced by the fabric — not by convention.
+
+---
+
+## NEXT DEEP SPECIFICATION
+
+The intelligence substrate is locked. We proceed to **DEEP SPEC 5 — The Expert-Beating Playbook**:
+
+- The full concrete recipe by which each flagship specialist **actually beats the median human expert** in its domain.
+- For each of the 20+ flagship specialists (Legal Attorney, Python Architect, Financial Modeler, Clinical Investigator, Deep Web Investigator, plus new ones: Structural Engineer, Security Auditor, Product Strategist, Research Synthesizer, Design System Architect, GDPR Compliance Officer, Cardiologist Support, Options Strategist, etc.):
+  - Detailed knowledge corpus construction (what sources, how ingested, how kept current)
+  - Detailed tool suite (concrete tool implementations required)
+  - Detailed methodology (the exact step-by-step process the specialist follows)
+  - Detailed critic definition (what the paired adversarial critic does)
+  - Detailed evaluation rubric (measurable pass/fail criteria)
+  - Concrete evidence that the recipe beats a human at bounded tasks
+  - Benchmark suite for continuous validation
+- The **Expert-Beating Ladder**: how to systematically upgrade any specialist from "competent" to "expert-beating" via the four levers (Infrastructure, Output Quality, Intelligence Push, Behavior).
+- The **Domain Ingestion Playbook**: how COCO acquires, verifies, updates, and retires domain corpora at scale.
+
+**Confirm: proceed to Deep Spec 5 — The Expert-Beating Playbook?**

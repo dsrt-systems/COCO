@@ -1,0 +1,1971 @@
+# DEEP SPEC 3 — THE DATABASE SCHEMA
+
+**System:** DSRT COCO
+**Layer:** Persistence & Data Fabric
+**Status:** Approved & Locked Specification
+**Governing Standards:** Constitutional Dimensions 3 (Object Model), 8 (Memory Model); Article XIII; Deep Specs 1 & 2
+**Target Engine:** PostgreSQL 16+ with pgvector 0.7+, pg_partman, pg_trgm, pgcrypto
+
+---
+
+## 0. SCHEMA PHILOSOPHY
+
+The database is not storage. **The database is the source of truth for COCO's memory, mission state, and history.** Every read, write, and query must be:
+
+```text
+LAW 1  — MULTI-TENANT ISOLATED
+         Every tenant-scoped row carries organization_id and is protected by RLS.
+         Cross-tenant leakage is a hard security failure.
+
+LAW 2  — IMMUTABLE BY DEFAULT
+         Events, decisions, agent runs, model calls, tool calls, verifications
+         are append-only. Corrections come as new rows, never mutations.
+
+LAW 3  — PROVENANCE-ATTACHED
+         Every knowledge row carries source, agent_id, confidence, timestamps.
+         No memory exists without lineage.
+
+LAW 4  — REFERENTIALLY TRACEABLE
+         Every derived row references the mission_id, run_id, and (where applicable)
+         the causation event_id. Full mission replay must be possible from the DB alone.
+
+LAW 5  — PARTITION EARLY
+         High-volume tables (events, model_calls, tool_calls) are partitioned from day 1.
+         Retention policies are declared at schema creation, not bolted on later.
+
+LAW 6  — INDEX FOR QUERIES, NOT GUESSES
+         Every index has a documented query. Unused indexes are removed.
+         BRIN for time-series, HNSW for vectors, GIN for JSONB/trgm.
+
+LAW 7  — VERSIONED MIGRATIONS
+         Every schema change is a versioned, reversible migration.
+         Zero-downtime deploys are non-negotiable.
+
+LAW 8  — TIME IS UTC AND NANOSECONDS
+         All timestamps are TIMESTAMPTZ. Event ordering uses BIGINT unix_ns
+         to match Protocol Envelope semantics.
+
+LAW 9  — SIZE-BOUNDED ROWS
+         Large payloads (artifacts, logs, context packets) live in object storage.
+         Postgres holds references, hashes, metadata — never blobs > 1MB.
+
+LAW 10 — SCHEMA IS EXECUTABLE CONSTITUTION
+         The DDL below is version-controlled, code-reviewed, and enforced
+         by CI. No production write bypasses the schema.
+```
+
+---
+
+## 1. DATABASE TOPOLOGY
+
+COCO uses **schema-per-concern isolation** within a single logical database, enabling independent scaling, backups, and future physical separation.
+
+```text
+┌────────────────────────────────────────────────────────────────────┐
+│                        coco (logical database)                     │
+├────────────────────────────────────────────────────────────────────┤
+│  SCHEMA: identity         → users, orgs, memberships, sessions     │
+│  SCHEMA: projects         → projects, project_settings             │
+│  SCHEMA: missions         → missions, tasks, task_edges, checkpts  │
+│  SCHEMA: agents           → agent_defs, instances, runs, findings  │
+│  SCHEMA: models           → model_registry, model_calls            │
+│  SCHEMA: tools            → tool_registry, tool_calls, sandboxes   │
+│  SCHEMA: memory           → memories (7 scopes), context_packets   │
+│  SCHEMA: brain            → project_brain, knowledge nodes/edges   │
+│  SCHEMA: research         → sources, evidence, citations           │
+│  SCHEMA: artifacts        → artifact metadata (blobs in S3)        │
+│  SCHEMA: verification     → verifications, level_results, critics  │
+│  SCHEMA: security         → capability_tokens, approvals, audit    │
+│  SCHEMA: events           → event log (partitioned monthly)        │
+│  SCHEMA: evolution        → metrics, evaluations, route_policies   │
+│  SCHEMA: billing          → usage, invoices, subscriptions         │
+├────────────────────────────────────────────────────────────────────┤
+│  EXTENSIONS: vector, pg_partman, pg_trgm, pgcrypto, btree_gin,     │
+│              pg_stat_statements, ltree                             │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### Extensions & Baseline Setup
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- COCO DATABASE — BASELINE INITIALIZATION
+-- ═══════════════════════════════════════════════════════════════════
+
+CREATE DATABASE coco
+  WITH ENCODING = 'UTF8'
+       LC_COLLATE = 'en_US.UTF-8'
+       LC_CTYPE = 'en_US.UTF-8'
+       TEMPLATE = template0;
+
+\c coco
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";       -- gen_random_uuid, digest
+CREATE EXTENSION IF NOT EXISTS "vector";         -- pgvector for embeddings
+CREATE EXTENSION IF NOT EXISTS "pg_partman";     -- automated partitioning
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";        -- fuzzy text search
+CREATE EXTENSION IF NOT EXISTS "btree_gin";      -- multi-column GIN
+CREATE EXTENSION IF NOT EXISTS "ltree";          -- hierarchical paths
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
+
+-- ─── ROLES ─────────────────────────────────────────────────────────
+CREATE ROLE coco_owner      NOLOGIN;
+CREATE ROLE coco_migrator   LOGIN PASSWORD :migrator_pw;
+CREATE ROLE coco_app        LOGIN PASSWORD :app_pw;      -- kernel + fabrics
+CREATE ROLE coco_readonly   LOGIN PASSWORD :ro_pw;       -- observability
+CREATE ROLE coco_tenant     NOLOGIN;                     -- template for RLS
+
+GRANT coco_owner TO coco_migrator;
+
+-- ─── SCHEMAS ───────────────────────────────────────────────────────
+CREATE SCHEMA identity      AUTHORIZATION coco_owner;
+CREATE SCHEMA projects      AUTHORIZATION coco_owner;
+CREATE SCHEMA missions      AUTHORIZATION coco_owner;
+CREATE SCHEMA agents        AUTHORIZATION coco_owner;
+CREATE SCHEMA models        AUTHORIZATION coco_owner;
+CREATE SCHEMA tools         AUTHORIZATION coco_owner;
+CREATE SCHEMA memory        AUTHORIZATION coco_owner;
+CREATE SCHEMA brain         AUTHORIZATION coco_owner;
+CREATE SCHEMA research      AUTHORIZATION coco_owner;
+CREATE SCHEMA artifacts     AUTHORIZATION coco_owner;
+CREATE SCHEMA verification  AUTHORIZATION coco_owner;
+CREATE SCHEMA security      AUTHORIZATION coco_owner;
+CREATE SCHEMA events        AUTHORIZATION coco_owner;
+CREATE SCHEMA evolution     AUTHORIZATION coco_owner;
+CREATE SCHEMA billing       AUTHORIZATION coco_owner;
+
+GRANT USAGE ON SCHEMA identity, projects, missions, agents, models, tools,
+                       memory, brain, research, artifacts, verification,
+                       security, events, evolution, billing
+  TO coco_app, coco_readonly;
+
+-- ─── SHARED DOMAINS (typed primitives) ─────────────────────────────
+CREATE DOMAIN ulid AS CHAR(26)
+  CHECK (VALUE ~ '^[0-9A-HJKMNP-TV-Z]{26}$');
+
+CREATE DOMAIN sha256_hex AS CHAR(64)
+  CHECK (VALUE ~ '^[0-9a-f]{64}$');
+
+CREATE DOMAIN confidence_score AS DOUBLE PRECISION
+  CHECK (VALUE >= 0.0 AND VALUE <= 1.0);
+
+CREATE DOMAIN percent AS DOUBLE PRECISION
+  CHECK (VALUE >= 0.0 AND VALUE <= 100.0);
+
+CREATE DOMAIN money_usd AS NUMERIC(14,6)
+  CHECK (VALUE >= 0);
+
+-- ─── SHARED ENUMS ──────────────────────────────────────────────────
+CREATE TYPE mission_tier     AS ENUM ('default','pro','ranger','enterprise');
+CREATE TYPE mission_phase    AS ENUM (
+  'created','understanding','challenging','researching','planning',
+  'organizing','executing','verifying','repairing','refining',
+  'delivering','remembering','completed','operating','cancelled','failed');
+CREATE TYPE task_kind        AS ENUM (
+  'reason','research','plan','code','execute','analyze',
+  'design','verify','deliver','decide','clarify');
+CREATE TYPE task_status      AS ENUM (
+  'pending','ready','assigned','running','verifying',
+  'repairing','completed','blocked','failed','cancelled');
+CREATE TYPE agent_tier       AS ENUM (
+  'tier_1_core','tier_2_director','tier_3_specialist','tier_4_operator');
+CREATE TYPE autonomy_level   AS ENUM (
+  'l0_answer','l1_recommend','l2_reversible','l3_multistep',
+  'l4_checkpointed','l5_continuous');
+CREATE TYPE run_outcome      AS ENUM (
+  'completed_success','completed_partial','blocked_info_needed',
+  'failed_unrecoverable','aborted_budget_exceeded',
+  'aborted_policy_violation','escalated_to_human');
+CREATE TYPE epistemic_status AS ENUM (
+  'fact','supported','inferred','weak_inference',
+  'assumed','unknown','contested');
+CREATE TYPE memory_scope     AS ENUM (
+  'working','conversation','episodic','semantic',
+  'procedural','project','organizational');
+CREATE TYPE memory_status    AS ENUM (
+  'active','superseded','contradicted','archived');
+CREATE TYPE access_mode      AS ENUM ('read','write','read_write');
+CREATE TYPE verdict          AS ENUM (
+  'accepted','accepted_with_notes','rejected',
+  'repair_required','escalate_human','insufficient_info');
+CREATE TYPE sensitivity      AS ENUM (
+  'public','internal','confidential','restricted');
+CREATE TYPE error_category   AS ENUM (
+  'unknown','logic','dependency','config','environment','integration',
+  'requirement','security','performance','network','permission');
+CREATE TYPE tool_status      AS ENUM (
+  'success','failure_tool','failure_timeout','failure_oom',
+  'failure_policy','failure_permission','failure_sandbox',
+  'awaiting_approval','cancelled');
+```
+
+---
+
+## 2. THE IDENTITY SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: identity — Users, Organizations, Memberships, Sessions
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO identity, public;
+
+CREATE TABLE organizations (
+  organization_id   ulid PRIMARY KEY,
+  slug              TEXT NOT NULL UNIQUE,
+  display_name      TEXT NOT NULL,
+  tier              mission_tier NOT NULL DEFAULT 'default',
+  billing_email     TEXT,
+  region            TEXT NOT NULL DEFAULT 'us-east-1',
+  encryption_key_id TEXT,                          -- KMS ref for RESTRICTED data
+  settings          JSONB NOT NULL DEFAULT '{}'::jsonb,
+  metadata          JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at        TIMESTAMPTZ
+);
+
+CREATE INDEX org_slug_idx ON organizations (slug) WHERE deleted_at IS NULL;
+CREATE INDEX org_tier_idx ON organizations (tier)  WHERE deleted_at IS NULL;
+
+CREATE TABLE users (
+  user_id           ulid PRIMARY KEY,
+  primary_email     TEXT NOT NULL UNIQUE,
+  display_name      TEXT NOT NULL,
+  auth_provider     TEXT NOT NULL,                 -- 'email', 'google', 'github', 'sso'
+  auth_subject      TEXT NOT NULL,                 -- provider's stable user ID
+  preferences       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  metadata          JSONB NOT NULL DEFAULT '{}'::jsonb,
+  last_seen_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at        TIMESTAMPTZ,
+  UNIQUE (auth_provider, auth_subject)
+);
+
+CREATE TABLE memberships (
+  membership_id     ulid PRIMARY KEY,
+  organization_id   ulid NOT NULL REFERENCES organizations(organization_id),
+  user_id           ulid NOT NULL REFERENCES users(user_id),
+  role              TEXT NOT NULL CHECK (role IN ('owner','admin','member','viewer','service')),
+  permissions       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  invited_by        ulid REFERENCES users(user_id),
+  joined_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  revoked_at        TIMESTAMPTZ,
+  UNIQUE (organization_id, user_id)
+);
+
+CREATE INDEX membership_user_idx ON memberships (user_id) WHERE revoked_at IS NULL;
+CREATE INDEX membership_org_role_idx ON memberships (organization_id, role) WHERE revoked_at IS NULL;
+
+CREATE TABLE sessions (
+  session_id        ulid PRIMARY KEY,
+  user_id           ulid NOT NULL REFERENCES users(user_id),
+  organization_id   ulid NOT NULL REFERENCES organizations(organization_id),
+  client_context    JSONB NOT NULL DEFAULT '{}'::jsonb,   -- user-agent, IP prefix, surface
+  refresh_token_hash sha256_hex NOT NULL,
+  issued_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at        TIMESTAMPTZ NOT NULL,
+  revoked_at        TIMESTAMPTZ
+);
+
+CREATE INDEX session_user_active_idx ON sessions (user_id, expires_at DESC)
+  WHERE revoked_at IS NULL;
+```
+
+---
+
+## 3. THE PROJECTS SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: projects — Long-lived container above missions
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO projects, public;
+
+CREATE TABLE projects (
+  project_id        ulid PRIMARY KEY,
+  organization_id   ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  slug              TEXT NOT NULL,
+  display_name      TEXT NOT NULL,
+  description       TEXT,
+  status            TEXT NOT NULL DEFAULT 'active'
+                    CHECK (status IN ('active','paused','archived','deleted')),
+  visibility        TEXT NOT NULL DEFAULT 'private'
+                    CHECK (visibility IN ('private','organization','public')),
+  primary_domain    TEXT,                            -- e.g. "software", "legal", "medical"
+  tech_stack        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  settings          JSONB NOT NULL DEFAULT '{}'::jsonb,
+  metadata          JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_by        ulid NOT NULL REFERENCES identity.users(user_id),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  archived_at       TIMESTAMPTZ,
+  UNIQUE (organization_id, slug)
+);
+
+CREATE INDEX project_org_status_idx ON projects (organization_id, status);
+CREATE INDEX project_domain_idx     ON projects (primary_domain) WHERE status = 'active';
+
+CREATE TABLE project_members (
+  project_id        ulid NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
+  user_id           ulid NOT NULL REFERENCES identity.users(user_id),
+  role              TEXT NOT NULL CHECK (role IN ('owner','editor','viewer')),
+  added_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (project_id, user_id)
+);
+```
+
+---
+
+## 4. THE MISSIONS SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: missions — Missions, TaskGraphs, Tasks, Checkpoints
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO missions, public;
+
+CREATE TABLE missions (
+  mission_id            ulid PRIMARY KEY,
+  organization_id       ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  project_id            ulid REFERENCES projects.projects(project_id),
+  parent_mission_id     ulid REFERENCES missions(mission_id),
+  created_by            ulid NOT NULL REFERENCES identity.users(user_id),
+
+  objective             TEXT NOT NULL,
+  normalized_intent     TEXT,
+  success_criteria      JSONB NOT NULL DEFAULT '[]'::jsonb,
+  constraints           JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  tier                  mission_tier NOT NULL,
+  cognitive_depth       SMALLINT NOT NULL CHECK (cognitive_depth BETWEEN 0 AND 6),
+  autonomy_level        autonomy_level NOT NULL DEFAULT 'l1_recommend',
+  delivery_mode         TEXT NOT NULL CHECK (delivery_mode IN ('sync','async','streaming','checkpointed')),
+  deliverable_types     TEXT[] NOT NULL DEFAULT '{}',
+
+  budget                JSONB NOT NULL DEFAULT '{}'::jsonb,      -- ResourceBudget
+  usage                 JSONB NOT NULL DEFAULT '{}'::jsonb,      -- ResourceUsage rolling
+
+  phase                 mission_phase NOT NULL DEFAULT 'created',
+  current_step          TEXT,                                    -- S1..S15
+  progress_percent      percent NOT NULL DEFAULT 0.0,
+  status_summary        TEXT,
+
+  started_at            TIMESTAMPTZ,
+  last_activity_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  estimated_completion_at TIMESTAMPTZ,
+  completed_at          TIMESTAMPTZ,
+
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX mission_org_active_idx    ON missions (organization_id, phase)
+  WHERE phase NOT IN ('completed','failed','cancelled');
+CREATE INDEX mission_project_idx       ON missions (project_id, created_at DESC);
+CREATE INDEX mission_user_recent_idx   ON missions (created_by, created_at DESC);
+CREATE INDEX mission_last_activity_idx ON missions (last_activity_at DESC)
+  WHERE phase NOT IN ('completed','failed','cancelled');
+
+CREATE TABLE task_graphs (
+  graph_id          ulid PRIMARY KEY,
+  mission_id        ulid NOT NULL REFERENCES missions(mission_id) ON DELETE CASCADE,
+  graph_version     INT NOT NULL DEFAULT 1,
+  critical_path     TEXT,                             -- comma-separated task_ids
+  created_by_agent  TEXT NOT NULL,                    -- typically A2_mission_planner
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  superseded_at     TIMESTAMPTZ,
+  UNIQUE (mission_id, graph_version)
+);
+
+CREATE INDEX task_graph_current_idx ON task_graphs (mission_id)
+  WHERE superseded_at IS NULL;
+
+CREATE TABLE tasks (
+  task_id                  ulid PRIMARY KEY,
+  mission_id               ulid NOT NULL REFERENCES missions(mission_id) ON DELETE CASCADE,
+  graph_id                 ulid NOT NULL REFERENCES task_graphs(graph_id),
+  parent_task_id           ulid REFERENCES tasks(task_id),
+
+  objective                TEXT NOT NULL,
+  kind                     task_kind NOT NULL,
+
+  required_capabilities    TEXT[] NOT NULL DEFAULT '{}',
+  preferred_agent_id       TEXT,
+  assigned_agent_instance  ulid,
+
+  input_artifact_refs      TEXT[] NOT NULL DEFAULT '{}',
+  expected_outputs         JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  verification_level       SMALLINT NOT NULL DEFAULT 6 CHECK (verification_level BETWEEN 0 AND 10),
+  cognitive_depth          SMALLINT NOT NULL CHECK (cognitive_depth BETWEEN 0 AND 6),
+  task_budget              JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+  success_criteria         JSONB NOT NULL DEFAULT '[]'::jsonb,
+  max_repair_attempts      SMALLINT NOT NULL DEFAULT 3,
+  attempt_number           SMALLINT NOT NULL DEFAULT 0,
+
+  status                   task_status NOT NULL DEFAULT 'pending',
+  status_reason            TEXT,
+
+  started_at               TIMESTAMPTZ,
+  completed_at             TIMESTAMPTZ,
+  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX task_mission_status_idx ON tasks (mission_id, status);
+CREATE INDEX task_ready_idx          ON tasks (mission_id, status)
+  WHERE status IN ('ready','running','repairing');
+CREATE INDEX task_agent_idx          ON tasks (assigned_agent_instance)
+  WHERE assigned_agent_instance IS NOT NULL;
+
+CREATE TABLE task_edges (
+  edge_id           ulid PRIMARY KEY,
+  graph_id          ulid NOT NULL REFERENCES task_graphs(graph_id) ON DELETE CASCADE,
+  from_task_id      ulid NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+  to_task_id        ulid NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+  kind              TEXT NOT NULL CHECK (kind IN ('depends_on','feeds','triggers','conditional')),
+  condition_expr    TEXT,                             -- for conditional edges
+  UNIQUE (graph_id, from_task_id, to_task_id, kind)
+);
+
+CREATE INDEX task_edge_from_idx ON task_edges (from_task_id);
+CREATE INDEX task_edge_to_idx   ON task_edges (to_task_id);
+
+-- DAG integrity check (no self-loops; broader cycle check enforced at write time in app)
+ALTER TABLE task_edges
+  ADD CONSTRAINT task_edge_no_self_loop CHECK (from_task_id <> to_task_id);
+
+CREATE TABLE checkpoints (
+  checkpoint_id       ulid PRIMARY KEY,
+  mission_id          ulid NOT NULL REFERENCES missions(mission_id) ON DELETE CASCADE,
+  checkpoint_number   INT NOT NULL,
+  checkpoint_hash     sha256_hex NOT NULL,
+  reason              TEXT NOT NULL,                  -- 'scheduled','phase_transition','risk_gate'
+
+  state_snapshot_uri  TEXT NOT NULL,                  -- s3:// or coco://
+  graph_snapshot_uri  TEXT NOT NULL,
+  context_snapshot_uri TEXT,
+
+  artifact_refs       TEXT[] NOT NULL DEFAULT '{}',
+  size_bytes          BIGINT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (mission_id, checkpoint_number)
+);
+
+CREATE INDEX checkpoint_mission_recent_idx ON checkpoints (mission_id, checkpoint_number DESC);
+```
+
+---
+
+## 5. THE AGENTS SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: agents — Definitions, Instances, Runs, Findings, Decisions
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO agents, public;
+
+-- Static + dynamically-registered agent definitions
+CREATE TABLE agent_definitions (
+  agent_definition_id   TEXT PRIMARY KEY,             -- e.g. "C36_legal_corporate_attorney"
+  version               TEXT NOT NULL,
+  tier                  agent_tier NOT NULL,
+  domain                TEXT NOT NULL,
+  reports_to            TEXT REFERENCES agent_definitions(agent_definition_id),
+  display_name          TEXT NOT NULL,
+
+  expert_beating_thesis TEXT NOT NULL,
+  system_prompt_template TEXT NOT NULL,
+  methodology_framework TEXT NOT NULL,
+  methodology_steps     JSONB NOT NULL,               -- ordered array
+
+  model_profile         JSONB NOT NULL,               -- ModelProfile
+  knowledge_sources     TEXT[] NOT NULL DEFAULT '{}',
+  tool_suite            JSONB NOT NULL DEFAULT '[]'::jsonb,      -- AgentToolRequirement[]
+  constraints           JSONB NOT NULL,               -- AgentConstraints
+  critic_agent_id       TEXT REFERENCES agent_definitions(agent_definition_id),
+  evaluation_rubric     JSONB NOT NULL,               -- EvaluationRubric
+  allowed_memory_scopes memory_scope[] NOT NULL DEFAULT '{}',
+
+  is_dynamic            BOOLEAN NOT NULL DEFAULT FALSE,
+  dynamic_parent_domain TEXT,
+  registered_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  retired_at            TIMESTAMPTZ
+);
+
+CREATE INDEX agent_def_tier_idx     ON agent_definitions (tier);
+CREATE INDEX agent_def_domain_idx   ON agent_definitions (domain);
+CREATE INDEX agent_def_dynamic_idx  ON agent_definitions (is_dynamic, registered_at DESC);
+
+-- Every spawn creates an instance (may run multiple runs across a mission)
+CREATE TABLE agent_instances (
+  agent_instance_id       ulid PRIMARY KEY,
+  organization_id         ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  mission_id              ulid NOT NULL REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  agent_definition_id     TEXT NOT NULL REFERENCES agent_definitions(agent_definition_id),
+  requesting_agent_id     TEXT,                       -- who spawned this
+  parent_instance_id      ulid REFERENCES agent_instances(agent_instance_id),
+
+  initial_context_ref     TEXT,                       -- ContextPacketRef
+  tool_grants             JSONB NOT NULL DEFAULT '[]'::jsonb,
+  memory_grants           JSONB NOT NULL DEFAULT '[]'::jsonb,
+  model_preferences       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  budget                  JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+  status                  TEXT NOT NULL DEFAULT 'spawned'
+                          CHECK (status IN ('spawned','running','paused','completed','failed','retired')),
+  spawned_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  retired_at              TIMESTAMPTZ
+);
+
+CREATE INDEX agent_inst_mission_idx  ON agent_instances (mission_id, spawned_at DESC);
+CREATE INDEX agent_inst_active_idx   ON agent_instances (mission_id)
+  WHERE status IN ('spawned','running','paused');
+CREATE INDEX agent_inst_definition_idx ON agent_instances (agent_definition_id);
+
+-- Every task execution is a run (an instance may have multiple runs)
+CREATE TABLE agent_runs (
+  run_id                  ulid PRIMARY KEY,
+  organization_id         ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  mission_id              ulid NOT NULL REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  task_id                 ulid NOT NULL REFERENCES missions.tasks(task_id) ON DELETE CASCADE,
+  agent_instance_id       ulid NOT NULL REFERENCES agent_instances(agent_instance_id),
+  agent_definition_id     TEXT NOT NULL REFERENCES agent_definitions(agent_definition_id),
+
+  outcome                 run_outcome,
+  outcome_summary         TEXT,
+
+  confidence_overall      confidence_score,
+  confidence_reasoning    TEXT,
+  caveats                 TEXT[] NOT NULL DEFAULT '{}',
+  requires_human_review   BOOLEAN NOT NULL DEFAULT FALSE,
+
+  assumptions_made        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  open_questions          JSONB NOT NULL DEFAULT '[]'::jsonb,
+  next_recommended_tasks  JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  usage                   JSONB NOT NULL DEFAULT '{}'::jsonb,   -- ResourceUsage
+
+  started_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at            TIMESTAMPTZ
+);
+
+CREATE INDEX agent_run_mission_idx     ON agent_runs (mission_id, started_at DESC);
+CREATE INDEX agent_run_task_idx        ON agent_runs (task_id, started_at DESC);
+CREATE INDEX agent_run_instance_idx    ON agent_runs (agent_instance_id, started_at DESC);
+CREATE INDEX agent_run_definition_perf_idx
+  ON agent_runs (agent_definition_id, outcome, completed_at DESC);
+
+-- Structured findings emitted by a run (queryable knowledge)
+CREATE TABLE agent_findings (
+  finding_id          ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  run_id              ulid NOT NULL REFERENCES agent_runs(run_id) ON DELETE CASCADE,
+  mission_id          ulid NOT NULL REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+
+  claim               TEXT NOT NULL,
+  epistemic_status    epistemic_status NOT NULL,
+  confidence          confidence_score NOT NULL,
+
+  evidence_refs       TEXT[] NOT NULL DEFAULT '{}',    -- evidence_id[]
+  contradicts_refs    TEXT[] NOT NULL DEFAULT '{}',    -- finding_id[]
+
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX finding_mission_status_idx ON agent_findings (mission_id, epistemic_status);
+CREATE INDEX finding_claim_trgm_idx     ON agent_findings USING gin (claim gin_trgm_ops);
+
+-- First-class Decision records (Article XIII §37)
+CREATE TABLE decisions (
+  decision_id         ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  project_id          ulid REFERENCES projects.projects(project_id),
+  mission_id          ulid REFERENCES missions.missions(mission_id),
+  run_id              ulid REFERENCES agent_runs(run_id),
+
+  decision_number     INT NOT NULL,                    -- human-friendly per-project
+  question            TEXT NOT NULL,
+  options             JSONB NOT NULL,                  -- [{name, description, tradeoffs}]
+  selected_option     TEXT NOT NULL,
+
+  evidence            JSONB NOT NULL DEFAULT '[]'::jsonb,
+  assumptions         JSONB NOT NULL DEFAULT '[]'::jsonb,
+  risks               JSONB NOT NULL DEFAULT '[]'::jsonb,
+  reasoning           TEXT NOT NULL,
+
+  confidence          confidence_score NOT NULL,
+  reversible          BOOLEAN NOT NULL DEFAULT TRUE,
+  revisit_criteria    TEXT,
+  status              TEXT NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('active','superseded','revoked')),
+  superseded_by       ulid REFERENCES decisions(decision_id),
+
+  created_by_agent    TEXT NOT NULL,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX decision_project_active_idx  ON decisions (project_id, status, decision_number DESC);
+CREATE INDEX decision_mission_idx         ON decisions (mission_id);
+CREATE INDEX decision_question_trgm_idx   ON decisions USING gin (question gin_trgm_ops);
+
+-- Ensure per-project decision numbers are unique
+CREATE UNIQUE INDEX decision_project_number_uidx
+  ON decisions (project_id, decision_number) WHERE project_id IS NOT NULL;
+```
+
+---
+
+## 6. THE MODELS SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: models — Model Registry, Model Calls (partitioned)
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO models, public;
+
+CREATE TABLE model_registry (
+  model_id                  TEXT PRIMARY KEY,          -- e.g. "anthropic/claude-3.5-sonnet@20241022"
+  provider                  TEXT NOT NULL,
+  family                    TEXT NOT NULL,
+  display_name              TEXT NOT NULL,
+
+  capabilities              TEXT[] NOT NULL DEFAULT '{}',
+  context_window_tokens     INT NOT NULL,
+  max_output_tokens         INT NOT NULL,
+
+  tier                      TEXT NOT NULL CHECK (tier IN ('standard','advanced','frontier','research')),
+  license                   TEXT NOT NULL CHECK (license IN (
+                              'open_source_osi','open_weight','commercial_hosted','private_internal')),
+
+  input_per_million_usd     money_usd NOT NULL,
+  output_per_million_usd    money_usd NOT NULL,
+  cached_input_per_million_usd money_usd,
+
+  supports_tool_calling     BOOLEAN NOT NULL DEFAULT FALSE,
+  supports_vision           BOOLEAN NOT NULL DEFAULT FALSE,
+  supports_json_mode        BOOLEAN NOT NULL DEFAULT FALSE,
+  supports_streaming        BOOLEAN NOT NULL DEFAULT TRUE,
+  supports_reasoning        BOOLEAN NOT NULL DEFAULT FALSE,
+
+  deployment_mode           TEXT NOT NULL CHECK (deployment_mode IN (
+                              'hosted_api','local_ollama','local_vllm','dedicated_gpu','enterprise_private')),
+  available_endpoints       TEXT[] NOT NULL DEFAULT '{}',
+
+  -- Populated by Evolution Fabric (rolling)
+  median_latency_ms         DOUBLE PRECISION,
+  p95_latency_ms            DOUBLE PRECISION,
+  median_tokens_per_second  DOUBLE PRECISION,
+  reliability_score         confidence_score,
+  quality_reasoning         confidence_score,
+  quality_coding            confidence_score,
+  quality_research          confidence_score,
+  last_evaluated_at         TIMESTAMPTZ,
+
+  registered_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deprecated_at             TIMESTAMPTZ
+);
+
+CREATE INDEX model_capabilities_idx ON model_registry USING gin (capabilities);
+CREATE INDEX model_active_tier_idx  ON model_registry (tier)
+  WHERE deprecated_at IS NULL;
+
+-- Model calls — HIGH VOLUME. Partitioned monthly.
+CREATE TABLE model_calls (
+  call_id                 ulid NOT NULL,
+  organization_id         ulid NOT NULL,
+  mission_id              ulid,
+  run_id                  ulid,
+  task_id                 ulid,
+  agent_instance_id       ulid,
+  agent_definition_id     TEXT,
+
+  route_id                ulid,
+  model_id                TEXT NOT NULL,
+  provider                TEXT NOT NULL,
+  endpoint                TEXT NOT NULL,
+
+  capability_requested    TEXT NOT NULL,
+  fallback_from_model     TEXT,                        -- if this was a fallback
+
+  input_tokens            INT NOT NULL DEFAULT 0,
+  output_tokens           INT NOT NULL DEFAULT 0,
+  cached_tokens           INT NOT NULL DEFAULT 0,
+  reasoning_tokens        INT NOT NULL DEFAULT 0,
+  cost_usd                money_usd NOT NULL DEFAULT 0,
+
+  latency_ms              INT NOT NULL,
+  time_to_first_token_ms  INT,
+  finish_reason           TEXT NOT NULL,
+  status                  TEXT NOT NULL CHECK (status IN ('success','error','timeout','rate_limited','cancelled')),
+  error_category          error_category,
+  error_message           TEXT,
+
+  request_hash            sha256_hex,                  -- for cache lookups
+  response_hash           sha256_hex,
+  prompt_artifact_ref     TEXT,                        -- for audit; large prompts to S3
+  response_artifact_ref   TEXT,
+
+  started_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at            TIMESTAMPTZ,
+  PRIMARY KEY (call_id, started_at)
+) PARTITION BY RANGE (started_at);
+
+-- pg_partman-managed monthly partitions with 24-month retention
+SELECT partman.create_parent(
+  p_parent_table    => 'models.model_calls',
+  p_control         => 'started_at',
+  p_type            => 'range',
+  p_interval        => '1 month',
+  p_premake         => 3
+);
+
+UPDATE partman.part_config
+   SET retention              = '24 months',
+       retention_keep_table   = false,
+       infinite_time_partitions = true
+ WHERE parent_table = 'models.model_calls';
+
+-- Indexes on partitioned parent propagate to children
+CREATE INDEX mc_org_started_idx      ON model_calls (organization_id, started_at DESC);
+CREATE INDEX mc_mission_idx          ON model_calls (mission_id) WHERE mission_id IS NOT NULL;
+CREATE INDEX mc_run_idx              ON model_calls (run_id)     WHERE run_id IS NOT NULL;
+CREATE INDEX mc_model_perf_idx       ON model_calls (model_id, started_at DESC);
+CREATE INDEX mc_started_brin_idx     ON model_calls USING brin (started_at);
+CREATE INDEX mc_request_hash_idx     ON model_calls (request_hash) WHERE request_hash IS NOT NULL;
+```
+
+---
+
+## 7. THE TOOLS SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: tools — Tool Registry, Tool Calls (partitioned), Sandboxes
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO tools, public;
+
+CREATE TABLE tool_registry (
+  tool_id                 TEXT PRIMARY KEY,
+  tool_version            TEXT NOT NULL,
+  display_name            TEXT NOT NULL,
+  description             TEXT NOT NULL,
+  category                TEXT NOT NULL,
+  operator_agent_id       TEXT NOT NULL,               -- D1..D5
+
+  input_schema_uri        TEXT NOT NULL,
+  output_schema_uri       TEXT NOT NULL,
+  required_scopes         TEXT[] NOT NULL,
+
+  requires_human_approval BOOLEAN NOT NULL DEFAULT FALSE,
+  idempotent              BOOLEAN NOT NULL DEFAULT FALSE,
+  destructive             BOOLEAN NOT NULL DEFAULT FALSE,
+  default_limits          JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+  median_latency_ms       DOUBLE PRECISION,
+  failure_rate            confidence_score,
+  avg_cost_usd            money_usd,
+
+  registered_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deprecated_at           TIMESTAMPTZ,
+  UNIQUE (tool_id, tool_version)
+);
+
+CREATE INDEX tool_category_idx ON tool_registry (category)
+  WHERE deprecated_at IS NULL;
+
+-- Sandboxes are short-lived; recorded for audit
+CREATE TABLE sandboxes (
+  sandbox_id          ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  mission_id          ulid NOT NULL REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  agent_instance_id   ulid REFERENCES agents.agent_instances(agent_instance_id),
+
+  runtime_kind        TEXT NOT NULL,                   -- 'docker','firecracker','k8s_pod','wasm'
+  image               TEXT NOT NULL,
+  resource_limits     JSONB NOT NULL,
+  network_policy      JSONB NOT NULL,
+  workspace_root      TEXT NOT NULL,
+  environment_hash    sha256_hex NOT NULL,
+
+  allocated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  released_at         TIMESTAMPTZ,
+  cpu_seconds_used    NUMERIC(12,3),
+  memory_peak_mb      INT
+);
+
+CREATE INDEX sandbox_active_idx ON sandboxes (mission_id) WHERE released_at IS NULL;
+
+-- Tool calls — HIGH VOLUME. Partitioned monthly.
+CREATE TABLE tool_calls (
+  invocation_id       ulid NOT NULL,
+  organization_id     ulid NOT NULL,
+  mission_id          ulid,
+  task_id             ulid,
+  run_id              ulid,
+  agent_instance_id   ulid NOT NULL,
+
+  tool_id             TEXT NOT NULL,
+  tool_version        TEXT NOT NULL,
+  sandbox_id          ulid,
+
+  arguments_hash      sha256_hex NOT NULL,
+  arguments_artifact_ref TEXT,                         -- if too large for inline
+  capability_token_id ulid NOT NULL,
+
+  status              tool_status NOT NULL,
+  exit_code           INT,
+  output_hash         sha256_hex,
+  output_artifact_ref TEXT,
+  logs_artifact_ref   TEXT,
+  stderr_summary      TEXT,
+
+  error_category      error_category,
+  error_message       TEXT,
+  retryable           BOOLEAN NOT NULL DEFAULT FALSE,
+
+  wall_time_ms        INT,
+  cpu_time_ms         INT,
+  memory_peak_mb      INT,
+
+  started_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at        TIMESTAMPTZ,
+  PRIMARY KEY (invocation_id, started_at)
+) PARTITION BY RANGE (started_at);
+
+SELECT partman.create_parent(
+  p_parent_table    => 'tools.tool_calls',
+  p_control         => 'started_at',
+  p_type            => 'range',
+  p_interval        => '1 month',
+  p_premake         => 3
+);
+
+UPDATE partman.part_config
+   SET retention              = '24 months',
+       retention_keep_table   = false,
+       infinite_time_partitions = true
+ WHERE parent_table = 'tools.tool_calls';
+
+CREATE INDEX tc_org_started_idx    ON tool_calls (organization_id, started_at DESC);
+CREATE INDEX tc_mission_idx        ON tool_calls (mission_id) WHERE mission_id IS NOT NULL;
+CREATE INDEX tc_tool_perf_idx      ON tool_calls (tool_id, status, started_at DESC);
+CREATE INDEX tc_started_brin_idx   ON tool_calls USING brin (started_at);
+CREATE INDEX tc_idempotency_idx    ON tool_calls (arguments_hash) WHERE arguments_hash IS NOT NULL;
+```
+
+---
+
+## 8. THE MEMORY SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: memory — 7 memory scopes with provenance & vector search
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO memory, public;
+
+CREATE TABLE memories (
+  memory_id           ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  scope               memory_scope NOT NULL,
+
+  -- scope binding (nullable per scope semantics)
+  user_id             ulid REFERENCES identity.users(user_id),
+  project_id          ulid REFERENCES projects.projects(project_id),
+  mission_id          ulid REFERENCES missions.missions(mission_id),
+  conversation_id     ulid,
+
+  -- semantic triple structure (subject/predicate/value)
+  subject             TEXT NOT NULL,
+  predicate           TEXT NOT NULL,
+  value               TEXT NOT NULL,
+  value_structured    JSONB,                            -- for typed values
+
+  -- PROVENANCE (Law 3: no memory without lineage)
+  source              TEXT NOT NULL,                    -- 'user','agent','tool','research','decision'
+  source_ref          TEXT,                             -- URI/ID pointing at origin
+  written_by_agent    TEXT,                             -- agent_definition_id
+  written_by_run      ulid REFERENCES agents.agent_runs(run_id),
+  citations           JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  -- QUALITY
+  confidence          confidence_score NOT NULL DEFAULT 0.8,
+  evidence_count      INT NOT NULL DEFAULT 0,
+  contradicts_ids     ulid[] NOT NULL DEFAULT '{}',
+  supersedes_ids      ulid[] NOT NULL DEFAULT '{}',
+
+  -- LIFECYCLE
+  version             INT NOT NULL DEFAULT 1,
+  status              memory_status NOT NULL DEFAULT 'active',
+  expires_at          TIMESTAMPTZ,
+  importance          confidence_score NOT NULL DEFAULT 0.5,
+
+  -- ACCESS
+  visibility          TEXT NOT NULL DEFAULT 'project'
+                      CHECK (visibility IN ('private','project','organization','public')),
+  sensitivity         sensitivity NOT NULL DEFAULT 'internal',
+
+  -- VECTOR (multi-dim: 1536 for OpenAI, 1024 for cohere, etc.)
+  embedding_1024      vector(1024),                     -- primary retrieval space
+  embedding_model_id  TEXT,                             -- which model produced it
+
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- scope-binding integrity
+  CHECK (
+    (scope = 'working'        AND mission_id IS NOT NULL) OR
+    (scope = 'conversation'   AND conversation_id IS NOT NULL) OR
+    (scope = 'episodic'       ) OR
+    (scope = 'semantic'       ) OR
+    (scope = 'procedural'     ) OR
+    (scope = 'project'        AND project_id IS NOT NULL) OR
+    (scope = 'organizational' )
+  )
+);
+
+-- Retrieval indexes
+CREATE INDEX mem_scope_active_idx     ON memories (organization_id, scope)
+  WHERE status = 'active';
+CREATE INDEX mem_project_active_idx   ON memories (project_id, status)
+  WHERE project_id IS NOT NULL;
+CREATE INDEX mem_mission_active_idx   ON memories (mission_id)
+  WHERE status = 'active' AND mission_id IS NOT NULL;
+CREATE INDEX mem_subject_trgm_idx     ON memories USING gin (subject gin_trgm_ops);
+CREATE INDEX mem_value_trgm_idx       ON memories USING gin (value gin_trgm_ops);
+CREATE INDEX mem_recency_idx          ON memories (organization_id, created_at DESC);
+
+-- HNSW vector index (built per-org partition in Phase 2 as scale demands)
+CREATE INDEX mem_embedding_hnsw_idx
+  ON memories USING hnsw (embedding_1024 vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+-- Working memory has TTL cleanup
+CREATE INDEX mem_expiry_idx ON memories (expires_at)
+  WHERE expires_at IS NOT NULL AND status = 'active';
+
+-- Context packets (compiled by A4 for a specific run; short-lived)
+CREATE TABLE context_packets (
+  packet_id           ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  mission_id          ulid NOT NULL REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  run_id              ulid REFERENCES agents.agent_runs(run_id),
+  agent_instance_id   ulid REFERENCES agents.agent_instances(agent_instance_id),
+
+  token_count         INT NOT NULL,
+  packet_uri          TEXT NOT NULL,                    -- object store URI
+  packet_hash         sha256_hex NOT NULL,
+
+  included_memory_ids ulid[] NOT NULL DEFAULT '{}',
+  included_artifact_refs TEXT[] NOT NULL DEFAULT '{}',
+  compression_ratio   DOUBLE PRECISION,
+
+  compiled_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at          TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '7 days'
+);
+
+CREATE INDEX ctx_pkt_mission_idx ON context_packets (mission_id, compiled_at DESC);
+CREATE INDEX ctx_pkt_expiry_idx  ON context_packets (expires_at);
+
+-- Conversations (top-level container for conversation-scoped memory)
+CREATE TABLE conversations (
+  conversation_id     ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  user_id             ulid NOT NULL REFERENCES identity.users(user_id),
+  project_id          ulid REFERENCES projects.projects(project_id),
+  title               TEXT,
+  summary             TEXT,
+  message_count       INT NOT NULL DEFAULT 0,
+  last_message_at     TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX conv_user_recent_idx ON conversations (user_id, last_message_at DESC NULLS LAST);
+CREATE INDEX conv_project_idx     ON conversations (project_id, last_message_at DESC);
+
+CREATE TABLE messages (
+  message_id          ulid PRIMARY KEY,
+  conversation_id     ulid NOT NULL REFERENCES conversations(conversation_id) ON DELETE CASCADE,
+  mission_id          ulid REFERENCES missions.missions(mission_id),
+  role                TEXT NOT NULL CHECK (role IN ('user','coco','system','tool')),
+  content             TEXT NOT NULL,
+  content_structured  JSONB,
+  attachments         JSONB NOT NULL DEFAULT '[]'::jsonb,
+  response_mode       TEXT,                             -- 'direct','reasoned','investigative',...
+  produced_by_run     ulid REFERENCES agents.agent_runs(run_id),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX msg_conv_order_idx ON messages (conversation_id, created_at);
+```
+
+---
+
+## 9. THE PROJECT BRAIN SCHEMA (Knowledge Graph)
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: brain — Project Brain knowledge graph (nodes + edges in PG)
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO brain, public;
+
+-- Every meaningful concept in a project becomes a node.
+-- Relationships (uses, depends_on, requires, etc.) become edges.
+CREATE TABLE knowledge_nodes (
+  node_id             ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  project_id          ulid NOT NULL REFERENCES projects.projects(project_id) ON DELETE CASCADE,
+
+  node_type           TEXT NOT NULL,                    -- 'requirement','service','decision','component',
+                                                        --  'entity','concept','risk','person','vendor'
+  label               TEXT NOT NULL,
+  description         TEXT,
+  properties          JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+  -- lineage
+  origin_source       TEXT NOT NULL,                    -- 'agent','user','import','decision'
+  origin_ref          TEXT,                             -- decision_id, run_id, etc.
+  confidence          confidence_score NOT NULL DEFAULT 0.8,
+
+  -- retrieval
+  embedding_1024      vector(1024),
+
+  status              TEXT NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('active','deprecated','removed')),
+  version             INT NOT NULL DEFAULT 1,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX kn_project_type_idx    ON knowledge_nodes (project_id, node_type)
+  WHERE status = 'active';
+CREATE INDEX kn_label_trgm_idx      ON knowledge_nodes USING gin (label gin_trgm_ops);
+CREATE INDEX kn_properties_gin_idx  ON knowledge_nodes USING gin (properties);
+CREATE INDEX kn_embedding_hnsw_idx
+  ON knowledge_nodes USING hnsw (embedding_1024 vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+
+CREATE TABLE knowledge_edges (
+  edge_id             ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  project_id          ulid NOT NULL REFERENCES projects.projects(project_id) ON DELETE CASCADE,
+
+  from_node_id        ulid NOT NULL REFERENCES knowledge_nodes(node_id) ON DELETE CASCADE,
+  to_node_id          ulid NOT NULL REFERENCES knowledge_nodes(node_id) ON DELETE CASCADE,
+  relation            TEXT NOT NULL,                    -- 'uses','depends_on','implements','requires',
+                                                        --  'selected_because','conflicts_with','verified_by'
+  properties          JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+  confidence          confidence_score NOT NULL DEFAULT 0.9,
+  origin_source       TEXT NOT NULL,
+  origin_ref          TEXT,
+
+  status              TEXT NOT NULL DEFAULT 'active'
+                      CHECK (status IN ('active','deprecated','removed')),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (from_node_id, to_node_id, relation)
+);
+
+CREATE INDEX ke_from_relation_idx ON knowledge_edges (from_node_id, relation) WHERE status = 'active';
+CREATE INDEX ke_to_relation_idx   ON knowledge_edges (to_node_id, relation)   WHERE status = 'active';
+CREATE INDEX ke_project_idx       ON knowledge_edges (project_id, relation);
+
+-- Materialized summary per project (single row)
+CREATE TABLE project_brain (
+  project_id          ulid PRIMARY KEY REFERENCES projects.projects(project_id) ON DELETE CASCADE,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+
+  node_counts         JSONB NOT NULL DEFAULT '{}'::jsonb,      -- by node_type
+  edge_counts         JSONB NOT NULL DEFAULT '{}'::jsonb,      -- by relation
+  decision_count      INT NOT NULL DEFAULT 0,
+  requirement_count   INT NOT NULL DEFAULT 0,
+  artifact_count      INT NOT NULL DEFAULT 0,
+
+  active_risks        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  open_questions      JSONB NOT NULL DEFAULT '[]'::jsonb,
+  contradictions      JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+  last_activity_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+---
+
+## 10. THE RESEARCH SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: research — Sources & Evidence (with cryptographic provenance)
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO research, public;
+
+CREATE TABLE sources (
+  source_id           ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+
+  source_type         TEXT NOT NULL,                    -- 'web','paper','patent','filing','book',
+                                                        --  'db','api','dataset','court_case','statute'
+  url                 TEXT,
+  canonical_uri       TEXT,
+  title               TEXT NOT NULL,
+  authors             TEXT[] NOT NULL DEFAULT '{}',
+  publisher           TEXT,
+  published_at        TIMESTAMPTZ,
+  retrieved_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  content_hash        sha256_hex NOT NULL,              -- of retrieved content
+  content_artifact_ref TEXT,                            -- object store URI
+  language            TEXT,
+
+  credibility_class   TEXT NOT NULL DEFAULT 'unverified'
+                      CHECK (credibility_class IN ('primary','secondary','unverified','discredited')),
+  credibility_score   confidence_score NOT NULL DEFAULT 0.5,
+
+  metadata            JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE UNIQUE INDEX source_hash_uidx ON sources (organization_id, content_hash);
+CREATE INDEX source_type_idx         ON sources (source_type);
+CREATE INDEX source_title_trgm_idx   ON sources USING gin (title gin_trgm_ops);
+
+CREATE TABLE evidence (
+  evidence_id         ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  source_id           ulid NOT NULL REFERENCES sources(source_id),
+
+  claim               TEXT NOT NULL,
+  extracted_quote     TEXT,
+  quote_hash          sha256_hex,
+  location_hint       TEXT,                             -- page/paragraph/timestamp
+
+  extracted_by_run    ulid REFERENCES agents.agent_runs(run_id),
+  extracted_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  confidence          confidence_score NOT NULL DEFAULT 0.8,
+  triangulation_count INT NOT NULL DEFAULT 1,
+  triangulates_with   ulid[] NOT NULL DEFAULT '{}',     -- other evidence_ids
+
+  embedding_1024      vector(1024)
+);
+
+CREATE INDEX evidence_source_idx    ON evidence (source_id);
+CREATE INDEX evidence_claim_trgm_idx ON evidence USING gin (claim gin_trgm_ops);
+CREATE INDEX evidence_embed_idx
+  ON evidence USING hnsw (embedding_1024 vector_cosine_ops);
+
+CREATE TABLE citations (
+  citation_id         ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  cited_from_kind     TEXT NOT NULL,                    -- 'finding','decision','artifact','memory'
+  cited_from_id       ulid NOT NULL,
+  evidence_id         ulid NOT NULL REFERENCES evidence(evidence_id),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX citation_from_idx      ON citations (cited_from_kind, cited_from_id);
+CREATE INDEX citation_evidence_idx  ON citations (evidence_id);
+```
+
+---
+
+## 11. THE ARTIFACTS SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: artifacts — Metadata for produced files; blobs live in S3
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO artifacts, public;
+
+CREATE TABLE artifacts (
+  artifact_id         ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  project_id          ulid REFERENCES projects.projects(project_id),
+  mission_id          ulid REFERENCES missions.missions(mission_id),
+  task_id             ulid REFERENCES missions.tasks(task_id),
+  produced_by_run     ulid REFERENCES agents.agent_runs(run_id),
+  produced_by_agent   TEXT,                             -- agent_definition_id
+
+  artifact_kind       TEXT NOT NULL,                    -- 'code','doc','report','image','dataset',
+                                                        --  'log','pdf','archive','deployment'
+  content_type        TEXT NOT NULL,                    -- MIME
+  file_name           TEXT,
+  size_bytes          BIGINT NOT NULL,
+  sha256              sha256_hex NOT NULL,
+
+  storage_backend     TEXT NOT NULL,                    -- 's3','postgres','pgvector'
+  storage_uri         TEXT NOT NULL,
+
+  sensitivity         sensitivity NOT NULL DEFAULT 'internal',
+  encryption_key_id   TEXT,                             -- for RESTRICTED
+  version             INT NOT NULL DEFAULT 1,
+  parent_artifact_id  ulid REFERENCES artifacts(artifact_id),
+
+  properties          JSONB NOT NULL DEFAULT '{}'::jsonb,
+  labels              TEXT[] NOT NULL DEFAULT '{}',
+  is_deliverable      BOOLEAN NOT NULL DEFAULT FALSE,
+
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at          TIMESTAMPTZ
+);
+
+CREATE INDEX art_project_kind_idx    ON artifacts (project_id, artifact_kind, created_at DESC);
+CREATE INDEX art_mission_idx         ON artifacts (mission_id, created_at DESC);
+CREATE INDEX art_labels_gin_idx      ON artifacts USING gin (labels);
+CREATE INDEX art_deliverable_idx     ON artifacts (project_id) WHERE is_deliverable = TRUE;
+CREATE UNIQUE INDEX art_org_hash_uidx ON artifacts (organization_id, sha256, version);
+```
+
+---
+
+## 12. THE VERIFICATION SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: verification — Verification runs, level results, critic reports
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO verification, public;
+
+CREATE TABLE verifications (
+  verification_id         ulid PRIMARY KEY,
+  organization_id         ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  mission_id              ulid NOT NULL REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  task_id                 ulid REFERENCES missions.tasks(task_id),
+  requesting_agent_id     TEXT NOT NULL,
+
+  artifact_ids            ulid[] NOT NULL,
+  requirements            JSONB NOT NULL DEFAULT '[]'::jsonb,
+  domain                  TEXT NOT NULL,                -- 'software','research','legal',...
+  domain_params           JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+  target_level            SMALLINT NOT NULL CHECK (target_level BETWEEN 0 AND 10),
+  levels_run              SMALLINT[] NOT NULL DEFAULT '{}',
+  highest_level_passed    SMALLINT,
+  highest_level_attempted SMALLINT,
+
+  verdict                 verdict,
+  requires_human_review   BOOLEAN NOT NULL DEFAULT FALSE,
+  human_review_ticket_id  ulid,
+
+  critic_agent_id         TEXT,
+  verification_report_ref TEXT,                         -- artifact URI
+
+  started_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at            TIMESTAMPTZ
+);
+
+CREATE INDEX ver_mission_idx        ON verifications (mission_id, started_at DESC);
+CREATE INDEX ver_task_idx           ON verifications (task_id);
+CREATE INDEX ver_verdict_idx        ON verifications (verdict, completed_at DESC);
+CREATE INDEX ver_human_review_idx   ON verifications (requires_human_review, completed_at DESC)
+  WHERE requires_human_review = TRUE;
+
+CREATE TABLE level_results (
+  level_result_id     ulid PRIMARY KEY,
+  verification_id     ulid NOT NULL REFERENCES verifications(verification_id) ON DELETE CASCADE,
+  level               SMALLINT NOT NULL CHECK (level BETWEEN 0 AND 10),
+  level_name          TEXT NOT NULL,
+  status              TEXT NOT NULL CHECK (status IN ('passed','failed','partial','skipped','errored')),
+  checks_total        INT NOT NULL DEFAULT 0,
+  checks_passed       INT NOT NULL DEFAULT 0,
+  checks_failed       INT NOT NULL DEFAULT 0,
+  checks_skipped      INT NOT NULL DEFAULT 0,
+  duration_ms         INT NOT NULL DEFAULT 0,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (verification_id, level)
+);
+
+CREATE TABLE check_results (
+  check_result_id     ulid PRIMARY KEY,
+  level_result_id     ulid NOT NULL REFERENCES level_results(level_result_id) ON DELETE CASCADE,
+  check_id            TEXT NOT NULL,
+  check_name          TEXT NOT NULL,
+  tool_used           TEXT,
+  status              TEXT NOT NULL CHECK (status IN ('passed','failed','skipped','error')),
+  message             TEXT,
+  details             JSONB,
+  evidence_artifact_ref TEXT
+);
+
+CREATE INDEX check_results_level_idx ON check_results (level_result_id);
+CREATE INDEX check_results_failed_idx ON check_results (level_result_id)
+  WHERE status = 'failed';
+
+CREATE TABLE critic_reports (
+  critic_report_id            ulid PRIMARY KEY,
+  verification_id             ulid NOT NULL REFERENCES verifications(verification_id) ON DELETE CASCADE,
+  critic_agent_id             TEXT NOT NULL,
+  correctness_score           confidence_score NOT NULL,
+  completeness_score          confidence_score NOT NULL,
+  consistency_score           confidence_score NOT NULL,
+  evidence_quality_score      confidence_score NOT NULL,
+  risk_score                  confidence_score NOT NULL,
+  overall_score               confidence_score NOT NULL,
+  strengths                   JSONB NOT NULL DEFAULT '[]'::jsonb,
+  weaknesses                  JSONB NOT NULL DEFAULT '[]'::jsonb,
+  missing_requirements        JSONB NOT NULL DEFAULT '[]'::jsonb,
+  questionable_assumptions    JSONB NOT NULL DEFAULT '[]'::jsonb,
+  recommendation              TEXT NOT NULL CHECK (recommendation IN ('accept','revise','reject','escalate')),
+  reasoning                   TEXT NOT NULL,
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE repair_orders (
+  repair_id           ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  verification_id     ulid NOT NULL REFERENCES verifications(verification_id),
+  mission_id          ulid NOT NULL REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  task_id             ulid NOT NULL REFERENCES missions.tasks(task_id),
+  attempt_number      SMALLINT NOT NULL,
+  max_attempts        SMALLINT NOT NULL,
+  diagnoses           JSONB NOT NULL,                   -- FailureDiagnosis[]
+  proposed_strategies JSONB NOT NULL,
+  assigned_agent_id   TEXT,
+  status              TEXT NOT NULL DEFAULT 'issued'
+                      CHECK (status IN ('issued','in_progress','completed','failed','abandoned')),
+  issued_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at        TIMESTAMPTZ
+);
+
+CREATE INDEX repair_task_active_idx ON repair_orders (task_id, status);
+```
+
+---
+
+## 13. THE SECURITY SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: security — Capability Tokens, Approvals, Audit Log
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO security, public;
+
+CREATE TABLE capability_tokens (
+  token_id            ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  mission_id          ulid REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  agent_instance_id   ulid NOT NULL REFERENCES agents.agent_instances(agent_instance_id),
+  tool_id             TEXT NOT NULL,
+  granted_scope       TEXT NOT NULL,
+  max_invocations     INT NOT NULL DEFAULT 1,
+  invocations_used    INT NOT NULL DEFAULT 0,
+  issued_by           TEXT NOT NULL DEFAULT 'A6_risk_officer',
+  signature           TEXT NOT NULL,                    -- Ed25519 hex
+  issued_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at          TIMESTAMPTZ NOT NULL,
+  revoked_at          TIMESTAMPTZ,
+  revoke_reason       TEXT
+);
+
+CREATE INDEX cap_token_active_idx ON capability_tokens (agent_instance_id, tool_id)
+  WHERE revoked_at IS NULL AND expires_at > NOW();
+
+CREATE TABLE human_approvals (
+  approval_id         ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  mission_id          ulid NOT NULL REFERENCES missions.missions(mission_id) ON DELETE CASCADE,
+  task_id             ulid REFERENCES missions.tasks(task_id),
+  requested_by_agent  TEXT NOT NULL,
+
+  request_kind        TEXT NOT NULL,                    -- 'tool_execution','deployment','policy_override',
+                                                        --  'destructive_action','budget_increase'
+  request_summary     TEXT NOT NULL,
+  request_details     JSONB NOT NULL,
+
+  status              TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (status IN ('pending','approved','denied','expired','revoked')),
+  decision_by_user    ulid REFERENCES identity.users(user_id),
+  decision_reason     TEXT,
+  requested_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at          TIMESTAMPTZ NOT NULL,
+  decided_at          TIMESTAMPTZ
+);
+
+CREATE INDEX approval_pending_idx ON human_approvals (organization_id, status, requested_at)
+  WHERE status = 'pending';
+
+-- Append-only audit log (partitioned monthly, retained 7 years for compliance)
+CREATE TABLE audit_log (
+  audit_id            ulid NOT NULL,
+  organization_id     ulid NOT NULL,
+  user_id             ulid,
+  agent_id            TEXT,
+  fabric              TEXT NOT NULL,
+  event_type          TEXT NOT NULL,                    -- e.g. 'permission.granted','policy.violated'
+  subject_kind        TEXT NOT NULL,
+  subject_id          TEXT,
+  action              TEXT NOT NULL,
+  outcome             TEXT NOT NULL,
+  ip_address          INET,
+  user_agent          TEXT,
+  request_id          ulid,
+  correlation_id      TEXT,
+  data                JSONB NOT NULL DEFAULT '{}'::jsonb,
+  occurred_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (audit_id, occurred_at)
+) PARTITION BY RANGE (occurred_at);
+
+SELECT partman.create_parent(
+  p_parent_table => 'security.audit_log',
+  p_control      => 'occurred_at',
+  p_type         => 'range',
+  p_interval     => '1 month',
+  p_premake      => 6
+);
+
+UPDATE partman.part_config
+   SET retention              = '84 months',            -- 7 years
+       retention_keep_table   = true,                   -- keep for cold storage
+       infinite_time_partitions = true
+ WHERE parent_table = 'security.audit_log';
+
+CREATE INDEX audit_org_time_idx     ON audit_log (organization_id, occurred_at DESC);
+CREATE INDEX audit_user_time_idx    ON audit_log (user_id, occurred_at DESC) WHERE user_id IS NOT NULL;
+CREATE INDEX audit_event_type_idx   ON audit_log (event_type, occurred_at DESC);
+CREATE INDEX audit_subject_idx      ON audit_log (subject_kind, subject_id);
+CREATE INDEX audit_time_brin_idx    ON audit_log USING brin (occurred_at);
+```
+
+---
+
+## 14. THE EVENTS SCHEMA (Materialized Event Log)
+
+The Event Bus (NATS) is the transport. Postgres stores the **durable event log** for replay, audit, timelines, and evaluation.
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: events — Append-only durable event log (partitioned monthly)
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO events, public;
+
+CREATE TABLE event_log (
+  event_id            ulid NOT NULL,                    -- matches envelope_id
+  organization_id     ulid NOT NULL,
+  mission_id          ulid,
+  run_id              ulid,
+  task_id             ulid,
+  correlation_id      TEXT,
+  causation_id        ulid,
+
+  event_type          TEXT NOT NULL,                    -- canonical dotted name
+  event_schema_version INT NOT NULL DEFAULT 1,
+  sequence_number     BIGINT NOT NULL,                  -- monotonic per (mission_id)
+
+  actor_kind          TEXT NOT NULL,                    -- 'agent','user','system','external'
+  actor_id            TEXT NOT NULL,
+  subject_kind        TEXT NOT NULL,
+  subject_id          TEXT,
+
+  emitter_fabric      TEXT NOT NULL,
+  emitter_component   TEXT NOT NULL,
+  sensitivity         sensitivity NOT NULL DEFAULT 'internal',
+
+  data                JSONB NOT NULL DEFAULT '{}'::jsonb,
+  metadata            JSONB NOT NULL DEFAULT '{}'::jsonb,
+  payload_hash        sha256_hex NOT NULL,
+
+  occurred_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ingested_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (event_id, occurred_at)
+) PARTITION BY RANGE (occurred_at);
+
+SELECT partman.create_parent(
+  p_parent_table => 'events.event_log',
+  p_control      => 'occurred_at',
+  p_type         => 'range',
+  p_interval     => '1 month',
+  p_premake      => 3
+);
+
+UPDATE partman.part_config
+   SET retention              = '36 months',
+       retention_keep_table   = true,
+       infinite_time_partitions = true
+ WHERE parent_table = 'events.event_log';
+
+-- Replay & timeline indexes
+CREATE INDEX ev_mission_seq_idx     ON event_log (mission_id, sequence_number)
+  WHERE mission_id IS NOT NULL;
+CREATE INDEX ev_correlation_idx     ON event_log (correlation_id) WHERE correlation_id IS NOT NULL;
+CREATE INDEX ev_causation_idx       ON event_log (causation_id)   WHERE causation_id  IS NOT NULL;
+CREATE INDEX ev_type_time_idx       ON event_log (event_type, occurred_at DESC);
+CREATE INDEX ev_org_time_idx        ON event_log (organization_id, occurred_at DESC);
+CREATE INDEX ev_subject_idx         ON event_log (subject_kind, subject_id, occurred_at DESC);
+CREATE INDEX ev_time_brin_idx       ON event_log USING brin (occurred_at);
+CREATE INDEX ev_data_gin_idx        ON event_log USING gin (data);
+
+-- Sequence generator for per-mission ordering (fast; managed in application layer)
+CREATE TABLE mission_sequences (
+  mission_id          ulid PRIMARY KEY,
+  next_sequence       BIGINT NOT NULL DEFAULT 1
+);
+```
+
+---
+
+## 15. THE EVOLUTION SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: evolution — Metrics, Evaluations, Routing Policies
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO evolution, public;
+
+CREATE TABLE evaluations (
+  evaluation_id       ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  subject_kind        TEXT NOT NULL,                    -- 'mission','task','run','model_call','agent'
+  subject_id          ulid NOT NULL,
+
+  evaluator_kind      TEXT NOT NULL,                    -- 'automated','critic','human'
+  evaluator_id        TEXT,
+  rubric_id           TEXT NOT NULL,
+  scores              JSONB NOT NULL,                   -- {metric: score}
+  overall_score       confidence_score,
+  notes               TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX eval_subject_idx ON evaluations (subject_kind, subject_id);
+CREATE INDEX eval_rubric_idx  ON evaluations (rubric_id, created_at DESC);
+
+-- Rolling agent performance (materialized nightly)
+CREATE TABLE agent_performance (
+  agent_definition_id TEXT NOT NULL,
+  window_start        TIMESTAMPTZ NOT NULL,
+  window_end          TIMESTAMPTZ NOT NULL,
+  runs_count          INT NOT NULL DEFAULT 0,
+  success_rate        confidence_score,
+  avg_confidence      confidence_score,
+  avg_latency_ms      INT,
+  avg_cost_usd        money_usd,
+  avg_repair_attempts DOUBLE PRECISION,
+  critic_avg_score    confidence_score,
+  human_ack_rate      confidence_score,
+  PRIMARY KEY (agent_definition_id, window_end)
+);
+
+CREATE INDEX agent_perf_recent_idx ON agent_performance (agent_definition_id, window_end DESC);
+
+-- Rolling model performance
+CREATE TABLE model_performance (
+  model_id            TEXT NOT NULL,
+  capability          TEXT NOT NULL,
+  window_start        TIMESTAMPTZ NOT NULL,
+  window_end          TIMESTAMPTZ NOT NULL,
+  calls_count         BIGINT NOT NULL DEFAULT 0,
+  success_rate        confidence_score,
+  median_latency_ms   INT,
+  p95_latency_ms      INT,
+  avg_cost_usd        money_usd,
+  quality_score       confidence_score,
+  PRIMARY KEY (model_id, capability, window_end)
+);
+
+CREATE INDEX model_perf_recent_idx ON model_performance (model_id, capability, window_end DESC);
+
+CREATE TABLE routing_policies (
+  policy_id           ulid PRIMARY KEY,
+  policy_name         TEXT NOT NULL,
+  policy_version      INT NOT NULL,
+  scope               TEXT NOT NULL,                    -- 'global','organization','domain'
+  scope_id            TEXT,
+  rules               JSONB NOT NULL,
+  derived_from_data_at TIMESTAMPTZ,
+  activated_at        TIMESTAMPTZ,
+  deactivated_at      TIMESTAMPTZ,
+  UNIQUE (policy_name, policy_version)
+);
+
+CREATE INDEX policy_active_idx ON routing_policies (scope, scope_id) WHERE deactivated_at IS NULL;
+```
+
+---
+
+## 16. THE BILLING SCHEMA
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- SCHEMA: billing — Usage, Subscriptions, Invoices
+-- ═══════════════════════════════════════════════════════════════════
+SET search_path TO billing, public;
+
+CREATE TABLE subscriptions (
+  subscription_id     ulid PRIMARY KEY,
+  organization_id     ulid NOT NULL REFERENCES identity.organizations(organization_id),
+  tier                mission_tier NOT NULL,
+  status              TEXT NOT NULL CHECK (status IN ('active','trialing','past_due','cancelled','paused')),
+  monthly_price_usd   money_usd NOT NULL,
+  compute_credits_monthly BIGINT NOT NULL DEFAULT 0,
+  external_provider   TEXT,                             -- 'stripe','manual','enterprise'
+  external_ref        TEXT,
+  current_period_start TIMESTAMPTZ NOT NULL,
+  current_period_end   TIMESTAMPTZ NOT NULL,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX sub_org_active_idx ON subscriptions (organization_id) WHERE status IN ('active','trialing');
+
+CREATE TABLE usage_records (
+  usage_id            ulid NOT NULL,
+  organization_id     ulid NOT NULL,
+  mission_id          ulid,
+  user_id             ulid,
+  usage_type          TEXT NOT NULL,                    -- 'model_tokens','tool_seconds','storage_gb',
+                                                        --  'gpu_seconds','human_approval','deployment'
+  quantity            NUMERIC(20,6) NOT NULL,
+  unit                TEXT NOT NULL,
+  unit_price_usd      money_usd,
+  total_cost_usd      money_usd NOT NULL,
+  occurred_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (usage_id, occurred_at)
+) PARTITION BY RANGE (occurred_at);
+
+SELECT partman.create_parent(
+  p_parent_table => 'billing.usage_records',
+  p_control      => 'occurred_at',
+  p_type         => 'range',
+  p_interval     => '1 month',
+  p_premake      => 3
+);
+
+CREATE INDEX usage_org_time_idx ON usage_records (organization_id, occurred_at DESC);
+CREATE INDEX usage_type_idx     ON usage_records (usage_type, occurred_at DESC);
+```
+
+---
+
+## 17. ROW-LEVEL SECURITY (MULTI-TENANT ISOLATION)
+
+Every tenant-scoped table has RLS enabled. The application sets `SET LOCAL app.current_org = 'org_ulid'` at the start of each transaction.
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- ROW-LEVEL SECURITY — Enforced tenant isolation on every read/write
+-- ═══════════════════════════════════════════════════════════════════
+
+-- Helper function used by all policies
+CREATE OR REPLACE FUNCTION current_org_id() RETURNS ulid
+LANGUAGE sql STABLE AS $$
+  SELECT current_setting('app.current_org', true)::ulid
+$$;
+
+-- Apply RLS pattern to every tenant-scoped table
+DO $$
+DECLARE
+  t RECORD;
+BEGIN
+  FOR t IN
+    SELECT n.nspname AS schema_name, c.relname AS table_name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    WHERE c.relkind = 'r'
+      AND a.attname = 'organization_id'
+      AND n.nspname IN ('projects','missions','agents','tools','memory','brain',
+                        'research','artifacts','verification','security',
+                        'events','evolution','billing')
+  LOOP
+    EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', t.schema_name, t.table_name);
+    EXECUTE format('ALTER TABLE %I.%I FORCE ROW LEVEL SECURITY', t.schema_name, t.table_name);
+    EXECUTE format(
+      'CREATE POLICY tenant_isolation ON %I.%I
+         USING (organization_id = current_org_id())
+         WITH CHECK (organization_id = current_org_id())',
+      t.schema_name, t.table_name
+    );
+  END LOOP;
+END $$;
+
+-- coco_app role is subject to RLS; coco_owner is bypass for migrations
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA
+  projects, missions, agents, tools, memory, brain, research,
+  artifacts, verification, security, events, evolution, billing
+  TO coco_app;
+
+ALTER ROLE coco_app SET row_security = on;
+ALTER ROLE coco_owner BYPASSRLS;
+```
+
+**Application contract:**
+
+```sql
+-- At the start of every transaction serving a request:
+BEGIN;
+SET LOCAL app.current_org = 'org_01J8XZ...';
+SET LOCAL app.current_user = 'usr_01J8XZ...';
+-- ... queries run here; RLS filters automatically ...
+COMMIT;
+```
+
+---
+
+## 18. MATERIALIZED VIEWS (Observability & Evolution)
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- Materialized views refreshed by Evolution Fabric background jobs
+-- ═══════════════════════════════════════════════════════════════════
+
+-- Mission timeline (reconstructed from events + agent runs)
+CREATE MATERIALIZED VIEW evolution.v_mission_summary AS
+SELECT
+  m.mission_id,
+  m.organization_id,
+  m.project_id,
+  m.tier,
+  m.cognitive_depth,
+  m.phase,
+  m.progress_percent,
+  m.created_at,
+  m.completed_at,
+  EXTRACT(EPOCH FROM (COALESCE(m.completed_at, NOW()) - m.created_at)) AS wall_seconds,
+  (SELECT COUNT(*) FROM missions.tasks    t WHERE t.mission_id = m.mission_id) AS task_count,
+  (SELECT COUNT(*) FROM agents.agent_runs r WHERE r.mission_id = m.mission_id) AS run_count,
+  (SELECT COUNT(*) FROM models.model_calls mc WHERE mc.mission_id = m.mission_id) AS model_call_count,
+  (SELECT COALESCE(SUM(mc.cost_usd),0) FROM models.model_calls mc WHERE mc.mission_id = m.mission_id) AS model_cost_usd,
+  (SELECT COUNT(*) FROM tools.tool_calls tc WHERE tc.mission_id = m.mission_id) AS tool_call_count,
+  (SELECT COUNT(*) FROM verification.verifications v WHERE v.mission_id = m.mission_id
+     AND v.verdict IN ('accepted','accepted_with_notes')) AS verifications_passed,
+  (SELECT COUNT(*) FROM verification.verifications v WHERE v.mission_id = m.mission_id
+     AND v.verdict = 'rejected') AS verifications_failed
+FROM missions.missions m;
+
+CREATE UNIQUE INDEX v_mission_summary_pk ON evolution.v_mission_summary (mission_id);
+CREATE INDEX v_mission_summary_org_idx  ON evolution.v_mission_summary (organization_id, created_at DESC);
+
+-- Rolling model cost per org per day
+CREATE MATERIALIZED VIEW evolution.v_daily_model_spend AS
+SELECT
+  organization_id,
+  date_trunc('day', started_at) AS day,
+  model_id,
+  SUM(input_tokens)     AS input_tokens_sum,
+  SUM(output_tokens)    AS output_tokens_sum,
+  SUM(cost_usd)         AS cost_usd_sum,
+  COUNT(*)              AS call_count
+FROM models.model_calls
+WHERE started_at >= NOW() - INTERVAL '90 days'
+GROUP BY organization_id, date_trunc('day', started_at), model_id;
+
+CREATE UNIQUE INDEX v_daily_spend_pk
+  ON evolution.v_daily_model_spend (organization_id, day, model_id);
+
+-- Refresh cadence (managed by cron/worker)
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY evolution.v_mission_summary;
+-- REFRESH MATERIALIZED VIEW CONCURRENTLY evolution.v_daily_model_spend;
+```
+
+---
+
+## 19. TRIGGERS & CONSTRAINTS (Constitutional Enforcement)
+
+```sql
+-- ═══════════════════════════════════════════════════════════════════
+-- Triggers enforce Constitutional Laws at the DB layer
+-- ═══════════════════════════════════════════════════════════════════
+
+-- updated_at maintenance
+CREATE OR REPLACE FUNCTION touch_updated_at() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END $$;
+
+DO $$
+DECLARE
+  t RECORD;
+BEGIN
+  FOR t IN
+    SELECT n.nspname AS s, c.relname AS r
+    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    WHERE a.attname = 'updated_at' AND c.relkind = 'r'
+      AND n.nspname NOT IN ('pg_catalog','information_schema','partman')
+  LOOP
+    EXECUTE format(
+      'CREATE TRIGGER trg_touch_updated_at BEFORE UPDATE ON %I.%I
+         FOR EACH ROW EXECUTE FUNCTION touch_updated_at()',
+      t.s, t.r
+    );
+  END LOOP;
+END $$;
+
+-- Enforce Law 2: memories/decisions/events cannot be hard-updated in critical fields
+CREATE OR REPLACE FUNCTION guard_memory_immutable_provenance() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.source <> OLD.source
+     OR NEW.written_by_agent <> OLD.written_by_agent
+     OR NEW.written_by_run   IS DISTINCT FROM OLD.written_by_run THEN
+    RAISE EXCEPTION 'Memory provenance is immutable (Law 2/3); create a new memory record instead';
+  END IF;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER trg_guard_memory_immutable
+BEFORE UPDATE ON memory.memories
+FOR EACH ROW EXECUTE FUNCTION guard_memory_immutable_provenance();
+
+-- Enforce Law 4: mission_id required on any run/task/artifact tying back to work
+-- (already enforced via NOT NULL + FK; documented here)
+
+-- Enforce Law 9: reject oversized JSONB payloads at the DB boundary
+CREATE OR REPLACE FUNCTION reject_oversized_jsonb(field JSONB, max_kb INT) RETURNS VOID LANGUAGE plpgsql AS $$
+BEGIN
+  IF octet_length(field::text) > (max_kb * 1024) THEN
+    RAISE EXCEPTION 'JSONB payload exceeds % KB; store as artifact and reference by URI', max_kb;
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION guard_event_data_size() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN PERFORM reject_oversized_jsonb(NEW.data, 64); RETURN NEW; END $$;
+
+CREATE TRIGGER trg_guard_event_size
+BEFORE INSERT ON events.event_log
+FOR EACH ROW EXECUTE FUNCTION guard_event_data_size();
+```
+
+---
+
+## 20. MIGRATION ARCHITECTURE
+
+```text
+DIRECTORY:
+coco/database/
+├── migrations/
+│   ├── 001__baseline_extensions_roles.sql
+│   ├── 002__identity_schema.sql
+│   ├── 003__projects_schema.sql
+│   ├── 004__missions_schema.sql
+│   ├── 005__agents_schema.sql
+│   ├── 006__models_schema.sql
+│   ├── 007__tools_schema.sql
+│   ├── 008__memory_schema.sql
+│   ├── 009__brain_schema.sql
+│   ├── 010__research_schema.sql
+│   ├── 011__artifacts_schema.sql
+│   ├── 012__verification_schema.sql
+│   ├── 013__security_schema.sql
+│   ├── 014__events_schema.sql
+│   ├── 015__evolution_schema.sql
+│   ├── 016__billing_schema.sql
+│   ├── 017__rls_policies.sql
+│   ├── 018__triggers_constraints.sql
+│   └── 019__materialized_views.sql
+├── seeds/
+│   ├── seed_agent_definitions.sql        -- registers 134 flagship agents
+│   ├── seed_tool_registry.sql            -- registers built-in tools
+│   ├── seed_model_registry.sql           -- registers initial models
+│   └── seed_prompt_templates.sql
+└── policies/
+    ├── retention.yaml                    -- pg_partman retention config
+    └── indexes.yaml                      -- observed query → index mapping
+
+TOOLING:
+- Migrations run via sqitch or golang-migrate; forward-only in production,
+  reversible for local dev.
+- Every migration has a paired verify.sql that CI runs post-apply.
+- Blue-green schema changes for column additions/renames.
+- Backfills run as async jobs, never inside migration transactions.
+
+DEPLOYMENT ORDER (zero-downtime rule):
+1. Additive DDL (new tables, new columns with defaults).
+2. Backfill background workers.
+3. Application code deploys reading new fields.
+4. Application code deploys writing new fields.
+5. Old columns marked deprecated, dropped in later window.
+```
+
+---
+
+## 21. INDEX STRATEGY SUMMARY
+
+```text
+INDEX TYPE       WHERE USED                         PURPOSE
+────────────    ─────────────────────────────────   ──────────────────────────────
+B-tree          FKs, status columns, IDs            Point lookups, joins
+BRIN            High-cardinality time columns       Compact time-range scans
+GIN (JSONB)     Structured properties, tags         Contains/exists queries
+GIN (trgm)      Human text (titles, claims)         Fuzzy substring search
+HNSW (vector)   embedding_1024 columns              Approx nearest-neighbor
+Partial         status='active' filters             Skip archived rows
+Unique          Business keys (slug, hash)          Enforce uniqueness
+Composite       (org_id, status, time DESC)         Tenant + hot-list queries
+
+ANTI-PATTERNS EXPLICITLY AVOIDED:
+- No indexes on rarely-queried boolean columns
+- No duplicate indexes with subset column lists
+- No B-tree on high-write timestamp columns (BRIN instead)
+- No global indexes on partitioned tables when local suffices
+```
+
+---
+
+## 22. RETENTION & LIFECYCLE POLICY
+
+```text
+DATA CLASS                       RETENTION      RATIONALE
+────────────────────────────    ────────────    ─────────────────────────
+Identity, Orgs, Users            Indefinite     Account lifecycle
+Projects                         Indefinite     Long-lived
+Active Missions                  Indefinite     Live work
+Completed Missions (metadata)    Indefinite     Institutional memory
+Memories (active)                Indefinite     Knowledge base
+Memories (working scope)         7 days         Ephemeral run state
+Context Packets                  7 days         Compiled per-run
+Model Calls (detailed)           24 months      Cost analysis, evolution
+Tool Calls (detailed)            24 months      Debugging, evolution
+Event Log                        36 months      Replay, timelines
+Audit Log                        84 months      Compliance (SOC2, GDPR)
+Artifacts (deliverables)         Indefinite     Customer property
+Artifacts (intermediate)         180 days       Debugging
+Usage Records                    84 months      Billing disputes
+Session Tokens                   30 days after revoke   Security forensics
+
+DELETION PROTOCOL:
+- Soft-delete first (deleted_at column).
+- Hard-delete after retention window via pg_partman drop_partition.
+- GDPR "right to erasure": tenant-wide crypto-shred + row purge job.
+- All deletions emit `audit.data.purged` events.
+```
+
+---
+
+## 23. SUMMARY OF SPECIFICATION 3 LOCKS
+
+The **Database Schema** is now fully specified:
+
+1. **15 Schemas Locked** — identity, projects, missions, agents, models, tools, memory, brain, research, artifacts, verification, security, events, evolution, billing.
+2. **All 27 Constitutional Objects Represented** — every object from Dimension 3 has a canonical home with typed columns.
+3. **7 Memory Scopes Implemented** — `memory_scope` enum + scope-binding CHECK constraints ensure each memory belongs to the right scope's parent.
+4. **Provenance Enforced** — memories, decisions, findings, evidence all carry `written_by_agent`, `written_by_run`, `source`, `confidence`, and citation refs.
+5. **Immutability Enforced** — triggers guard provenance fields; audit log and event log are append-only and partitioned.
+6. **Project Brain Graph** — `knowledge_nodes` + `knowledge_edges` with vector embeddings and typed relations.
+7. **Vector Retrieval Ready** — pgvector HNSW indexes on memory, evidence, and knowledge nodes.
+8. **Multi-Tenant Isolation** — RLS on every tenant-scoped table via `current_org_id()`, forced on `coco_app` role.
+9. **High-Volume Tables Partitioned** — `model_calls`, `tool_calls`, `event_log`, `audit_log`, `usage_records` all partitioned monthly with pg_partman-managed retention.
+10. **Materialized Views** — `v_mission_summary`, `v_daily_model_spend` for observability and evolution.
+11. **Migration Architecture Locked** — versioned, additive-only, zero-downtime deploy protocol.
+12. **Retention Policy Locked** — data class → retention window with explicit rationale.
+
+The persistence layer now has an unambiguous, code-reviewed, executable definition that every fabric can rely on. Kernel state can be reconstructed from the event log alone; project intelligence survives arbitrarily long; tenant isolation is enforced at the row level; and the schema evolves through disciplined migrations.
+
+---
+
+## NEXT DEEP SPECIFICATION
+
+The wire is locked. The store is locked. We proceed to **DEEP SPEC 4 — The Model Fabric Deep Spec**:
+
+- Model Registry format (extending `ModelDescriptor` with routing metadata)
+- Adapter Interface Specification (unified provider adapters for OpenAI, Anthropic, Google, xAI, DeepSeek, Ollama, vLLM, custom)
+- Router Decision Engine (Multi-Armed Bandit + Pareto optimization: cost × latency × quality × availability)
+- Capability Taxonomy (fine-grained: reasoning tiers, coding tiers, vision tiers, etc.)
+- Cost / Latency / Quality tracking (feeding back into `model_performance` table)
+- Fallback chains, circuit breakers, provider health, and rate-limit orchestration
+- Streaming coordination, cancellation, deadline propagation
+- Prompt & response caching (semantic + exact-match) integrated with `models.model_calls.request_hash`
+- Batch inference, embedding pipelines, reranker orchestration
+- Local model serving (Ollama/vLLM) integration, GPU scheduling, model warm-pool
+- Cost governance per tier (Default/Pro/Ranger/Enterprise envelopes)
+
+**Confirm: proceed to Deep Spec 4 — Model Fabric?**
