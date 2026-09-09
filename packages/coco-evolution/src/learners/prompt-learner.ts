@@ -1,6 +1,6 @@
 import { prefixedId } from '@coco/common';
 import type { ChangeProposal } from '@coco/protocol';
-import { Learner, type LearnerContext, severityFromImpact } from './base.js';
+import { Learner, type LearnerContext, severityFromImpact } from './base';
 
 /**
  * PromptLearner (Deep Spec 9 §6.2)
@@ -147,3 +147,4 @@ function std(xs: number[]): number {
   const v = xs.reduce((a, b) => a + (b - m) ** 2, 0) / (xs.length - 1);
   return Math.sqrt(v);
 }
+

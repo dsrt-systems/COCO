@@ -1,2 +1,2 @@
-export * from './engine.js';
-export * from './shadow.js';
+export * from './engine';
+export * from './shadow';

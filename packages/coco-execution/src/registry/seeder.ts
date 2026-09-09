@@ -1,5 +1,5 @@
 import type { ToolDescriptor } from '@coco/protocol';
-import type { ToolRegistry } from './registry.js';
+import type { ToolRegistry } from './registry';
 
 export const BUILTIN_TOOLS: ToolDescriptor[] = [
   {
@@ -84,3 +84,4 @@ export async function seedTools(registry: ToolRegistry): Promise<void> {
     await registry.register(tool);
   }
 }
+

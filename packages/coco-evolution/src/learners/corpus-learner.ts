@@ -1,6 +1,6 @@
 import { prefixedId } from '@coco/common';
 import type { ChangeProposal } from '@coco/protocol';
-import { Learner, type LearnerContext } from './base.js';
+import { Learner, type LearnerContext } from './base';
 
 /**
  * CorpusLearner (Deep Spec 9 §6.5)
@@ -127,3 +127,4 @@ export class CorpusLearner extends Learner {
     return proposals;
   }
 }
+

@@ -1,5 +1,5 @@
 import type { MemoryRecord } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
+import type { ContextEnv } from '../env';
 
 export async function getMemory(
   env: ContextEnv,
@@ -108,3 +108,4 @@ function rowToMemory(row: any): MemoryRecord {
     updated_at: row.updated_at,
   };
 }
+

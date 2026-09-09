@@ -1,6 +1,6 @@
 import { prefixedId } from '@coco/common';
 import type { ChangeProposal } from '@coco/protocol';
-import { Learner, type LearnerContext, severityFromImpact } from './base.js';
+import { Learner, type LearnerContext, severityFromImpact } from './base';
 
 /**
  * ModelRegistryLearner (Deep Spec 9 §6.4)
@@ -147,3 +147,4 @@ export class ModelRegistryLearner extends Learner {
     return proposals;
   }
 }
+

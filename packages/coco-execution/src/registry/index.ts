@@ -1,3 +1,3 @@
-export { ToolRegistry } from './registry.js';
-export * from './token-verifier.js';
-export * from './seeder.js';
+export { ToolRegistry } from './registry';
+export * from './token-verifier';
+export * from './seeder';

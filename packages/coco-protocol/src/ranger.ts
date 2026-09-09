@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MissionPhase, AutonomyLevel } from './enums.js';
+import { MissionPhase, AutonomyLevel } from './enums';
 
 export { AutonomyLevel };
 

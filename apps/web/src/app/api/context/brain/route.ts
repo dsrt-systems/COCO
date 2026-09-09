@@ -1,54 +1,59 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/coco/security/context';
-import { createServiceClient } from '@/lib/supabase/service';
+import { createServerSupabase } from '@/lib/supabase/server';
 import { ProjectBrain } from '@coco/context';
 
-export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+export async function GET(req: Request) {
+  try {
+    const { client, user, organizationId } = await createServerSupabase();
+    if (!user || !organizationId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const url = new URL(request.url);
-  const projectId = url.searchParams.get('project_id');
-  
-  const supabase = createServiceClient();
-  const brain = new ProjectBrain(supabase, session.organization_id);
+    const { searchParams } = new URL(req.url);
+    const projectId = searchParams.get('project_id') ?? undefined;
 
-  if (!projectId) {
-    // Return all nodes across org for demo purposes if no project specified
-    const { data } = await supabase
-      .schema('brain')
-      .from('knowledge_nodes')
-      .select('*')
-      .eq('organization_id', session.organization_id)
-      .limit(100);
-    return NextResponse.json({ ok: true, nodes: data ?? [], edges: [] });
+    const brain = new ProjectBrain(client, organizationId);
+    const graph = await brain.getGraph(projectId);
+
+    return NextResponse.json({ ok: true, ...graph });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to get brain graph';
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
-
-  const graph = await brain.getGraph(projectId);
-  return NextResponse.json({ ok: true, ...graph });
 }
 
-export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-
-  const body = await request.json();
-  const supabase = createServiceClient();
-  const brain = new ProjectBrain(supabase, session.organization_id);
-
-  // In a real flow, project_id is strictly resolved. We use a mock default for Phase 6.
-  const projectId = body.project_id || `prj_default_${session.organization_id.substring(4, 12)}`;
-
+export async function POST(req: Request) {
   try {
-    const node = await brain.addNode(
-      projectId,
-      body.type ?? 'concept',
-      body.label,
-      body.description,
-      'user_input'
-    );
-    return NextResponse.json({ ok: true, node });
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });
+    const { client, user, organizationId } = await createServerSupabase();
+    if (!user || !organizationId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const brain = new ProjectBrain(client, organizationId);
+
+    if (body.kind === 'edge') {
+      const edge = await brain.addEdge({
+        project_id: body.project_id ?? 'prj_default',
+        from_node_id: body.from_node_id,
+        to_node_id: body.to_node_id,
+        relation: body.relation ?? 'relates_to',
+        organization_id: organizationId,
+      });
+      return NextResponse.json({ ok: true, edge }, { status: 201 });
+    }
+
+    const node = await brain.addNode({
+      project_id: body.project_id ?? 'prj_default',
+      node_type: body.type ?? body.node_type ?? 'concept',
+      label: body.label ?? 'Unlabeled Node',
+      description: body.description ?? undefined,
+      organization_id: organizationId,
+    });
+
+    return NextResponse.json({ ok: true, node }, { status: 201 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to write brain graph';
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }

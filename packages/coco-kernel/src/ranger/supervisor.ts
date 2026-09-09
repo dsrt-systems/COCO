@@ -3,9 +3,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { MissionCharter, MissionPhase } from '@coco/protocol';
 import { EventBus, type EventLogStore } from '@coco/events';
 import { AgentRegistry, AgentRuntimeExecutor } from '@coco/intelligence';
-import { AutonomyGate } from './autonomy.js';
-import { BudgetEnforcer } from './budget.js';
-import { CheckpointManager } from './checkpoint.js';
+import { AutonomyGate } from './autonomy';
+import { BudgetEnforcer } from './budget';
+import { CheckpointManager } from './checkpoint';
 
 export interface SupervisorConfig {
   missionId: string;
@@ -243,3 +243,4 @@ export class MissionSupervisor {
     return inserted ?? [];
   }
 }
+

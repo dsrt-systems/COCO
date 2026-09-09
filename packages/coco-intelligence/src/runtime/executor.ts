@@ -3,7 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AgentDefinitionContract, AgentRunReport, FindingRecord, RunOutcome } from '@coco/protocol';
 import { ModelGateway } from '@coco/model-fabric';
 import { compileContext, writeMemory } from '@coco/context';
-import type { AgentRegistry } from '../registry/index.js';
+import type { AgentRegistry } from '../registry/index';
 
 export interface AgentExecutionInput {
   mission_id: string;
@@ -215,3 +215,4 @@ export class AgentRuntimeExecutor {
     };
   }
 }
+

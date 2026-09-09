@@ -1,3 +1,3 @@
-export * from './planner/index.js';
-export * from './repair/index.js';
-export * from './orchestrator/index.js';
+export * from './planner';
+export * from './repair';
+export * from './orchestrator';

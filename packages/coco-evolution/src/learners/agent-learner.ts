@@ -1,6 +1,6 @@
 import { prefixedId } from '@coco/common';
 import type { ChangeProposal } from '@coco/protocol';
-import { Learner, type LearnerContext, severityFromImpact } from './base.js';
+import { Learner, type LearnerContext, severityFromImpact } from './base';
 
 /**
  * AgentLearner (Deep Spec 9 §6.3)
@@ -183,3 +183,4 @@ function extractAgentIds(o: Record<string, unknown>): string[] {
   }
   return out.length > 0 ? out : ['A1_coco_director'];
 }
+

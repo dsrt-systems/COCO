@@ -1,11 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { UsageTracker } from './tracker.js';
-import { TierEnvelopeGuard } from './tier-guard.js';
+import { UsageTracker } from './tracker';
+import { TierEnvelopeGuard } from './tier-guard';
 
-/**
- * Helpers for API routes / executors to enforce tier + record usage
- * without importing billing into every fabric package at construct time.
- */
 export async function assertOrgCanSpend(
   supabase: SupabaseClient,
   organizationId: string,

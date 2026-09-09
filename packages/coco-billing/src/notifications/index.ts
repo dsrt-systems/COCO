@@ -1,7 +1,7 @@
 import { prefixedId } from '@coco/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EmailNotification } from '@coco/protocol';
-import { renderEmail, type TemplateId } from './templates.js';
+import { renderEmail, type TemplateId } from './templates';
 
 export class NotificationService {
   constructor(private readonly supabase: SupabaseClient) {}
@@ -15,7 +15,6 @@ export class NotificationService {
       notification.template_vars ?? {}
     );
 
-    // Prefer explicit subject from caller, else template subject
     const subject = notification.subject?.trim() ? notification.subject : rendered.subject;
 
     let externalId: string | undefined;
@@ -25,7 +24,7 @@ export class NotificationService {
     if (!resendKey || resendKey.length < 10) {
       // eslint-disable-next-line no-console
       console.warn(
-        `[coco/billing] RESEND_API_KEY not set. Simulated email → ${notification.recipient_email}\n  Subject: ${subject}\n  Text: ${rendered.text.slice(0, 200)}`
+        `[coco/billing] RESEND_API_KEY not set. Simulated email -> ${notification.recipient_email}\n  Subject: ${subject}`
       );
       externalId = `sim_${notifId}`;
     } else {
@@ -72,9 +71,6 @@ export class NotificationService {
       });
   }
 
-  /**
-   * Convenience: human approval request email (Deep Spec 8 §15 / Spec 10 §8).
-   */
   async notifyApprovalRequired(
     organizationId: string,
     recipientEmail: string,
@@ -88,15 +84,12 @@ export class NotificationService {
   ): Promise<void> {
     await this.sendEmail(organizationId, {
       recipient_email: recipientEmail,
-      subject: `[COCO] Approval required — ${vars.request_summary.slice(0, 60)}`,
+      subject: `[COCO] Approval required - ${vars.request_summary.slice(0, 60)}`,
       template_id: 'approval_required',
       template_vars: vars,
     });
   }
 
-  /**
-   * Convenience: mission completed / failed.
-   */
   async notifyMissionCompleted(
     organizationId: string,
     recipientEmail: string,
@@ -117,4 +110,4 @@ export class NotificationService {
   }
 }
 
-export * from './templates.js';
+export * from './templates';

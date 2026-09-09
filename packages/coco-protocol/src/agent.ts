@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AgentTier, EpistemicStatus, MemoryScope, RunOutcome, ToolScope } from './enums.js';
+import { AgentTier, EpistemicStatus, MemoryScope, RunOutcome, ToolScope } from './enums';
 
 export { AgentTier, EpistemicStatus, RunOutcome, ToolScope };
 

@@ -1,9 +1,9 @@
 import { prefixedId, sha256Hex } from '@coco/common';
 import type { CorpusIngestInput, CorpusIngestResult } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
-import { getEmbeddingProvider } from '../embeddings/index.js';
-import { addSource } from './index.js';
-import { writeMemoriesBatch } from '../memory/writer.js';
+import type { ContextEnv } from '../env';
+import { getEmbeddingProvider } from '../embeddings/index';
+import { addSource } from './index';
+import { writeMemoriesBatch } from '../memory/writer';
 
 export class CorpusPipeline {
   constructor(private readonly env: ContextEnv) {}
@@ -114,3 +114,4 @@ export class CorpusPipeline {
     return chunks;
   }
 }
+

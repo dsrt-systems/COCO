@@ -1,5 +1,5 @@
 import type { AgentDefinitionContract } from '@coco/protocol';
-import { buildSpecialistContract, buildCriticContract, type BranchSpecialistSpec } from './master-roster-generator.js';
+import { buildSpecialistContract, buildCriticContract, type BranchSpecialistSpec } from './master-roster-generator';
 
 // We map out the full 134 capabilities per Deep Spec 1 §4.
 // For brevity in code generation, we loop over the taxonomy data structure.
@@ -217,3 +217,4 @@ export const MASTER_ROSTER: AgentDefinitionContract[] = RAW_TAXONOMY.flatMap((sp
 });
 
 export const ALL_SPECIALISTS_AND_CRITICS = MASTER_ROSTER;
+

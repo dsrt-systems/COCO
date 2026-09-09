@@ -9,8 +9,8 @@ import type {
   VerificationVerdict,
 } from '@coco/protocol';
 import { ModelGateway } from '@coco/model-fabric';
-import { VerificationPlanner } from '../planner/index.js';
-import { RepairLoopEngine } from '../repair/index.js';
+import { VerificationPlanner } from '../planner/index';
+import { RepairLoopEngine } from '../repair/index';
 
 export const LEVEL_NAMES: Record<number, string> = {
   0: 'well_formed',
@@ -270,3 +270,4 @@ export class VerificationOrchestrator {
     };
   }
 }
+

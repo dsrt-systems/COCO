@@ -1,8 +1,8 @@
 import type { MemoryQuery, RankedMemory, SensitivityClass } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
-import { searchMemoriesByVector } from './vector-search.js';
-import { searchMemoriesByText } from './text-search.js';
-import { rankMemories, DEFAULT_WEIGHTS, type RankWeights } from './ranker.js';
+import type { ContextEnv } from '../env';
+import { searchMemoriesByVector } from './vector-search';
+import { searchMemoriesByText } from './text-search';
+import { rankMemories, DEFAULT_WEIGHTS, type RankWeights } from './ranker';
 
 export interface RetrievalOptions {
   weights?: RankWeights;
@@ -52,3 +52,4 @@ export async function retrieveMemories(
 
   return ranked.slice(0, query.limit);
 }
+

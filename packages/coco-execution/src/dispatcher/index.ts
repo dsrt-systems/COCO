@@ -1,9 +1,9 @@
 import { prefixedId, sha256Hex } from '@coco/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ToolInvocationRequest, ToolInvocationResult, SandboxSpec } from '@coco/protocol';
-import { SandboxManager } from '../sandbox/manager.js';
-import { ToolRegistry, TokenVerifier } from '../registry/index.js';
-import { OPERATORS } from '../operators/index.js';
+import { SandboxManager } from '../sandbox/manager';
+import { ToolRegistry, TokenVerifier } from '../registry/index';
+import { OPERATORS } from '../operators/index';
 
 export interface DispatcherEnv {
   supabase: SupabaseClient;
@@ -169,3 +169,4 @@ export class ToolDispatcher {
     }
   }
 }
+

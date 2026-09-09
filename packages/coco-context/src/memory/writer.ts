@@ -1,7 +1,7 @@
 import { prefixedId, sha256Hex } from '@coco/common';
 import type { MemoryWriteInput, MemoryRecord } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
-import { getEmbeddingProvider } from '../embeddings/index.js';
+import type { ContextEnv } from '../env';
+import { getEmbeddingProvider } from '../embeddings/index';
 
 export interface MemoryWriteResult {
   memory: MemoryRecord;
@@ -251,3 +251,4 @@ function rowToMemory(row: Record<string, unknown>): MemoryRecord {
 }
 
 export { sha256Hex };
+

@@ -1,14 +1,10 @@
-import type { LiveMissionMetrics, RealtimeEvent } from '../types/index.js';
+import type { LiveMissionMetrics, RealtimeEvent } from '../types/index';
 
 export interface MetricsAggregatorOptions {
   mission_id: string;
   onUpdate: (metrics: LiveMissionMetrics) => void;
 }
 
-/**
- * Consumes realtime events and maintains a rolling LiveMissionMetrics snapshot.
- * Emits updates to the caller whenever metrics change.
- */
 export class MetricsAggregator {
   private metrics: LiveMissionMetrics;
   private activeAgentIds = new Set<string>();
@@ -77,7 +73,6 @@ export class MetricsAggregator {
         break;
     }
 
-    // Notify subscriber with a fresh copy
     this.options.onUpdate({ ...this.metrics });
   }
 

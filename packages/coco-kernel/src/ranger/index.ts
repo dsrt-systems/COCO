@@ -1,4 +1,5 @@
-export * from './autonomy.js';
-export * from './budget.js';
-export * from './checkpoint.js';
-export * from './supervisor.js';
+export * from './autonomy';
+export * from './budget';
+export * from './checkpoint';
+export * from './supervisor';
+

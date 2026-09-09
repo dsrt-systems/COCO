@@ -1,10 +1,6 @@
 import type { SupabaseClient, RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type { RealtimeEvent, RealtimeEventKind, EventHandler } from '../types/index.js';
+import type { RealtimeEvent, RealtimeEventKind, EventHandler } from '../types/index';
 
-/**
- * OrganizationChannel subscribes to a subset of mission-affecting events across
- * ALL missions belonging to an organization. Used for org-wide dashboards.
- */
 export class OrganizationChannel {
   private channel: RealtimeChannel | null = null;
   private handlers = new Map<RealtimeEventKind, Set<EventHandler>>();
@@ -30,7 +26,6 @@ export class OrganizationChannel {
     const channelName = `coco:org:${this.organizationId}`;
     this.channel = this.supabase.channel(channelName);
 
-    // Mission lifecycle events across the entire org
     this.channel.on(
       'postgres_changes' as any,
       {
@@ -50,7 +45,6 @@ export class OrganizationChannel {
       }
     );
 
-    // Approval notifications org-wide
     this.channel.on(
       'postgres_changes' as any,
       {

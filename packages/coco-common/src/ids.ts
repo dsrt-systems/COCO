@@ -110,3 +110,7 @@ export function isPrefixedId(value: string): boolean {
 export function idPrefix(kind: IdKind): string {
   return prefixes[kind];
 }
+
+export function newId(kind?: IdKind): string {
+  return prefixedId(kind ?? 'event');
+}

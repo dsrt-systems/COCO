@@ -1,6 +1,6 @@
-import type { EmbeddingProvider } from './types.js';
-import { OpenAIEmbeddingProvider } from './openai.js';
-import { DeterministicEmbeddingProvider } from './deterministic.js';
+import type { EmbeddingProvider } from './types';
+import { OpenAIEmbeddingProvider } from './openai';
+import { DeterministicEmbeddingProvider } from './deterministic';
 
 let cachedProvider: EmbeddingProvider | null = null;
 
@@ -30,3 +30,4 @@ export function getEmbeddingProvider(): EmbeddingProvider {
 export function resetEmbeddingProvider(): void {
   cachedProvider = null;
 }
+

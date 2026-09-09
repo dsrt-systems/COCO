@@ -1,5 +1,5 @@
 import { prefixedId } from '@coco/common';
-import type { ContextEnv } from '../env.js';
+import type { ContextEnv } from '../env';
 
 export async function createConversation(
   env: ContextEnv,
@@ -60,3 +60,4 @@ export async function addMessage(
     
   return data;
 }
+

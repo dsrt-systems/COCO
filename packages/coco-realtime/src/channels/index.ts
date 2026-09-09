@@ -1,3 +1,3 @@
-export * from './mission-channel.js';
-export * from './organization-channel.js';
-export * from './metrics-aggregator.js';
+export * from './mission-channel';
+export * from './organization-channel';
+export * from './metrics-aggregator';

@@ -1,6 +1,6 @@
 import { prefixedId } from '@coco/common';
 import type { ChangeProposal } from '@coco/protocol';
-import { Learner, type LearnerContext } from './base.js';
+import { Learner, type LearnerContext } from './base';
 
 /**
  * VerificationLearner (Deep Spec 9 §6.6)
@@ -118,3 +118,4 @@ export class VerificationLearner extends Learner {
     return proposals;
   }
 }
+

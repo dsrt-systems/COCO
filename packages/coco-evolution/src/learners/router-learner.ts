@@ -1,6 +1,6 @@
 import { prefixedId } from '@coco/common';
 import type { ChangeProposal } from '@coco/protocol';
-import { Learner, type LearnerContext, severityFromImpact } from './base.js';
+import { Learner, type LearnerContext, severityFromImpact } from './base';
 
 /**
  * RouterLearner (Deep Spec 9 §6.1)
@@ -168,3 +168,4 @@ function extractModelIds(outcome: Record<string, unknown>): string[] {
   if (ids.size === 0) ids.add('unknown/default');
   return Array.from(ids);
 }
+

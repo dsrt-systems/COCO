@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { UsageMeter } from './index.js';
-import { TierEnvelopeGuard } from './tier-guard.js';
-import { NotificationService } from '../notifications/index.js';
+import { UsageMeter } from './usage-meter';
+import { TierEnvelopeGuard } from './tier-guard';
+import { NotificationService } from '../notifications/index';
 
 export interface ModelCallMeterInput {
   organizationId: string;
@@ -20,19 +20,14 @@ export interface ToolCallMeterInput {
   userId?: string;
   toolId: string;
   wallTimeMs: number;
-  /** Optional fixed price override; default: $0.001 per second */
   unitPricePerSecond?: number;
 }
 
-/**
- * UsageTracker — single entrypoint for fabrics to record billable events
- * and optionally fire budget-warning emails at 50/75/90%.
- */
 export class UsageTracker {
   private meter: UsageMeter;
   private guard: TierEnvelopeGuard;
   private notifications: NotificationService;
-  private warnedOrgs = new Map<string, Set<number>>(); // org -> thresholds already emailed this process
+  private warnedOrgs = new Map<string, Set<number>>();
 
   constructor(private readonly supabase: SupabaseClient) {
     this.meter = new UsageMeter(supabase);
@@ -42,8 +37,7 @@ export class UsageTracker {
 
   async trackModelCall(input: ModelCallMeterInput): Promise<void> {
     const quantity = input.inputTokens + input.outputTokens;
-    const unitPrice =
-      quantity > 0 ? input.costUsd / quantity : 0;
+    const unitPrice = quantity > 0 ? input.costUsd / quantity : 0;
 
     await this.meter.recordUsage(input.organizationId, {
       mission_id: input.missionId,
@@ -99,10 +93,6 @@ export class UsageTracker {
     });
   }
 
-  /**
-   * Fire budget warning emails once per threshold per process lifetime.
-   * Thresholds: 50%, 75%, 90% of monthly credit.
-   */
   private async maybeWarnBudget(organizationId: string, userId?: string): Promise<void> {
     try {
       const summary = await this.guard.getUsageSummary(organizationId);
@@ -133,7 +123,6 @@ export class UsageTracker {
     summary: Awaited<ReturnType<TierEnvelopeGuard['getUsageSummary']>>,
     threshold: number
   ): Promise<void> {
-    // Resolve recipient email from identity if possible
     let email = typeof process !== 'undefined' ? process.env['BILLING_ALERT_EMAIL'] : undefined;
 
     if (!email && userId) {
@@ -146,7 +135,6 @@ export class UsageTracker {
       email = data?.primary_email ?? undefined;
     }
 
-    // Fallback: org billing email is not always present; skip if none
     if (!email) {
       // eslint-disable-next-line no-console
       console.warn(

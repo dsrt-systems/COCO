@@ -1,7 +1,7 @@
 import type { ModelInferenceRequest, ModelInferenceEvent, ExtendedModelDescriptor } from '@coco/protocol';
 import { prefixedId } from '@coco/common';
-import { BUILTIN_MODEL_REGISTRY } from './registry.js';
-import { ModelRouter } from './router.js';
+import { BUILTIN_MODEL_REGISTRY } from './registry';
+import { ModelRouter } from './router';
 
 /**
  * Model Fabric Gateway — Execution engine.
@@ -345,3 +345,4 @@ export class ModelGateway {
     return this.fabricGateway.inferStream(request);
   }
 }
+

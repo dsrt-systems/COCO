@@ -1,5 +1,5 @@
-import type { EmbeddingProvider } from './types.js';
-import { EmbeddingError } from './types.js';
+import type { EmbeddingProvider } from './types';
+import { EmbeddingError } from './types';
 
 const OPENAI_EMBED_ENDPOINT = 'https://api.openai.com/v1/embeddings';
 
@@ -101,3 +101,4 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
     return sorted.map((d) => d.embedding);
   }
 }
+

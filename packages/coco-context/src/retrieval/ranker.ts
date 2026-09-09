@@ -1,6 +1,6 @@
 import type { RankedMemory, MemoryRecord } from '@coco/protocol';
-import type { VectorSearchResult } from './vector-search.js';
-import type { TextSearchResult } from './text-search.js';
+import type { VectorSearchResult } from './vector-search';
+import type { TextSearchResult } from './text-search';
 
 export interface RankWeights {
   vector: number;
@@ -98,3 +98,4 @@ function recencyScore(createdAtIso: string, nowMs: number): number {
   const ageDays = (nowMs - created) / (24 * 60 * 60 * 1000);
   return Math.exp(-ageDays / 20);
 }
+

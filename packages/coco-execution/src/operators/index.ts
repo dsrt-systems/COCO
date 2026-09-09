@@ -1,5 +1,5 @@
 import type { ToolInvocationRequest, ToolExecutionStatus } from '@coco/protocol';
-import type { AllocatedSandbox } from '../sandbox/manager.js';
+import type { AllocatedSandbox } from '../sandbox/manager';
 
 export interface OperatorResponse {
   status: ToolExecutionStatus;
@@ -177,3 +177,4 @@ export const OPERATORS: Record<string, Operator> = {
   d4_db_query: new DatabaseOperator(),
   d5_deploy_manager: new DeployOperator(),
 };
+

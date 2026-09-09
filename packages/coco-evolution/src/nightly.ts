@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { ProposalEngine, type ProposalEngineResult } from './proposals/engine.js';
-import { PolicyBundleBuilder, type PublishedBundle } from './bundle/builder.js';
-import type { DriftAlert } from './drift/index.js';
+import { ProposalEngine, type ProposalEngineResult } from './proposals/engine';
+import { PolicyBundleBuilder, type PublishedBundle } from './bundle/builder';
+import type { DriftAlert } from './drift/index';
 
 export interface NightlyEvolutionReport {
   ran_at: string;
@@ -57,3 +57,4 @@ export class NightlyEvolutionJob {
     };
   }
 }
+

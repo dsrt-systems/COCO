@@ -1,5 +1,5 @@
 import type { MemoryRecord, MemoryQuery } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
+import type { ContextEnv } from '../env';
 
 export interface TextSearchResult {
   memory: MemoryRecord;
@@ -88,3 +88,4 @@ function rowToMemory(row: Record<string, unknown>): MemoryRecord {
     updated_at: row['updated_at'] as string,
   };
 }
+

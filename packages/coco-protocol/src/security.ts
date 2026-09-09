@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ToolScope } from './enums.js';
+import { ToolScope } from './enums';
 
 export const CapabilityTokenSchema = z.object({
   token_id: z.string(),

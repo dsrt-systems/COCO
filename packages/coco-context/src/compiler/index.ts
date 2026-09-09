@@ -1,7 +1,7 @@
 import { prefixedId, sha256Hex } from '@coco/common';
 import type { ContextCompileRequest, ContextPacket } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
-import { retrieveMemories } from '../retrieval/retriever.js';
+import type { ContextEnv } from '../env';
+import { retrieveMemories } from '../retrieval/retriever';
 
 export async function compileContext(
   env: ContextEnv,
@@ -109,3 +109,4 @@ export async function getContextPacket(
   if (!data) return null;
   return data as ContextPacket;
 }
+

@@ -1,4 +1,4 @@
-import type { EmbeddingProvider } from './types.js';
+import type { EmbeddingProvider } from './types';
 
 /**
  * Deterministic fallback: hashes text into a normalized vector.
@@ -36,3 +36,4 @@ export class DeterministicEmbeddingProvider implements EmbeddingProvider {
     return vec.map((v) => v / norm);
   }
 }
+

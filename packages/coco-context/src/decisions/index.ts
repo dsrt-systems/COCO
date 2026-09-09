@@ -1,6 +1,6 @@
 import { prefixedId } from '@coco/common';
 import type { DecisionInput } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
+import type { ContextEnv } from '../env';
 
 export async function recordDecision(env: ContextEnv, input: DecisionInput) {
   const decisionId = prefixedId('decision');
@@ -50,3 +50,4 @@ export async function recordDecision(env: ContextEnv, input: DecisionInput) {
   if (error) throw new Error(`Decision recording failed: ${error.message}`);
   return inserted;
 }
+

@@ -1,6 +1,5 @@
-import { prefixedId } from '@coco/common';
 import type { AgentDefinitionContract } from '@coco/protocol';
-import type { AgentRegistry } from '../registry/index.js';
+import type { AgentRegistry } from '../registry/index';
 
 export interface DynamicSpawnParams {
   domain: string;
@@ -13,18 +12,13 @@ export interface DynamicSpawnParams {
 export class DynamicAgentFactory {
   constructor(private readonly registry: AgentRegistry) {}
 
-  /**
-   * Compiles and registers an ad-hoc Tier-3 specialist for long-tail domains.
-   */
   async spawnSpecialist(params: DynamicSpawnParams): Promise<AgentDefinitionContract> {
     const domainSlug = params.domain.toLowerCase().replace(/[^a-z0-9_]/g, '_');
     const agentId = `C999_${domainSlug}_spec`;
 
-    // 1. Check if already compiled
     const existing = await this.registry.get(agentId);
     if (existing) return existing;
 
-    // 2. Build Paired Critic Definition
     const criticId = `C999_${domainSlug}_critic`;
     const criticContract: AgentDefinitionContract = {
       agent_id: criticId,
@@ -51,7 +45,7 @@ export class DynamicAgentFactory {
         requires_human_approval: [],
       },
       evaluation_rubric: {
-        metrics: { "critical_rigor": 0.90 },
+        metrics: { critical_rigor: 0.90 },
         rejection_threshold: 0.85,
       },
       allowed_memory_scopes: ['project', 'episodic', 'semantic'],
@@ -60,7 +54,6 @@ export class DynamicAgentFactory {
 
     await this.registry.register(criticContract);
 
-    // 3. Construct Specialist Contract
     const specialistContract: AgentDefinitionContract = {
       agent_id: agentId,
       name: `Dynamic Specialist: ${params.domain}`,
@@ -97,7 +90,7 @@ export class DynamicAgentFactory {
       },
       critic_agent_id: criticId,
       evaluation_rubric: {
-        metrics: { "accuracy": 0.90, "domain_fidelity": 0.95 },
+        metrics: { accuracy: 0.90, domain_fidelity: 0.95 },
         rejection_threshold: 0.88,
       },
       allowed_memory_scopes: ['working', 'project', 'semantic', 'episodic'],

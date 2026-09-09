@@ -1,7 +1,7 @@
 import { prefixedId } from '@coco/common';
 import type { KnowledgeNodeInput, KnowledgeEdgeInput } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
-import { getEmbeddingProvider } from '../embeddings/index.js';
+import type { ContextEnv } from '../env';
+import { getEmbeddingProvider } from '../embeddings/index';
 
 export async function addKnowledgeNode(env: ContextEnv, input: KnowledgeNodeInput) {
   const nodeId = prefixedId('node');
@@ -73,3 +73,6 @@ export async function addKnowledgeEdge(env: ContextEnv, input: KnowledgeEdgeInpu
   if (error) throw new Error(`Brain edge insertion failed: ${error.message}`);
   return data;
 }
+
+
+export * from './project-brain';

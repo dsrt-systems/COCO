@@ -1,6 +1,6 @@
 import type { MemoryRecord, MemoryQuery } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
-import { getEmbeddingProvider } from '../embeddings/index.js';
+import type { ContextEnv } from '../env';
+import { getEmbeddingProvider } from '../embeddings/index';
 
 export interface VectorSearchResult {
   memory: MemoryRecord;
@@ -97,3 +97,4 @@ function rowToMemory(row: any): MemoryRecord {
     updated_at: row.updated_at,
   };
 }
+

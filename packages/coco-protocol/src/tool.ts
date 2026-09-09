@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ToolScope } from './enums.js';
+import { ToolScope } from './enums';
 
 export { ToolScope };
 

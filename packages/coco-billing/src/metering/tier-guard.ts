@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { UsageMeter, TIER_LIMITS, type TierLimits } from './index.js';
 import type { MissionTier } from '@coco/protocol';
+import { UsageMeter, TIER_LIMITS, type TierLimits } from './usage-meter';
 
 export type EnvelopeDecision =
   | { allowed: true; remaining_usd: number; tier: string; limits: TierLimits }
@@ -13,11 +13,6 @@ export type EnvelopeDecision =
       limits: TierLimits;
     };
 
-/**
- * TierEnvelopeGuard (Deep Spec 4 §10 + Spec 10 §7 + Spec 16)
- * Checks whether an organization may spend more / use frontier models
- * given their active subscription and period-to-date usage.
- */
 export class TierEnvelopeGuard {
   private meter: UsageMeter;
 
@@ -46,9 +41,6 @@ export class TierEnvelopeGuard {
     };
   }
 
-  /**
-   * Pre-flight check before expensive work (model call, sandbox, ranger start).
-   */
   async checkEnvelope(
     organizationId: string,
     options?: {
@@ -113,7 +105,6 @@ export class TierEnvelopeGuard {
       };
     }
 
-    // Soft block: already over cap with no estimate
     if (remaining <= 0 && tier === 'default') {
       return {
         allowed: false,
@@ -133,9 +124,6 @@ export class TierEnvelopeGuard {
     };
   }
 
-  /**
-   * Returns usage summary for billing UI.
-   */
   async getUsageSummary(organizationId: string): Promise<{
     tier: string;
     monthly_cap_usd: number;

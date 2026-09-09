@@ -1,7 +1,7 @@
 import { prefixedId, sha256Hex } from '@coco/common';
 import type { SourceInput, EvidenceInput } from '@coco/protocol';
-import type { ContextEnv } from '../env.js';
-import { getEmbeddingProvider } from '../embeddings/index.js';
+import type { ContextEnv } from '../env';
+import { getEmbeddingProvider } from '../embeddings/index';
 
 export async function addSource(env: ContextEnv, input: SourceInput) {
   const sourceId = prefixedId('source');
@@ -94,4 +94,5 @@ export async function linkCitation(
   if (error) throw new Error(`Citation linking failed: ${error.message}`);
 }
 
-export * from './corpus-pipeline.js';
+export * from './corpus-pipeline';
+

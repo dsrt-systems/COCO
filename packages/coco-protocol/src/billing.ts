@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MissionTier } from './enums.js';
+import { MissionTier } from './enums';
 
 export const SubscriptionStatus = z.enum(['active', 'trialing', 'past_due', 'cancelled', 'paused']);
 export type SubscriptionStatus = z.infer<typeof SubscriptionStatus>;

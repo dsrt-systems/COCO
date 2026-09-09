@@ -1,8 +1,8 @@
 import { prefixedId } from '@coco/common';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ChangeProposal } from '@coco/protocol';
-import { createAllLearners, defaultWindow, type Learner } from '../learners/index.js';
-import { DriftDetector, type DriftAlert } from '../drift/index.js';
+import { createAllLearners, defaultWindow, type Learner } from '../learners/index';
+import { DriftDetector, type DriftAlert } from '../drift/index';
 
 export interface ProposalEngineResult {
   proposals_created: number;
@@ -190,3 +190,4 @@ export class ProposalEngine {
     }
   }
 }
+

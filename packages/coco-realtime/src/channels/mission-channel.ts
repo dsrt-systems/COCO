@@ -1,10 +1,6 @@
 import type { SupabaseClient, RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type { RealtimeEvent, RealtimeEventKind, EventHandler } from '../types/index.js';
+import type { RealtimeEvent, RealtimeEventKind, EventHandler } from '../types/index';
 
-/**
- * MissionChannel subscribes to all fabric table changes filtered to a specific mission_id.
- * It normalizes raw Postgres change events into typed RealtimeEvents.
- */
 export class MissionChannel {
   private channel: RealtimeChannel | null = null;
   private handlers = new Map<RealtimeEventKind, Set<EventHandler>>();
@@ -16,9 +12,6 @@ export class MissionChannel {
     private readonly organizationId: string
   ) {}
 
-  /**
-   * Register a handler for a specific event kind.
-   */
   on<T = Record<string, unknown>>(kind: RealtimeEventKind, handler: EventHandler<T>): this {
     if (!this.handlers.has(kind)) {
       this.handlers.set(kind, new Set());
@@ -27,17 +20,11 @@ export class MissionChannel {
     return this;
   }
 
-  /**
-   * Register a handler for ALL events on this channel.
-   */
   onAny(handler: EventHandler): this {
     this.globalHandlers.add(handler);
     return this;
   }
 
-  /**
-   * Open the WebSocket subscription. Must be called after registering handlers.
-   */
   async subscribe(): Promise<void> {
     if (this.channel) {
       throw new Error('Channel already subscribed');
@@ -46,7 +33,6 @@ export class MissionChannel {
     const channelName = `coco:mission:${this.missionId}`;
     this.channel = this.supabase.channel(channelName);
 
-    // Subscribe to each fabric table filtered by mission_id
     this.attachTableListener('missions', 'missions', (payload) => {
       this.emit(this.classifyMissionEvent(payload), payload);
     });
@@ -141,7 +127,6 @@ export class MissionChannel {
       this.emit(kind, payload);
     });
 
-    // Open the WebSocket
     await new Promise<void>((resolve, reject) => {
       this.channel!.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
@@ -153,9 +138,6 @@ export class MissionChannel {
     });
   }
 
-  /**
-   * Close the WebSocket subscription and release resources.
-   */
   async unsubscribe(): Promise<void> {
     if (this.channel) {
       await this.supabase.removeChannel(this.channel);
@@ -172,7 +154,6 @@ export class MissionChannel {
   ): void {
     if (!this.channel) return;
 
-    // Filter by mission_id where the column exists
     const filter = table === 'memories' || table === 'human_approvals'
       ? undefined
       : `mission_id=eq.${this.missionId}`;
@@ -208,7 +189,6 @@ export class MissionChannel {
       },
     };
 
-    // Fire targeted handlers
     const targetedHandlers = this.handlers.get(kind);
     if (targetedHandlers) {
       for (const handler of targetedHandlers) {
@@ -221,7 +201,6 @@ export class MissionChannel {
       }
     }
 
-    // Fire global handlers
     for (const handler of this.globalHandlers) {
       try {
         void handler(event);

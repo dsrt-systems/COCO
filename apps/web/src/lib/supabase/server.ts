@@ -18,11 +18,33 @@ export async function createClient() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // Called from a Server Component — safe to ignore if middleware
-            // is refreshing sessions.
+            // Server component fallback
           }
         },
       },
     },
   );
+}
+
+export async function createServerSupabase() {
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+
+  let organizationId = 'org_default';
+
+  if (user) {
+    const { data: membership } = await client
+      .schema('identity')
+      .from('memberships')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (membership?.organization_id) {
+      organizationId = membership.organization_id;
+    }
+  }
+
+  return { client, user, organizationId };
 }

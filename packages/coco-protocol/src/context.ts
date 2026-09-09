@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MemoryScope, MemoryStatus, EpistemicStatus } from './enums.js';
+import { MemoryScope, MemoryStatus, EpistemicStatus } from './enums';
 
 export { MemoryScope, MemoryStatus, EpistemicStatus };
 
