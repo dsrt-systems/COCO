@@ -1,0 +1,86 @@
+import type { ToolDescriptor } from '@coco/protocol';
+import type { ToolRegistry } from './registry.js';
+
+export const BUILTIN_TOOLS: ToolDescriptor[] = [
+  {
+    tool_id: 'd1_browser_automation',
+    tool_version: '1.0.0',
+    display_name: 'Headless Browser Operator',
+    description: 'Fetch and parse web pages in an isolated browser',
+    category: 'browser',
+    operator_agent_id: 'D1_browser_operator',
+    input_schema_json: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
+    output_schema_json: { type: 'object', properties: { content: { type: 'string' } } },
+    required_scopes: ['network_egress', 'sandbox_exec'],
+    requires_human_approval: false,
+    idempotent: true,
+    destructive: false,
+    default_limits: { cpu_cores: 2, memory_mb: 2048, disk_mb: 2048, gpu_count: 0, max_wall_seconds: 60 },
+  },
+  {
+    tool_id: 'd2_terminal_exec',
+    tool_version: '1.0.0',
+    display_name: 'Terminal Operator',
+    description: 'Execute shell commands in an isolated container',
+    category: 'terminal',
+    operator_agent_id: 'D2_terminal_operator',
+    input_schema_json: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string' } }, required: ['command'] },
+    output_schema_json: { type: 'object', properties: { stdout: { type: 'string' } } },
+    required_scopes: ['sandbox_exec', 'workspace_write'],
+    requires_human_approval: false,
+    idempotent: false,
+    destructive: false,
+    default_limits: { cpu_cores: 2, memory_mb: 1024, disk_mb: 2048, gpu_count: 0, max_wall_seconds: 120 },
+  },
+  {
+    tool_id: 'd3_git_manager',
+    tool_version: '1.0.0',
+    display_name: 'Git Operator',
+    description: 'Manage git repositories',
+    category: 'git',
+    operator_agent_id: 'D3_git_operator',
+    input_schema_json: { type: 'object', properties: { command: { type: 'string' }, repo_url: { type: 'string' } }, required: ['command'] },
+    output_schema_json: { type: 'object', properties: { stdout: { type: 'string' } } },
+    required_scopes: ['sandbox_exec', 'workspace_write', 'network_egress'],
+    requires_human_approval: false,
+    idempotent: false,
+    destructive: false,
+    default_limits: { cpu_cores: 2, memory_mb: 1024, disk_mb: 2048, gpu_count: 0, max_wall_seconds: 300 },
+  },
+  {
+    tool_id: 'd4_db_query',
+    tool_version: '1.0.0',
+    display_name: 'Database Operator',
+    description: 'Execute SQL queries safely',
+    category: 'database',
+    operator_agent_id: 'D4_database_operator',
+    input_schema_json: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+    output_schema_json: { type: 'object', properties: { result: { type: 'string' } } },
+    required_scopes: ['sandbox_exec', 'network_egress'],
+    requires_human_approval: false,
+    idempotent: true,
+    destructive: false,
+    default_limits: { cpu_cores: 2, memory_mb: 1024, disk_mb: 1024, gpu_count: 0, max_wall_seconds: 60 },
+  },
+  {
+    tool_id: 'd5_deploy_manager',
+    tool_version: '1.0.0',
+    display_name: 'Deployment Operator',
+    description: 'Trigger infrastructure and code deployments',
+    category: 'deploy',
+    operator_agent_id: 'D5_deploy_operator',
+    input_schema_json: { type: 'object', properties: { target: { type: 'string' } }, required: ['target'] },
+    output_schema_json: { type: 'object', properties: { deploy_log: { type: 'string' } } },
+    required_scopes: ['sandbox_exec', 'network_egress'],
+    requires_human_approval: true,
+    idempotent: false,
+    destructive: true,
+    default_limits: { cpu_cores: 4, memory_mb: 4096, disk_mb: 8192, gpu_count: 0, max_wall_seconds: 600 },
+  },
+];
+
+export async function seedTools(registry: ToolRegistry): Promise<void> {
+  for (const tool of BUILTIN_TOOLS) {
+    await registry.register(tool);
+  }
+}

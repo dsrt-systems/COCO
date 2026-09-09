@@ -1,63 +1,33 @@
-/**
- * SHA-256 hashing utilities. Uses Web Crypto API (works in Edge + Node 20+).
- */
+import { createHash } from 'node:crypto';
 
-const encoder = new TextEncoder();
+export const ZERO_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
-async function sha256Hex(input: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', input);
-  return bytesToHex(new Uint8Array(digest));
+export function sha256Hex(data: string | Uint8Array): string {
+  return createHash('sha256').update(data).digest('hex');
 }
 
-function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+export function hashSha256(data: string | Uint8Array): string {
+  return sha256Hex(data);
 }
 
-/**
- * Hash a UTF-8 string with SHA-256, return hex.
- */
-export async function hashString(input: string): Promise<string> {
-  return sha256Hex(encoder.encode(input).buffer as ArrayBuffer);
+export function hashString(str: string): string {
+  return sha256Hex(str);
 }
 
-/**
- * Hash a JSON-serializable value with SHA-256. Uses canonical JSON.
- */
-export async function hashJson(input: unknown): Promise<string> {
-  return hashString(canonicalJson(input));
+export function canonicalJson(obj: unknown): string {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(canonicalJson).join(',') + ']';
+  }
+  const keys = Object.keys(obj as Record<string, unknown>).sort();
+  const pairs = keys.map(
+    (k) => JSON.stringify(k) + ':' + canonicalJson((obj as Record<string, unknown>)[k])
+  );
+  return '{' + pairs.join(',') + '}';
 }
 
-/**
- * Canonical JSON: sorted keys, no whitespace. Deterministic across serializations.
- */
-export function canonicalJson(input: unknown): string {
-  return JSON.stringify(input, sortKeysReplacer());
+export function hashJson(obj: unknown): string {
+  return sha256Hex(canonicalJson(obj));
 }
-
-function sortKeysReplacer() {
-  return (_key: string, value: unknown): unknown => {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-      return value;
-    }
-    const sorted: Record<string, unknown> = {};
-    for (const k of Object.keys(value as Record<string, unknown>).sort()) {
-      sorted[k] = (value as Record<string, unknown>)[k];
-    }
-    return sorted;
-  };
-}
-
-/**
- * Chain-hash: sha256(prevHash + canonicalJson(current)).
- * Used for tamper-evident audit logs.
- */
-export async function chainHash(prevHash: string, current: unknown): Promise<string> {
-  return hashString(prevHash + canonicalJson(current));
-}
-
-/**
- * The zero hash used as the starting point of a hash chain.
- */
-export const ZERO_HASH = '0'.repeat(64);

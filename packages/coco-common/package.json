@@ -9,13 +9,13 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "clean": "rm -rf node_modules"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "ulid": "^2.3.0"
   },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.2"
   }
 }

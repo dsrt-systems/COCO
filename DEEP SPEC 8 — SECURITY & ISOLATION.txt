@@ -1,4 +1,4 @@
-DEEP SPEC 8 — SECURITY & ISOLATION
+# DEEP SPEC 8 — SECURITY & ISOLATION
 System: DSRT COCO
 Layer: Security Fabric (Fabric 11) + cross-cutting security posture
 Status: Approved & Locked Specification

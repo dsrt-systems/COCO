@@ -27,7 +27,10 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+  const protectedPrefixes = ['/dashboard', '/security', '/constitution', '/missions'];
+  const isProtected = protectedPrefixes.some((p) => request.nextUrl.pathname.startsWith(p));
+
+  if (!user && isProtected) {
     const url = request.nextUrl.clone();
     url.pathname = '/sign-in';
     return NextResponse.redirect(url);
@@ -39,17 +42,6 @@ export async function updateSession(request: NextRequest) {
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
-  }
-
-  // Also protect /security and /constitution
-  if (
-    !user &&
-    (request.nextUrl.pathname.startsWith('/security') ||
-      request.nextUrl.pathname.startsWith('/constitution'))
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/sign-in';
     return NextResponse.redirect(url);
   }
 

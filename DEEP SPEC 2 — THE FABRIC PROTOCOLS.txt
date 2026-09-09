@@ -1,4 +1,4 @@
-DEEP SPEC 2 — THE FABRIC PROTOCOLS
+# DEEP SPEC 2 — THE FABRIC PROTOCOLS
 System: DSRT COCO
 Layer: Inter-Fabric Communication Standard
 Status: Approved & Locked Specification

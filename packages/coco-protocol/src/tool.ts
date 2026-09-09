@@ -1,96 +1,9 @@
 import { z } from 'zod';
-import { ToolStatus, ToolScope, ErrorCategory } from './enums';
-import { ArtifactRefSchema, Sha256HexSchema } from './shared';
+import { ToolScope } from './enums.js';
 
-/**
- * Tool Protocol (Deep Spec 2 §4)
- */
+export { ToolScope };
 
-export const NetworkPolicySchema = z.object({
-  egress_allowed: z.boolean().default(false),
-  allowed_domains: z.array(z.string()).default([]),
-  allowed_ports: z.array(z.number().int()).default([]),
-  proxy_required: z.boolean().default(true),
-});
-export type NetworkPolicy = z.infer<typeof NetworkPolicySchema>;
-
-export const ResourceLimitsSchema = z.object({
-  cpu_cores: z.number().int().positive().default(1),
-  memory_mb: z.number().int().positive().default(512),
-  disk_mb: z.number().int().positive().default(1024),
-  gpu_count: z.number().int().nonnegative().default(0),
-  max_wall_seconds: z.number().int().positive().default(300),
-});
-export type ResourceLimits = z.infer<typeof ResourceLimitsSchema>;
-
-export const ExecutionContextSchema = z.object({
-  sandbox_id: z.string().optional(),
-  workspace_root: z.string().default('/workspace'),
-  env: z.record(z.string(), z.string()).default({}),
-  mounted_artifact_refs: z.array(z.string()).default([]),
-  network_policy: NetworkPolicySchema.default({}),
-});
-export type ExecutionContext = z.infer<typeof ExecutionContextSchema>;
-
-export const ToolInvocationRequestSchema = z.object({
-  invocation_id: z.string(),
-  agent_instance_id: z.string(),
-  task_id: z.string().optional(),
-  mission_id: z.string(),
-
-  tool_id: z.string(),
-  tool_version: z.string().default('latest'),
-
-  arguments: z.record(z.string(), z.unknown()),
-  arguments_hash: Sha256HexSchema,
-
-  exec_context: ExecutionContextSchema.default({}),
-
-  capability_token: z.string(),
-  token_expiry_unix_ms: z.number().int().nonnegative(),
-
-  timeout_ms: z.number().int().positive().default(60000),
-  max_output_bytes: z.number().int().positive().default(1048576),
-  limits: ResourceLimitsSchema.default({}),
-  requires_human_approval: z.boolean().default(false),
-});
-export type ToolInvocationRequest = z.infer<typeof ToolInvocationRequestSchema>;
-
-export const ErrorReportSchema = z.object({
-  category: ErrorCategory,
-  message: z.string(),
-  root_cause: z.string().optional(),
-  suggested_repair: z.string().optional(),
-  stack_trace: z.array(z.string()).default([]),
-  retryable: z.boolean().default(false),
-  retry_after_ms: z.number().int().nonnegative().optional(),
-});
-export type ErrorReport = z.infer<typeof ErrorReportSchema>;
-
-export const ToolInvocationResultSchema = z.object({
-  invocation_id: z.string(),
-  tool_id: z.string(),
-  status: ToolStatus,
-
-  output: z.record(z.string(), z.unknown()).optional(),
-  output_artifact_ref: ArtifactRefSchema.optional(),
-  output_hash: Sha256HexSchema.optional(),
-
-  stderr_summary: z.string().optional(),
-  logs_artifact_ref: ArtifactRefSchema.optional(),
-  exit_code: z.number().int().optional(),
-
-  started_at_unix_ms: z.number().int().nonnegative(),
-  completed_at_unix_ms: z.number().int().nonnegative(),
-  wall_time_ms: z.number().int().nonnegative(),
-  cpu_time_ms: z.number().int().nonnegative().optional(),
-  memory_peak_mb: z.number().int().nonnegative().optional(),
-
-  error: ErrorReportSchema.optional(),
-});
-export type ToolInvocationResult = z.infer<typeof ToolInvocationResultSchema>;
-
-export const ToolCategorySchema = z.enum([
+export const ToolCategory = z.enum([
   'browser',
   'terminal',
   'filesystem',
@@ -105,42 +18,128 @@ export const ToolCategorySchema = z.enum([
   'research_db',
   'domain_specific',
 ]);
-export type ToolCategory = z.infer<typeof ToolCategorySchema>;
+export type ToolCategory = z.infer<typeof ToolCategory>;
 
-export const ToolDescriptorSchema = z.object({
+export const ToolExecutionStatus = z.enum([
+  'success',
+  'failure_tool',
+  'failure_timeout',
+  'failure_oom',
+  'failure_policy',
+  'failure_permission',
+  'failure_sandbox',
+  'awaiting_approval',
+  'cancelled',
+]);
+export type ToolExecutionStatus = z.infer<typeof ToolExecutionStatus>;
+
+export const ResourceLimits = z.object({
+  cpu_cores: z.number().int().positive().default(2),
+  memory_mb: z.number().int().positive().default(1024),
+  disk_mb: z.number().int().positive().default(2048),
+  gpu_count: z.number().int().min(0).default(0),
+  max_wall_seconds: z.number().int().positive().default(120),
+});
+export type ResourceLimits = z.infer<typeof ResourceLimits>;
+
+export const NetworkPolicy = z.object({
+  egress_allowed: z.boolean().default(false),
+  allowed_domains: z.array(z.string()).default([]),
+  blocked_domains: z.array(z.string()).default([]),
+  allowed_ports: z.array(z.number().int()).default([]),
+  proxy_required: z.boolean().default(false),
+  dns_over_https_only: z.boolean().default(true),
+  bytes_per_second_limit: z.number().int().default(10485760),
+});
+export type NetworkPolicy = z.infer<typeof NetworkPolicy>;
+
+export const ToolDescriptor = z.object({
   tool_id: z.string(),
-  tool_version: z.string(),
+  tool_version: z.string().default('1.0.0'),
   display_name: z.string(),
   description: z.string(),
-
-  category: ToolCategorySchema,
+  category: ToolCategory,
   operator_agent_id: z.string(),
-
-  input_schema_uri: z.string(),
-  output_schema_uri: z.string(),
-
-  required_scopes: z.array(ToolScope),
+  input_schema_json: z.record(z.unknown()),
+  output_schema_json: z.record(z.unknown()),
+  required_scopes: z.array(ToolScope).default([]),
   requires_human_approval: z.boolean().default(false),
   idempotent: z.boolean().default(false),
   destructive: z.boolean().default(false),
-  default_limits: ResourceLimitsSchema.default({}),
-
-  median_latency_ms: z.number().nonnegative().optional(),
-  failure_rate: z.number().min(0).max(1).optional(),
-  avg_cost_usd: z.number().nonnegative().optional(),
+  default_limits: ResourceLimits.default({
+    cpu_cores: 2,
+    memory_mb: 1024,
+    disk_mb: 2048,
+    gpu_count: 0,
+    max_wall_seconds: 120,
+  }),
 });
-export type ToolDescriptor = z.infer<typeof ToolDescriptorSchema>;
+export type ToolDescriptor = z.infer<typeof ToolDescriptor>;
 
-export const CapabilityTokenSchema = z.object({
-  token_id: z.string(),
+export const ToolInvocationRequest = z.object({
   agent_instance_id: z.string(),
+  task_id: z.string().optional(),
+  mission_id: z.string().optional(),
+  run_id: z.string().optional(),
   tool_id: z.string(),
-  granted_scope: ToolScope,
-  max_invocations: z.number().int().positive(),
-  invocations_used: z.number().int().nonnegative().default(0),
-  issued_at_unix_ms: z.number().int().nonnegative(),
-  expires_at_unix_ms: z.number().int().nonnegative(),
-  issued_by: z.string().default('a6_risk_officer'),
-  signature: z.string(),
+  tool_version: z.string().default('1.0.0'),
+  arguments: z.record(z.unknown()),
+  capability_token_id: z.string(),
+  timeout_ms: z.number().int().positive().default(120000),
+  max_output_bytes: z.number().int().positive().default(5242880),
+  requires_human_approval: z.boolean().default(false),
 });
-export type CapabilityToken = z.infer<typeof CapabilityTokenSchema>;
+export type ToolInvocationRequest = z.infer<typeof ToolInvocationRequest>;
+
+export const ToolInvocationResult = z.object({
+  invocation_id: z.string(),
+  tool_id: z.string(),
+  status: ToolExecutionStatus,
+  output: z.record(z.unknown()).optional(),
+  logs_excerpt: z.string().optional(),
+  stderr_summary: z.string().optional(),
+  exit_code: z.number().int().optional(),
+  wall_time_ms: z.number().int().default(0),
+  cpu_time_ms: z.number().int().default(0),
+  memory_peak_mb: z.number().int().default(0),
+  error_category: z.string().optional(),
+  error_message: z.string().optional(),
+  retryable: z.boolean().default(false),
+  started_at: z.string(),
+  completed_at: z.string().optional(),
+});
+export type ToolInvocationResult = z.infer<typeof ToolInvocationResult>;
+
+export const SandboxSpec = z.object({
+  runtime_kind: z.enum(['e2b_firecracker', 'docker', 'local']).default('e2b_firecracker'),
+  image: z.string().default('base'),
+  resource_limits: ResourceLimits.default({
+    cpu_cores: 2,
+    memory_mb: 1024,
+    disk_mb: 2048,
+    gpu_count: 0,
+    max_wall_seconds: 120,
+  }),
+  network_policy: NetworkPolicy.default({
+    egress_allowed: false,
+    allowed_domains: [],
+    blocked_domains: [],
+    allowed_ports: [],
+    proxy_required: false,
+    dns_over_https_only: true,
+    bytes_per_second_limit: 10485760,
+  }),
+  workspace_root: z.string().default('/workspace'),
+  ttl_seconds: z.number().int().positive().default(600),
+});
+export type SandboxSpec = z.infer<typeof SandboxSpec>;
+
+export const SandboxHandle = z.object({
+  sandbox_id: z.string(),
+  external_sandbox_id: z.string(),
+  runtime_kind: z.string(),
+  workspace_root: z.string(),
+  status: z.enum(['allocating', 'ready', 'executing', 'released', 'failed']),
+  allocated_at: z.string(),
+});
+export type SandboxHandle = z.infer<typeof SandboxHandle>;

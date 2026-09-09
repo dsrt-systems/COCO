@@ -1,4 +1,4 @@
-DEEP SPEC 5 — THE EXPERT-BEATING PLAYBOOK
+# DEEP SPEC 5 — THE EXPERT-BEATING PLAYBOOK
 System: DSRT COCO
 Layer: Domain Intelligence & Specialist Elevation
 Status: Approved & Locked Specification
@@ -136,7 +136,7 @@ text
 
 RULE 1  — EVERY DOCUMENT HAS PROVENANCE
           source URL, retrieval timestamp, SHA-256, license class
-          
+
 RULE 2  — LICENSE-COMPATIBLE OR EXCLUDED
           Copyrighted sources are used only under license
           (subscription APIs, licensed datasets, first-sale copies).
@@ -168,7 +168,7 @@ text
 
                         SPECIALIST                CRITIC
                         ──────────                ──────
-                        
+
     Stance:             Constructive              Adversarial
     Goal:               Produce best answer       Break the best answer
     Model:              Same tier                 Same or higher tier
@@ -311,35 +311,35 @@ tools:
   - id: statute_lookup
     scope: read_only
     contract: "given jurisdiction+section → returns text + effective_date + amendments"
-    
+
   - id: case_citation_resolver
     scope: read_only
     contract: "given citation → returns full text + treatment_status (KeyCite/Shepard's)"
-    
+
   - id: precedent_semantic_search
     scope: read_only
     contract: "given fact pattern + jurisdiction → top-K binding + persuasive precedents"
-    
+
   - id: jurisdiction_detector
     scope: read_only
     contract: "given text → detects choice-of-law + venue clauses"
-    
+
   - id: defined_terms_extractor
     scope: read_only
     contract: "given contract → extracts defined terms + usage graph"
-    
+
   - id: clause_classifier
     scope: read_only
     contract: "given clause → classifies (indemnification, limitation, IP assignment, etc.)"
-    
+
   - id: playbook_delta_analyzer
     scope: read_only
     contract: "given contract + playbook → returns delta list ranked by severity"
-    
+
   - id: contract_redline_engine
     scope: workspace_write
     contract: "given diff spec → produces tracked-changes DOCX"
-    
+
   - id: deadline_calculator
     scope: compute_exec
     contract: "computes statutory deadlines (holidays, jurisdiction rules)"
@@ -407,21 +407,21 @@ attack_patterns:
     - Verify quote appears verbatim in cited paragraph
     - Verify case is still good law (Shepard's/KeyCite)
     - Flag any citation format errors
-    
+
   jurisdictional_attack:
     - Verify governing law matches jurisdiction of cited authorities
     - Flag if persuasive authority is being treated as binding
     - Verify effective_date of statutes cited is applicable
-    
+
   counter_argument_check:
     - Search for cases holding the opposite conclusion
     - Verify those adverse cases are addressed or distinguished
     - Flag omissions
-    
+
   playbook_completeness:
     - Verify every playbook clause was checked
     - Flag any material clauses missed
-    
+
   reasoning_soundness:
     - Test each IRAC application step for logical validity
     - Flag conclusory statements without support
@@ -543,7 +543,7 @@ primary_sources:
     - PEP_index_all_accepted_PEPs
     - typing_module_documentation
     refresh: with each Python release
-    
+
   framework_documentation:
     - FastAPI_official_docs
     - Pydantic_v2_docs
@@ -553,23 +553,23 @@ primary_sources:
     - Ruff_rule_catalog
     - Mypy_documentation
     refresh: weekly poll of upstream repos
-    
+
   security_advisories:
     - OSV_database                              # api: osv.dev
     - PyPI_security_advisories                  # api: pypi.org
     - GitHub_Security_Advisory_DB               # api: github.com/advisories
     refresh: real-time webhook
-    
+
   design_patterns:
     - Clean_Architecture_reference
     - Domain_Driven_Design_reference
     - Twelve_Factor_App
     - Google_Python_Style_Guide
-    
+
   performance_benchmarks:
     - Pyperformance_baselines
     - AsyncIO_benchmarks
-    
+
   known_good_repositories:
     curated_examples:
       - production-quality FastAPI reference implementations
@@ -693,24 +693,24 @@ attack_patterns:
     - Look for missing await
     - Look for synchronous I/O in async paths
     - Look for missing timeout/cancellation handling
-    
+
   error_handling_attack:
     - Look for bare except
     - Look for exceptions swallowed silently
     - Look for missing error responses in API layer
-    
+
   security_attack:
     - Look for SQL injection surface
     - Look for hardcoded secrets
     - Look for missing input validation
     - Look for CORS misconfigurations
     - Look for JWT verification bypasses
-    
+
   resource_attack:
     - Look for unbounded loops/queues
     - Look for missing connection pool limits
     - Look for missing memory bounds on caches
-    
+
   test_quality_attack:
     - Verify tests actually assert behavior (not just coverage)
     - Verify integration tests exercise error paths
@@ -816,24 +816,24 @@ primary_sources:
     - IFRS_reporting_databases                    # licensed
     - India_MCA_filings                          # api: MCA
     refresh: real-time (webhook on new filing)
-    
+
   standards:
     - US_GAAP_ASC_codification                   # licensed FASB
     - IFRS_full_standards                         # licensed IFRS Foundation
     - SEC_Regulation_S_X_S_K
     refresh: with standard-setter releases
-    
+
   market_data:
     - Treasury_yields                             # api: US Treasury
     - Historical_beta_databases                   # api: Bloomberg / Refinitiv
     - Comparable_company_multiples                # licensed FactSet
     refresh: real-time
-    
+
   valuation_playbooks:
     - McKinsey_Valuation_9th_ed
     - Damodaran_online_databases                  # public + api
     - CFA_curriculum_reference
-    
+
   precedent_transactions:
     - M&A_deal_databases                          # licensed Mergermarket
     refresh: daily
@@ -843,25 +843,25 @@ YAML
 tools:
   - id: sec_edgar_extractor
     contract: "given ticker+form+period → returns structured financial statements + citations"
-    
+
   - id: financial_calculator_engine
     contract: "computes DCF, LBO, comparable multiples, WACC, terminal value"
-    
+
   - id: monte_carlo_simulator
     contract: "given input distributions → runs N iterations, returns full distribution"
-    
+
   - id: three_statement_builder
     contract: "given driver assumptions → constructs linked IS/BS/CF with balance verification"
-    
+
   - id: sensitivity_engine
     contract: "generates 2D sensitivity tables across specified drivers"
-    
+
   - id: excel_formula_builder
     contract: "produces .xlsx with dynamic formulas, no hardcoded values"
-    
+
   - id: chart_generator
     contract: "produces publication-quality valuation charts"
-    
+
   - id: comps_analyzer
     contract: "given target + comparable set → returns trading & transaction multiples"
 5. The Cognitive Method (Audited Dynamic Modeling)
@@ -936,23 +936,23 @@ attack_patterns:
     - Verify Assets = Liabilities + Equity in every period
     - Verify CF from Ops + Investing + Financing = ΔCash
     - Verify Retained Earnings roll-forward
-    
+
   formula_audit:
     - Every cell must be a formula OR a documented assumption
     - Zero hardcoded values in calculation cells
     - No circular references without documented iteration
-    
+
   historical_verification:
     - Re-fetch every cited filing
     - Verify extracted number matches source page/table
     - Flag any transcription errors
-    
+
   assumption_reasonableness:
     - Growth rates > industry median → require justification
     - Margin expansion > 200bps → require justification
     - Terminal growth > long-run GDP → flag
     - WACC components each traced to observable source
-    
+
   comparability:
     - Comp set includes appropriate peers
     - Multiples calculated consistently across peers
@@ -1034,26 +1034,26 @@ primary_sources:
     - Embase                                      # licensed
     - Cochrane_Library                            # licensed
     refresh: daily
-    
+
   trials:
     - ClinicalTrials_gov                         # api: NCT
     - EU_CTR                                     # api: EMA
     - WHO_ICTRP                                  # api: WHO
     refresh: daily
-    
+
   drug_information:
     - FDA_Drug_Labels                            # api: openFDA
     - EMA_EPAR
     - DailyMed
     refresh: real-time (label changes)
-    
+
   guidelines:
     - USPSTF_recommendations
     - NICE_guidelines
     - WHO_guidelines
     - Specialty_society_guidelines               # multiple licensed
     refresh: with guideline updates
-    
+
   standards:
     - CONSORT_statement
     - PRISMA_2020_checklist

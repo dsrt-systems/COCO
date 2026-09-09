@@ -18,7 +18,6 @@ export async function GET() {
   try {
     const { publicKey, privateKey } = loadKeys();
     keysOk = publicKey.length === 32 && privateKey.length === 32;
-
     const msg = 'health-check-' + Date.now();
     const sig = await signMessage(msg);
     cryptoOk = await verifySignature(msg, sig);
@@ -27,16 +26,21 @@ export async function GET() {
     cryptoOk = false;
   }
 
+  const redisOk = Boolean(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN,
+  );
+
   return NextResponse.json({
     status: 'ok',
     service: 'coco-web',
     version: '0.1.0',
-    phase: 3,
+    phase: 4,
     checks: {
       constitution_loaded: constitutionOk,
       laws_count: laws,
       ed25519_keys_loaded: keysOk,
       crypto_sign_verify: cryptoOk,
+      redis_configured: redisOk,
     },
     timestamp: new Date().toISOString(),
   });

@@ -6,11 +6,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./tokens": "./src/tokens.ts",
-    "./audit": "./src/audit.ts",
-    "./permissions": "./src/permissions.ts",
-    "./keys": "./src/keys.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -18,11 +14,11 @@
   "dependencies": {
     "@coco/common": "workspace:*",
     "@coco/protocol": "workspace:*",
-    "@noble/ed25519": "^2.2.3",
-    "@noble/hashes": "^1.6.1"
+    "@noble/ed25519": "^2.1.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^22.10.5",
-    "typescript": "^5.7.3"
+    "@types/node": "^20.17.10",
+    "typescript": "^5.7.2"
   }
 }

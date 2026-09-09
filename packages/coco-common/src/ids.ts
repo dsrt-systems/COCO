@@ -1,68 +1,112 @@
-import { ulid, monotonicFactory } from 'ulid';
+import { ulid } from 'ulid';
 
-const monotonic = monotonicFactory();
+export type IdKind =
+  | 'user'
+  | 'org'
+  | 'membership'
+  | 'session'
+  | 'project'
+  | 'mission'
+  | 'task'
+  | 'graph'
+  | 'edge'
+  | 'checkpoint'
+  | 'agentDef'
+  | 'agentInst'
+  | 'run'
+  | 'finding'
+  | 'decision'
+  | 'model'
+  | 'call'
+  | 'tool'
+  | 'toolCall'
+  | 'sandbox'
+  | 'memory'
+  | 'packet'
+  | 'conv'
+  | 'msg'
+  | 'node'
+  | 'source'
+  | 'evidence'
+  | 'citation'
+  | 'artifact'
+  | 'verification'
+  | 'levelResult'
+  | 'checkResult'
+  | 'criticReport'
+  | 'repair'
+  | 'token'
+  | 'capabilityToken'
+  | 'approval'
+  | 'audit'
+  | 'event'
+  | 'usage'
+  | 'evaluation'
+  | 'policy'
+  | 'subscription'
+  | 'proposal'
+  | 'shadow';
 
-export function newId(): string {
-  return ulid();
-}
-
-export function newMonotonicId(): string {
-  return monotonic();
-}
-
-export const idPrefixes = {
-  organization: 'org',
+const prefixes: Record<IdKind, string> = {
   user: 'usr',
-  membership: 'mem',
+  org: 'org',
+  membership: 'mbr',
   session: 'ses',
   project: 'prj',
   mission: 'mis',
   task: 'tsk',
-  taskGraph: 'tgr',
+  graph: 'grp',
+  edge: 'edg',
   checkpoint: 'chk',
-  agentDefinition: 'agd',
-  agentInstance: 'ain',
-  agentRun: 'run',
+  agentDef: 'agd',
+  agentInst: 'ain',
+  run: 'run',
   finding: 'fnd',
   decision: 'dec',
-  memory: 'mem',
-  contextPacket: 'ctx',
-  conversation: 'cnv',
-  message: 'msg',
-  modelCall: 'mcl',
-  toolCall: 'tcl',
+  model: 'mdl',
+  call: 'cal',
+  tool: 'tol',
+  toolCall: 'tlc',
   sandbox: 'sbx',
+  memory: 'mem',
+  packet: 'ctx',
+  conv: 'cnv',
+  msg: 'msg',
+  node: 'nod',
   source: 'src',
   evidence: 'evd',
   citation: 'cit',
   artifact: 'art',
   verification: 'ver',
-  levelResult: 'lvr',
+  levelResult: 'lvl',
   checkResult: 'chr',
   criticReport: 'crr',
-  repairOrder: 'rep',
-  capabilityToken: 'cap',
+  repair: 'rep',
+  token: 'tkn',
+  capabilityToken: 'tkn',
   approval: 'apr',
   audit: 'aud',
   event: 'evt',
+  usage: 'usg',
+  evaluation: 'evl',
+  policy: 'pol',
+  subscription: 'sub',
   proposal: 'prp',
   shadow: 'shd',
-  charter: 'cht',
-} as const;
+};
 
-export type IdPrefix = keyof typeof idPrefixes;
-
-export function prefixedId(kind: IdPrefix): string {
-  return `${idPrefixes[kind]}_${ulid()}`;
+export function newUlid(): string {
+  return ulid();
 }
 
-const ULID_REGEX = /^[0-9A-HJKMNP-TV-Z]{26}$/;
-const PREFIXED_ULID_REGEX = /^[a-z]+_[0-9A-HJKMNP-TV-Z]{26}$/;
-
-export function isUlid(value: string): boolean {
-  return ULID_REGEX.test(value);
+export function prefixedId(kind: IdKind): string {
+  return `${prefixes[kind]}_${ulid()}`;
 }
 
 export function isPrefixedId(value: string): boolean {
-  return PREFIXED_ULID_REGEX.test(value);
+  return /^[a-z]{3}_[0-9A-HJKMNP-TV-Z]{26}$/.test(value);
+}
+
+export function idPrefix(kind: IdKind): string {
+  return prefixes[kind];
 }

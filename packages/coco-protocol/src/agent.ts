@@ -1,158 +1,121 @@
 import { z } from 'zod';
-import { AgentTier, RunOutcome, EpistemicStatus, MemoryScope, ToolScope, AccessMode } from './enums';
-import {
-  ArtifactRefSchema,
-  ContextPacketRefSchema,
-  ModelCallRefSchema,
-  ToolCallRefSchema,
-  DecisionRefSchema,
-  MemoryRefSchema,
-  EvidenceRefSchema,
-  ConfidenceScoreSchema,
-} from './shared';
-import { ResourceBudgetSchema, ResourceUsageSchema } from './mission';
+import { AgentTier, EpistemicStatus, MemoryScope, RunOutcome, ToolScope } from './enums.js';
 
-/**
- * Agent Protocol (Deep Spec 2 §3)
- */
+export { AgentTier, EpistemicStatus, RunOutcome, ToolScope };
 
-export const ToolGrantSchema = z.object({
+export const AgentToolRequirement = z.object({
   tool_id: z.string(),
   scope: ToolScope,
-  max_invocations: z.number().int().positive().default(10),
-  grant_ttl_seconds: z.number().int().positive().default(3600),
+  is_required: z.boolean().default(true),
 });
-export type ToolGrant = z.infer<typeof ToolGrantSchema>;
+export type AgentToolRequirement = z.infer<typeof AgentToolRequirement>;
 
-export const MemoryScopeGrantSchema = z.object({
-  scope: MemoryScope,
-  mode: AccessMode,
+export const ModelProfile = z.object({
+  reasoning_model: z.string(),
+  fallback_models: z.array(z.string()).default([]),
+  temperature: z.number().min(0).max(1).default(0.0),
+  max_context_tokens: z.number().int().default(128000),
 });
-export type MemoryScopeGrant = z.infer<typeof MemoryScopeGrantSchema>;
+export type ModelProfile = z.infer<typeof ModelProfile>;
 
-export const ModelPreferencesSchema = z.object({
-  preferred_models: z.array(z.string()).default([]),
-  excluded_models: z.array(z.string()).default([]),
-  minimum_tier: z.string().optional(),
-  min_context_tokens: z.number().int().nonnegative().optional(),
-  requires_tool_calling: z.boolean().default(false),
-  requires_vision: z.boolean().default(false),
-  requires_json_mode: z.boolean().default(false),
-  allows_streaming: z.boolean().default(true),
+export const AgentConstraints = z.object({
+  must_rules: z.array(z.string()).default([]),
+  must_not_rules: z.array(z.string()).default([]),
+  requires_human_approval: z.array(z.string()).default([]),
 });
-export type ModelPreferences = z.infer<typeof ModelPreferencesSchema>;
+export type AgentConstraints = z.infer<typeof AgentConstraints>;
 
-export const DynamicAgentSpecSchema = z.object({
+export const EvaluationRubric = z.object({
+  metrics: z.record(z.number()).default({}),
+  rejection_threshold: z.number().min(0).max(1).default(0.85),
+});
+export type EvaluationRubric = z.infer<typeof EvaluationRubric>;
+
+export const AgentDefinitionContract = z.object({
+  agent_id: z.string().regex(/^[A-Z][0-9]+_[a-z0-9_]+$/),
+  name: z.string(),
+  version: z.string().default('1.0.0'),
+  tier: AgentTier,
   domain: z.string(),
-  knowledge_sources: z.array(z.string()).default([]),
-  methodology_framework: z.string(),
-  methodology_steps: z.array(z.string()),
-  system_prompt_template: z.string(),
-});
-export type DynamicAgentSpec = z.infer<typeof DynamicAgentSpecSchema>;
+  reports_to: z.string().nullable().optional(),
 
-export const AgentSpawnRequestSchema = z.object({
-  spawn_id: z.string(),
+  expert_beating_thesis: z.string(),
+  model_profile: ModelProfile,
+  knowledge_sources: z.array(z.string()).default([]),
+  tool_suite: z.array(AgentToolRequirement).default([]),
+
+  system_prompt_template: z.string(),
+  methodology_framework: z.string(),
+  methodology_steps: z.array(z.string()).min(1),
+
+  constraints: AgentConstraints,
+  critic_agent_id: z.string().nullable().optional(),
+  evaluation_rubric: EvaluationRubric,
+
+  allowed_memory_scopes: z.array(MemoryScope).default([]),
+  is_dynamic: z.boolean().default(false),
+});
+export type AgentDefinitionContract = z.infer<typeof AgentDefinitionContract>;
+
+export const AgentSpawnRequest = z.object({
   mission_id: z.string(),
   task_id: z.string().optional(),
   requesting_agent_id: z.string().optional(),
-
   agent_definition_id: z.string(),
-  dynamic_spec: DynamicAgentSpecSchema.optional(),
-
-  initial_context: ContextPacketRefSchema.optional(),
-  tool_grants: z.array(ToolGrantSchema).default([]),
-  memory_grants: z.array(MemoryScopeGrantSchema).default([]),
-  model_preferences: ModelPreferencesSchema.default({}),
-
-  budget: ResourceBudgetSchema.default({}),
-  deadline_unix_ms: z.number().int().nonnegative().optional(),
-  critic_agent_id: z.string().optional(),
+  initial_context_ref: z.string().optional(),
+  model_preferences: z.record(z.unknown()).optional(),
+  budget: z.record(z.unknown()).optional(),
 });
-export type AgentSpawnRequest = z.infer<typeof AgentSpawnRequestSchema>;
+export type AgentSpawnRequest = z.infer<typeof AgentSpawnRequest>;
 
-export const AgentIdentitySchema = z.object({
-  agent_id: z.string(),
-  display_name: z.string(),
-  tier: AgentTier,
-  domain: z.string(),
-  version: z.string(),
-});
-export type AgentIdentity = z.infer<typeof AgentIdentitySchema>;
-
-export const AgentAssignmentSchema = z.object({
-  assignment_id: z.string(),
+export const AgentInstanceRecord = z.object({
   agent_instance_id: z.string(),
-  agent_definition_id: z.string(),
-  task_id: z.string(),
+  organization_id: z.string(),
   mission_id: z.string(),
-  identity: AgentIdentitySchema,
-  assigned_at_unix_ms: z.number().int().nonnegative(),
-  assignment_expiry_unix_ms: z.number().int().nonnegative().optional(),
-  assigned_by: z.string(),
+  agent_definition_id: z.string(),
+  requesting_agent_id: z.string().nullable().optional(),
+  status: z.enum(['spawned', 'running', 'paused', 'completed', 'failed', 'retired']),
+  spawned_at: z.string(),
+  retired_at: z.string().nullable().optional(),
 });
-export type AgentAssignment = z.infer<typeof AgentAssignmentSchema>;
+export type AgentInstanceRecord = z.infer<typeof AgentInstanceRecord>;
 
-export const FindingSchema = z.object({
+export const FindingRecord = z.object({
   finding_id: z.string(),
   claim: z.string(),
-  status: EpistemicStatus,
-  confidence: ConfidenceScoreSchema,
+  epistemic_status: EpistemicStatus,
+  confidence: z.number().min(0).max(1),
   evidence_refs: z.array(z.string()).default([]),
   contradicts_refs: z.array(z.string()).default([]),
 });
-export type Finding = z.infer<typeof FindingSchema>;
+export type FindingRecord = z.infer<typeof FindingRecord>;
+export const FindingSchema = FindingRecord;
 
-export const ConfidenceReportSchema = z.object({
-  overall_confidence: ConfidenceScoreSchema,
-  reasoning: z.string(),
-  caveats: z.array(z.string()).default([]),
-  requires_human_review: z.boolean().default(false),
-});
-export type ConfidenceReport = z.infer<typeof ConfidenceReportSchema>;
-
-export const AgentRunReportSchema = z.object({
+export const AgentRunReport = z.object({
   run_id: z.string(),
   agent_instance_id: z.string(),
   task_id: z.string(),
   mission_id: z.string(),
+  agent_definition_id: z.string(),
 
   outcome: RunOutcome,
   outcome_summary: z.string(),
 
-  findings: z.array(FindingSchema).default([]),
-  artifacts_produced: z.array(ArtifactRefSchema).default([]),
-  decisions_recorded: z.array(DecisionRefSchema).default([]),
-  memories_written: z.array(MemoryRefSchema).default([]),
-  evidence_gathered: z.array(EvidenceRefSchema).default([]),
+  findings: z.array(FindingRecord).default([]),
+  artifacts_produced: z.array(z.string()).default([]),
+  decisions_recorded: z.array(z.string()).default([]),
+  memories_written: z.array(z.string()).default([]),
 
-  model_calls: z.array(ModelCallRefSchema).default([]),
-  tool_calls: z.array(ToolCallRefSchema).default([]),
+  confidence_overall: z.number().min(0).max(1),
+  confidence_reasoning: z.string(),
+  caveats: z.array(z.string()).default([]),
+  requires_human_review: z.boolean().default(false),
+
   assumptions_made: z.array(z.string()).default([]),
   open_questions: z.array(z.string()).default([]),
-
-  confidence: ConfidenceReportSchema,
-  usage: ResourceUsageSchema,
   next_recommended_tasks: z.array(z.string()).default([]),
 
-  started_at_unix_ms: z.number().int().nonnegative(),
-  completed_at_unix_ms: z.number().int().nonnegative(),
+  started_at: z.string(),
+  completed_at: z.string(),
 });
-export type AgentRunReport = z.infer<typeof AgentRunReportSchema>;
-
-export const AgentControlSignalSchema = z.object({
-  signal_id: z.string(),
-  agent_instance_id: z.string(),
-  kind: z.enum([
-    'pause',
-    'resume',
-    'cancel',
-    'escalate',
-    'budget_revise',
-    'context_refresh',
-    'permission_revoke',
-  ]),
-  reason: z.string(),
-  issued_by: z.string(),
-});
-export type AgentControlSignal = z.infer<typeof AgentControlSignalSchema>;
+export type AgentRunReport = z.infer<typeof AgentRunReport>;
