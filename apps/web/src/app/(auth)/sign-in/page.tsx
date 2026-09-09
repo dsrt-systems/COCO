@@ -9,13 +9,12 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2, Mail, Lock, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2, LogIn } from 'lucide-react';
 
 export default function SignInPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'magic' | 'password'>('magic');
   const [loading, setLoading] = useState(false);
 
   const supabase = createBrowserClient(
@@ -25,46 +24,24 @@ export default function SignInPage() {
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
-    if (!email) {
-      toast.error('Please enter your email address');
+    if (!email || !password) {
+      toast.error('Please enter your email and password');
       return;
     }
 
     setLoading(true);
 
     try {
-      if (mode === 'magic') {
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            emailRedirectTo: `${window.location.origin}/callback`,
-          },
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) {
-          if (error.message.includes('rate limit')) {
-            toast.error(
-              'Supabase email rate limit hit. Switch to "Password Sign In" or try again in a few minutes.'
-            );
-          } else {
-            toast.error(error.message);
-          }
-        } else {
-          toast.success('Magic link sent! Check your inbox.');
-        }
+      if (error) {
+        toast.error(error.message);
       } else {
-        // Password Sign In
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) {
-          toast.error(error.message);
-        } else {
-          toast.success('Signed in successfully!');
-          router.push('/dashboard');
-        }
+        toast.success('Signed in successfully!');
+        router.push('/dashboard');
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Sign in failed');
@@ -75,59 +52,24 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
-      {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none" />
 
-      <Link
-        href="/"
-        className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors mb-6"
-      >
+      <Link href="/" className="inline-flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors mb-6 z-10">
         <ArrowLeft className="w-3.5 h-3.5" /> Back to home
       </Link>
 
       <Card className="w-full max-w-md p-8 border-zinc-800 bg-zinc-950/80 backdrop-blur-xl shadow-2xl space-y-6 relative z-10">
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
-            Sign in to COCO
-          </h1>
-          <p className="text-xs text-zinc-400">
-            {mode === 'magic'
-              ? 'Enter your email to receive an instant magic link.'
-              : 'Enter your email and password.'}
-          </p>
-        </div>
-
-        {/* Auth Mode Toggle */}
-        <div className="flex p-1 bg-zinc-900 rounded-lg border border-zinc-800 text-xs">
-          <button
-            type="button"
-            onClick={() => setMode('magic')}
-            className={`flex-1 py-1.5 font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
-              mode === 'magic'
-                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            <Mail className="w-3.5 h-3.5" /> Magic Link
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('password')}
-            className={`flex-1 py-1.5 font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
-              mode === 'password'
-                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            <Lock className="w-3.5 h-3.5" /> Password
-          </button>
+          <div className="w-12 h-12 mx-auto bg-indigo-500/10 border border-indigo-500/20 rounded-full flex items-center justify-center mb-4">
+            <LogIn className="w-6 h-6 text-indigo-400" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Sign In</h1>
+          <p className="text-xs text-zinc-400">Welcome back. Enter your credentials to access the console.</p>
         </div>
 
         <form onSubmit={handleSignIn} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs text-zinc-300">
-              Email Address
-            </Label>
+            <Label htmlFor="email" className="text-xs text-zinc-300">Email Address</Label>
             <Input
               id="email"
               type="email"
@@ -139,38 +81,28 @@ export default function SignInPage() {
             />
           </div>
 
-          {mode === 'password' && (
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs text-zinc-300">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="bg-zinc-900 border-zinc-800 text-zinc-100 focus:border-indigo-500/50"
-              />
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs text-zinc-300">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="bg-zinc-900 border-zinc-800 text-zinc-100 focus:border-indigo-500/50"
+            />
+          </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5"
-          >
+          <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5">
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            {mode === 'magic' ? 'Send Magic Link' : 'Sign In'}
+            Sign In
           </Button>
         </form>
 
         <div className="pt-4 border-t border-zinc-800/80 text-center text-xs text-zinc-500">
           Don&apos;t have an account?{' '}
-          <Link href="/sign-up" className="text-indigo-400 hover:underline">
-            Sign up
-          </Link>
+          <Link href="/sign-up" className="text-indigo-400 hover:underline">Sign up</Link>
         </div>
       </Card>
     </div>
