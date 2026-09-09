@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { AgentRegistry, AgentRuntimeExecutor, CORE_GOVERNANCE_AGENTS } from '@coco/intelligence';
+import { assertOrgCanSpend } from '@coco/billing';
 
 export async function POST(req: Request) {
   try {
     const { client, user, organizationId } = await createServerSupabase();
     if (!user || !organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+      await assertOrgCanSpend(client, organizationId, {
+        estimated_cost_usd: 0.02,
+        requires_frontier: false,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Tier limit exceeded';
+      return NextResponse.json({ error: msg, code: (err as any)?.code }, { status: 402 });
     }
 
     const body = await req.json();
@@ -20,8 +31,6 @@ export async function POST(req: Request) {
     }
 
     const registry = new AgentRegistry(client);
-
-    // Bootstrap Core agents
     for (const agentDef of CORE_GOVERNANCE_AGENTS) {
       await registry.register(agentDef);
     }

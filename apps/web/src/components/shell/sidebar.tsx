@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname , Dna } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { 
   Hexagon, 
   LayoutDashboard, 
@@ -12,9 +12,11 @@ import {
   ScrollText,
   Activity,
   FolderKanban,
-  MessageSquare
-, Dna } from 'lucide-react';
-import { cn , Dna } from '@/lib/utils/cn';
+  MessageSquare,
+  CreditCard,
+  Dna
+} from 'lucide-react';
+import { cn } from '@/lib/utils/cn';
 
 const NAVIGATION = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -25,6 +27,7 @@ const NAVIGATION = [
   { name: 'Verification', href: '/verification', icon: ShieldCheck },
   { name: 'Execution', href: '/execution', icon: TerminalSquare },
   { name: 'Evolution', href: '/evolution', icon: Dna },
+  { name: 'Billing', href: '/billing', icon: CreditCard },
   { name: 'Observability', href: '/security', icon: Activity },
 ];
 
@@ -85,4 +88,3 @@ export function Sidebar() {
     </aside>
   );
 }
-

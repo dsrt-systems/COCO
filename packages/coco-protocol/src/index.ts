@@ -15,3 +15,5 @@ export * from './security';
 export * from './ranger';
 
 export * from './evolution';
+
+export * from './billing';

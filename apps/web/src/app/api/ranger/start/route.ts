@@ -3,6 +3,7 @@ import { createServerSupabase } from '@/lib/supabase/server';
 import { MissionSupervisor } from '@coco/kernel/ranger';
 import { MissionCharterSchema } from '@coco/protocol';
 import { prefixedId } from '@coco/common';
+import { assertOrgCanSpend, meterModelInference } from '@coco/billing';
 
 export async function POST(req: Request) {
   try {
@@ -13,10 +14,23 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const missionId = body.mission_id ?? prefixedId('mission');
-    
-    // Construct charter
+    const maxCost = body.max_cost_usd ?? 25.0;
+
+    // Tier envelope pre-check (parallelism + spend headroom)
+    try {
+      await assertOrgCanSpend(client, organizationId, {
+        estimated_cost_usd: Math.min(1.0, maxCost * 0.05), // small reservation to start
+        requires_frontier: body.requires_frontier === true,
+        parallel_agents: body.parallel_agents ?? 4,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Tier limit exceeded';
+      const code = (err as any)?.code ?? 'budget_exhausted';
+      return NextResponse.json({ error: msg, code }, { status: 402 });
+    }
+
     const charterInput = {
-      charter_id: prefixedId('charter' as any),
+      charter_id: prefixedId('proposal'), // stable id kind available
       mission_id: missionId,
       organization_id: organizationId,
       authorized_by_user_id: user.id,
@@ -28,9 +42,9 @@ export async function POST(req: Request) {
       budget: {
         max_compute_seconds: 3600,
         max_wall_clock_seconds: 86400,
-        max_parallel_agents: 4,
+        max_parallel_agents: body.parallel_agents ?? 4,
         max_model_tokens_total: 1000000,
-        max_cost_usd: body.max_cost_usd ?? 25.0,
+        max_cost_usd: maxCost,
       },
       scope: {
         allowed_tools: ['d1_browser_automation', 'd2_terminal_exec', 'd3_git_manager', 'd4_db_query'],
@@ -46,7 +60,6 @@ export async function POST(req: Request) {
 
     const charter = MissionCharterSchema.parse(charterInput);
 
-    // Create mission row if not exists
     await client
       .schema('missions')
       .from('missions')
@@ -61,10 +74,14 @@ export async function POST(req: Request) {
         delivery_mode: 'checkpointed',
         phase: 'created',
         budget: charter.budget,
-        usage: { compute_seconds_used: 0, wall_clock_seconds: 0, model_tokens_used: 0, cost_usd_accrued: 0 },
+        usage: {
+          compute_seconds_used: 0,
+          wall_clock_seconds: 0,
+          model_tokens_used: 0,
+          cost_usd_accrued: 0,
+        },
       }, { onConflict: 'mission_id' });
 
-    // Instantiate & run supervisor
     const supervisor = new MissionSupervisor(client, {
       missionId,
       organizationId,
@@ -72,6 +89,20 @@ export async function POST(req: Request) {
     });
 
     const result = await supervisor.runMissionLoop();
+
+    // Meter a summary usage line for the mission run cost if present
+    if (result.total_cost_usd > 0) {
+      await meterModelInference(client, {
+        organizationId,
+        missionId,
+        userId: user.id,
+        modelId: 'ranger/mission_rollups',
+        inputTokens: 0,
+        outputTokens: 0,
+        costUsd: result.total_cost_usd,
+        provider: 'internal',
+      });
+    }
 
     return NextResponse.json({ result, charter }, { status: 201 });
   } catch (err: unknown) {
