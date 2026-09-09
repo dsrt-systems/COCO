@@ -36,20 +36,32 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // 1. Create user via Server Admin API (Zero emails requested = Zero rate limit errors)
+      const res = await fetch('/api/auth/sign-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        toast.error(result.error || 'Sign up failed');
+        return;
+      }
+
+      // 2. Sign in immediately
+      const { error: loginErr } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        toast.error(error.message);
-      } else if (data.session) {
-        toast.success('Account created successfully!');
-        router.push('/dashboard');
-      } else {
-        // If "Confirm email" is still on in Supabase, they won't get a session immediately.
-        toast.success('Account created! You can now sign in.');
+      if (loginErr) {
+        toast.success('Account created! Please sign in.');
         router.push('/sign-in');
+      } else {
+        toast.success('Account created & signed in!');
+        router.push('/dashboard');
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Sign up failed');
@@ -72,7 +84,7 @@ export default function SignUpPage() {
             <UserPlus className="w-6 h-6 text-purple-400" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-100">Create Account</h1>
-          <p className="text-xs text-zinc-400">Sign up with your email and a secure password.</p>
+          <p className="text-xs text-zinc-400">Sign up instantly with your email and password.</p>
         </div>
 
         <form onSubmit={handleSignUp} className="space-y-4">
