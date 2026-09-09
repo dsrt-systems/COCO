@@ -7,14 +7,13 @@ import {
   LayoutDashboard, 
   BrainCircuit, 
   ShieldCheck, 
-  Cpu, 
   TerminalSquare, 
-  ScrollText,
   Activity,
   FolderKanban,
   MessageSquare,
   CreditCard,
-  Dna
+  Dna,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -24,6 +23,7 @@ const NAVIGATION = [
   { name: 'Missions', href: '/missions', icon: Hexagon },
   { name: 'Conversations', href: '/conversations', icon: MessageSquare },
   { name: 'Project Brain', href: '/brain', icon: BrainCircuit },
+  { name: 'Specialists', href: '/specialists', icon: Users },
   { name: 'Verification', href: '/verification', icon: ShieldCheck },
   { name: 'Execution', href: '/execution', icon: TerminalSquare },
   { name: 'Evolution', href: '/evolution', icon: Dna },

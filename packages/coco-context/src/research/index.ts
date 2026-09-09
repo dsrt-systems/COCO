@@ -93,3 +93,5 @@ export async function linkCitation(
     });
   if (error) throw new Error(`Citation linking failed: ${error.message}`);
 }
+
+export * from './corpus-pipeline.js';

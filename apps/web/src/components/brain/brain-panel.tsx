@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Loader2, Network, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Network } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,6 @@ export function BrainPanel({ projectId }: BrainPanelProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
 
-  // Add form
   const [label, setLabel] = useState('');
   const [nodeType, setNodeType] = useState('concept');
   const [description, setDescription] = useState('');
@@ -127,7 +126,7 @@ export function BrainPanel({ projectId }: BrainPanelProps) {
           <h2 className="text-lg font-semibold text-zinc-100">
             Project Brain
             <span className="ml-2 text-xs font-mono text-zinc-500">
-              {nodes.length} nodes · {edges.length} edges
+              {nodes.length} nodes &middot; {edges.length} edges
             </span>
           </h2>
         </div>
@@ -192,7 +191,7 @@ export function BrainPanel({ projectId }: BrainPanelProps) {
                   onChange={(e) => setEdgeFrom(e.target.value)}
                   className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 h-9 text-sm text-zinc-100"
                 >
-                  <option value="">Select node…</option>
+                  <option value="">Select node&hellip;</option>
                   {nodes.map((n) => (
                     <option key={n.node_id} value={n.node_id}>{n.label}</option>
                   ))}
@@ -214,7 +213,7 @@ export function BrainPanel({ projectId }: BrainPanelProps) {
                   onChange={(e) => setEdgeTo(e.target.value)}
                   className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 h-9 text-sm text-zinc-100"
                 >
-                  <option value="">Select node…</option>
+                  <option value="">Select node&hellip;</option>
                   {nodes.map((n) => (
                     <option key={n.node_id} value={n.node_id}>{n.label}</option>
                   ))}
@@ -282,7 +281,7 @@ export function BrainPanel({ projectId }: BrainPanelProps) {
                       .map((e) => {
                         const otherId = e.from_node_id === selected.node_id ? e.to_node_id : e.from_node_id;
                         const other = nodes.find((n) => n.node_id === otherId);
-                        const dir = e.from_node_id === selected.node_id ? '→' : '←';
+                        const dir = e.from_node_id === selected.node_id ? '&rarr;' : '&larr;';
                         return (
                           <div key={e.edge_id} className="text-[11px] text-zinc-400 font-mono">
                             {dir} <span className="text-indigo-400">{e.relation}</span> {other?.label ?? otherId.slice(0, 8)}

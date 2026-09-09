@@ -64,7 +64,7 @@ export function EvidenceAppendix({ projectId }: EvidenceAppendixProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && fetchAppendix(query)}
-              placeholder="Search claims, sources…"
+              placeholder="Search claims, sources&hellip;"
               className="bg-zinc-900 border-zinc-800 text-zinc-100 text-xs h-8 pl-8 w-52"
             />
           </div>
@@ -74,7 +74,6 @@ export function EvidenceAppendix({ projectId }: EvidenceAppendixProps) {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 border-b border-zinc-800 pb-px">
         {([
           { id: 'evidence', label: `Evidence (${evidence.length})` },
@@ -115,7 +114,7 @@ export function EvidenceAppendix({ projectId }: EvidenceAppendixProps) {
                   </div>
                   {ev.extracted_quote && (
                     <blockquote className="border-l-2 border-emerald-500/40 pl-3 text-xs text-zinc-400 italic">
-                      "{ev.extracted_quote}"
+                      &ldquo;{ev.extracted_quote}&rdquo;
                     </blockquote>
                   )}
                   <div className="flex items-center gap-2 flex-wrap text-[10px]">
@@ -137,7 +136,7 @@ export function EvidenceAppendix({ projectId }: EvidenceAppendixProps) {
                     )}
                     {ev.triangulation_count > 1 && (
                       <span className="text-emerald-500/80 font-mono">
-                        ×{ev.triangulation_count} sources
+                        &times;{ev.triangulation_count} sources
                       </span>
                     )}
                   </div>
@@ -193,7 +192,7 @@ export function EvidenceAppendix({ projectId }: EvidenceAppendixProps) {
                 <Card key={c.citation_id} className="p-3 border-zinc-800 bg-zinc-950/50 flex items-center gap-3 text-xs">
                   <Link2 className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
                   <span className="font-mono text-zinc-500">{c.cited_from_kind}</span>
-                  <span className="text-zinc-600">→</span>
+                  <span className="text-zinc-600">&rarr;</span>
                   <span className="font-mono text-zinc-400 truncate">{c.cited_from_id}</span>
                   <span className="text-zinc-600">cites</span>
                   <span className="font-mono text-emerald-400/80 truncate">{c.evidence_id}</span>

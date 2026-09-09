@@ -2,10 +2,8 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { NightlyEvolutionJob } from '@coco/evolution';
 
-export async function POST(req: Request) {
+export async function POST(_req: Request) {
   try {
-    // In prod, secure this via CRON_SECRET header matching.
-    // For dev/UI testing, we allow authenticated org users to trigger it.
     const { client, user, organizationId } = await createServerSupabase();
     if (!user || !organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

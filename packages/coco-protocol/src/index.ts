@@ -17,3 +17,5 @@ export * from './ranger';
 export * from './evolution';
 
 export * from './billing';
+
+export * from './corpus';
